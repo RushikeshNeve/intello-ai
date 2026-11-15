@@ -1,0 +1,45 @@
+# RushDB 3 — tenant-isolated knowledge index (M00.02.02; ADR-012/014, validated in M00.03).
+#
+# Standalone:
+#   docker compose -p ukos-rushdb --env-file infrastructure/env/.env.example \
+#     -f infrastructure/compose/rushdb.yml up -d --wait
+#
+# Notes (see docs/spikes/rushdb-validation.md):
+#   * RushDB 3.x is a single Rust binary (distroless image, entrypoint `rushdb serve`).
+#     Data lives in /data (RUSHDB_DATA_DIR in the image), persisted in the named volume.
+#   * --multitenant: one fail-closed keyspace per organization. Every request must carry
+#     `X-RushDB-Tenant` + `context.scope`. The mode is fixed for the life of the data
+#     directory (a volume created in one mode refuses to start in the other).
+#   * --pgwire-port 0: the API talks HTTP only. RushDB also refuses to bind pgwire/gRPC/Bolt
+#     on a non-loopback listener in multitenant mode, and the container listens on 0.0.0.0.
+#   * --languages adds Cypher (HTTP only, no Bolt) to the default set
+#     (sql,gremlin,sql-pgq,mongodb) for graph traversal statements.
+#   * RUSHDB_TOKEN is the operator (bootstrap) token: valid for EVERY tenant. Only the API
+#     may hold it; it must never reach the browser or a worker that does not need it.
+services:
+  rushdb:
+    image: ${RUSHDB_IMAGE:-rushdb/rushdb:3.0.10}
+    environment:
+      RUSHDB_TOKEN: ${RUSHDB_TOKEN:?set RUSHDB_TOKEN}
+    command:
+      - --multitenant
+      - --pgwire-port
+      - "0"
+      - --languages
+      - sql,gremlin,sql-pgq,mongodb,cypher
+    ports:
+      - "${UKOS_BIND_HOST:-127.0.0.1}:${RUSHDB_HTTP_HOST_PORT:-3310}:3000"
+    volumes:
+      - rushdb-data:/data
+    healthcheck:
+      # Distroless image: no shell or curl; the binary probes GET /health itself.
+      test: ["CMD", "/usr/local/bin/rushdb", "health"]
+      interval: 5s
+      timeout: 5s
+      start_period: 10s
+      retries: 12
+    # A clean stop drains requests and maintenance and writes a checkpoint.
+    stop_grace_period: 90s
+
+volumes:
+  rushdb-data:
