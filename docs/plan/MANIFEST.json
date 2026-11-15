@@ -1,0 +1,69 @@
+{
+  "version": "1.0",
+  "date": "2026-11-16",
+  "status": "planned",
+  "milestones": [
+    [
+      "M00",
+      "Architecture and local infrastructure",
+      13
+    ],
+    [
+      "M01",
+      "Identity, organizations and workspaces",
+      12
+    ],
+    [
+      "M02",
+      "Document library and object storage",
+      11
+    ],
+    [
+      "M03",
+      "Reliable knowledge ingestion",
+      14
+    ],
+    [
+      "M04",
+      "Universal search and grounded AI chat",
+      13
+    ],
+    [
+      "M05",
+      "Knowledge graph and GraphRAG",
+      11
+    ],
+    [
+      "M06",
+      "Connectors and universal formats",
+      11
+    ],
+    [
+      "M07",
+      "Memory, research and advanced UX",
+      11
+    ],
+    [
+      "M08",
+      "Security, evaluation and release hardening",
+      12
+    ]
+  ],
+  "total_leaf_tasks": 108,
+  "files": [
+    "ADR_REGISTER.md",
+    "AGENT_PLAYBOOK.md",
+    "M00_architecture_and_local_infrastructure.md",
+    "M01_identity,_organizations_and_workspaces.md",
+    "M02_document_library_and_object_storage.md",
+    "M03_reliable_knowledge_ingestion.md",
+    "M04_universal_search_and_grounded_ai_chat.md",
+    "M05_knowledge_graph_and_graphrag.md",
+    "M06_connectors_and_universal_formats.md",
+    "M07_memory,_research_and_advanced_ux.md",
+    "M08_security,_evaluation_and_release_hardening.md",
+    "MASTER_ARCHITECTURE.md",
+    "README.md",
+    "TASK_INDEX.csv"
+  ]
+}

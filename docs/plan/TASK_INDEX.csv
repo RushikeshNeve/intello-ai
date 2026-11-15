@@ -1,0 +1,109 @@
+task_id,milestone,module,title,owned_path,dependency,acceptance,status,assignee,branch
+M00.01.01,M00,Architecture contracts,Record system boundaries and ADR index,docs/architecture/system-boundaries.md,None,Boundary table and accepted/provisional ADR references are consistent,TODO,,agent/m00-01-01
+M00.01.02,M00,Architecture contracts,Define local environment variables,infrastructure/env/.env.example,None,Every service variable documented with safe placeholder,TODO,,agent/m00-01-02
+M00.01.03,M00,Architecture contracts,Create developer runbook,docs/development/local-runbook.md,None,"Clean-machine setup, startup and teardown steps documented",TODO,,agent/m00-01-03
+M00.02.01,M00,Local services,Compose PostgreSQL and Redis,infrastructure/compose/data.yml,None,Containers boot with health checks and volumes,TODO,,agent/m00-02-01
+M00.02.02,M00,Local services,Compose RushDB with persistence,infrastructure/compose/rushdb.yml,None,Restart preserves graph and vector records,TODO,,agent/m00-02-02
+M00.02.03,M00,Local services,Evaluate local S3-compatible storage,docs/spikes/object-storage.md,None,"API tests cover upload, signed reads and deletion",TODO,,agent/m00-02-03
+M00.02.04,M00,Local services,Compose local object-store adapter,infrastructure/compose/objects.yml,None,Object integration tests succeed,TODO,,agent/m00-02-04
+M00.02.05,M00,Local services,Add FastAPI and Next.js starter services,infrastructure/compose/apps.yml,None,Web and API health endpoints respond,TODO,,agent/m00-02-05
+M00.03.01,M00,Risk spikes,Implement RushDB tenant isolation spike,tests/spikes/rushdb_tenants.py,None,Cross-tenant read and traversal tests deny leakage,TODO,,agent/m00-03-01
+M00.03.02,M00,Risk spikes,Implement RushDB hybrid retrieval spike,tests/spikes/rushdb_hybrid.py,None,"BM25, vector and filtered fusion return expected fixtures",TODO,,agent/m00-03-02
+M00.03.03,M00,Risk spikes,Implement graph provenance spike,tests/spikes/rushdb_graph.py,None,Evidence-linked traversal and deletion tests pass,TODO,,agent/m00-03-03
+M00.03.04,M00,Risk spikes,Benchmark local embeddings and generation,docs/spikes/local-models.md,None,"Record memory, speed, accuracy and chosen fallback",TODO,,agent/m00-03-04
+M00.03.05,M00,Risk spikes,Verify backup and restore spike,scripts/restore_smoke.sh,None,Restored data matches fixture checksums,TODO,,agent/m00-03-05
+M01.01.01,M01,Identity,Integrate local OIDC issuer verification,apps/api/app/modules/identity/oidc.py,M00 exit gate,"Invalid issuer, audience and expired tokens rejected",TODO,,agent/m01-01-01
+M01.01.02,M01,Identity,Build session handling in web,apps/web/src/features/auth/,M00 exit gate,Login/logout and HttpOnly cookie flow tested,TODO,,agent/m01-01-02
+M01.01.03,M01,Identity,Create user provisioning on first sign-in,apps/api/app/modules/identity/provisioning.py,M00 exit gate,Idempotent user creation confirmed,TODO,,agent/m01-01-03
+M01.02.01,M01,Tenancy,Create organization schema and migration,apps/api/migrations/versions/,M00 exit gate,Unique organizations and owner membership constraints pass,TODO,,agent/m01-02-01
+M01.02.02,M01,Tenancy,Implement organization REST endpoints,apps/api/app/modules/organizations/api.py,M00 exit gate,CRUD enforces membership roles,TODO,,agent/m01-02-02
+M01.02.03,M01,Tenancy,Build organization switcher,apps/web/src/features/organizations/,M00 exit gate,Scope visibly changes and query cache clears,TODO,,agent/m01-02-03
+M01.02.04,M01,Tenancy,Create workspace schema and endpoints,apps/api/app/modules/workspaces/,M00 exit gate,Workspace CRUD and memberships tested,TODO,,agent/m01-02-04
+M01.02.05,M01,Tenancy,Build workspace navigation,apps/web/src/features/workspaces/,M00 exit gate,Deep links load authorized workspace,TODO,,agent/m01-02-05
+M01.03.01,M01,Permissions,Implement RBAC policy decision service,apps/api/app/modules/authorization/policy.py,M00 exit gate,Role matrix tests cover allow/deny cases,TODO,,agent/m01-03-01
+M01.03.02,M01,Permissions,Implement PostgreSQL RLS and regression tests,tests/security/postgres_rls/,M00 exit gate,Cross-organization SQL access denied,TODO,,agent/m01-03-02
+M01.03.03,M01,Permissions,Add document grant model contracts,apps/api/app/modules/authorization/grants.py,M00 exit gate,"Grant, revoke and expiration semantics validated",TODO,,agent/m01-03-03
+M01.03.04,M01,Permissions,Record auditable security events,apps/api/app/modules/audit/,M00 exit gate,Membership and role changes create redacted audit records,TODO,,agent/m01-03-04
+M02.01.01,M02,Object layer,Implement S3-compatible storage port,apps/api/app/modules/storage/ports.py,M01 exit gate,Port covers put/get/delete/sign and multipart contract,TODO,,agent/m02-01-01
+M02.01.02,M02,Object layer,Implement local object-store adapter,apps/api/app/infrastructure/object_storage/,M01 exit gate,Contract tests pass against local store,TODO,,agent/m02-01-02
+M02.01.03,M02,Object layer,Issue upload sessions with quotas,apps/api/app/modules/documents/upload.py,M01 exit gate,Unauthorized/oversize uploads rejected,TODO,,agent/m02-01-03
+M02.01.04,M02,Object layer,Finalize uploads with checksum verification,apps/api/app/modules/documents/finalize.py,M01 exit gate,"Missing, altered or orphan objects rejected",TODO,,agent/m02-01-04
+M02.02.01,M02,Document model,"Create documents, versions and sources migrations",apps/api/migrations/versions/,M01 exit gate,Immutable version and foreign key invariants tested,TODO,,agent/m02-02-01
+M02.02.02,M02,Document model,Build document catalog CRUD endpoints,apps/api/app/modules/documents/api.py,M01 exit gate,Filtering/pagination and grants enforced,TODO,,agent/m02-02-02
+M02.02.03,M02,Document model,Implement version timeline and retention status,apps/api/app/modules/documents/versions.py,M01 exit gate,Versions cannot be silently overwritten,TODO,,agent/m02-02-03
+M02.02.04,M02,Document model,Implement deletion request and access denial,apps/api/app/modules/documents/deletion.py,M01 exit gate,Deleted items denied before physical purge,TODO,,agent/m02-02-04
+M02.03.01,M02,Library UI,Build drag/drop upload component,apps/web/src/features/documents/upload/,M01 exit gate,Upload retries and error states testable,TODO,,agent/m02-03-01
+M02.03.02,M02,Library UI,Build searchable document table,apps/web/src/features/documents/library/,M01 exit gate,Pagination and filters persist in URL,TODO,,agent/m02-03-02
+M02.03.03,M02,Library UI,Build basic versioned document preview,apps/web/src/features/documents/viewer/,M01 exit gate,Authorized version opens and unavailable state handled,TODO,,agent/m02-03-03
+M03.01.01,M03,Task infrastructure,Implement jobs and outbox schema,apps/api/app/modules/ingestion/models.py,M02 exit gate,Atomic create job + outbox transaction test passes,TODO,,agent/m03-01-01
+M03.01.02,M03,Task infrastructure,Build outbox dispatcher,apps/api/app/workers/dispatcher.py,M03.01.01,Crash/replay does not lose work,TODO,,agent/m03-01-02
+M03.01.03,M03,Task infrastructure,Configure Redis Celery worker queues,apps/api/app/workers/celery_app.py,M03.01.02,Routing and worker recovery verified,TODO,,agent/m03-01-03
+M03.01.04,M03,Task infrastructure,"Build job claims, leases and heartbeats",apps/api/app/modules/ingestion/execution.py,M03.01.03,Concurrent workers cannot publish same job,TODO,,agent/m03-01-04
+M03.02.01,M03,Processing,Define canonical extracted-content contract,apps/api/app/modules/ingestion/contracts.py,M02 exit gate,Contains modality and source locators,TODO,,agent/m03-02-01
+M03.02.02,M03,Processing,Implement PDF/TXT/MD/HTML processors,apps/api/app/modules/ingestion/processors/,M03.02.01,Golden extraction fixtures pass,TODO,,agent/m03-02-02
+M03.02.03,M03,Processing,Add normalization and chunking stages,apps/api/app/modules/ingestion/chunking.py,M03.02.02,Stable chunks and source offsets produced,TODO,,agent/m03-02-03
+M03.02.04,M03,Processing,Add checkpoint and artifact fingerprints,apps/api/app/modules/ingestion/checkpoints.py,M03.02.03,Repeated stages reuse artifacts safely,TODO,,agent/m03-02-04
+M03.02.05,M03,Processing,Implement local embedding adapter,apps/api/app/modules/ai/embeddings/,M03.02.04,Dimension and model space validation passes,TODO,,agent/m03-02-05
+M03.03.01,M03,Publication,Create RushDB knowledge repository adapter,apps/api/app/infrastructure/rushdb/repository.py,M02 exit gate,Tenant-scoped CRUD and search contracts pass,TODO,,agent/m03-03-01
+M03.03.02,M03,Publication,Implement versioned chunk indexing,apps/api/app/modules/knowledge/indexing.py,M03.03.01,Duplicate task does not duplicate knowledge,TODO,,agent/m03-03-02
+M03.03.03,M03,Publication,Implement publication barrier,apps/api/app/modules/knowledge/publication.py,M03.03.02,Unfinished revisions never retrievable,TODO,,agent/m03-03-03
+M03.03.04,M03,Publication,Build ingestion status SSE and UI,apps/web/src/features/ingestion/,M03.03.03,Reconnection returns current persisted state,TODO,,agent/m03-03-04
+M03.03.05,M03,Publication,"Build retry, dead-letter and reconciliation tests",tests/integration/ingestion_recovery/,M03.03.04,Crash-injection suite recovers deterministically,TODO,,agent/m03-03-05
+M04.01.01,M04,Retrieval,Define authorized retrieval scope,apps/api/app/modules/retrieval/scope.py,M03 exit gate,Client cannot mint privileged scope,TODO,,agent/m04-01-01
+M04.01.02,M04,Retrieval,Implement RushDB filtered keyword and vector search,apps/api/app/modules/retrieval/hybrid.py,M03 exit gate,Cross-workspace fixtures filtered before answer,TODO,,agent/m04-01-02
+M04.01.03,M04,Retrieval,"Add fusion, reranking and evidence deduplication",apps/api/app/modules/retrieval/ranking.py,M03 exit gate,Offline retrieval golden set tracked,TODO,,agent/m04-01-03
+M04.01.04,M04,Retrieval,Implement provenance-aware citation resolver,apps/api/app/modules/retrieval/citations.py,M03 exit gate,Every citation resolves to authorized version,TODO,,agent/m04-01-04
+M04.02.01,M04,Generation,Define model gateway and local provider adapter,apps/api/app/modules/ai/gateway.py,M03 exit gate,Model policy denies forbidden providers,TODO,,agent/m04-02-01
+M04.02.02,M04,Generation,Implement evidence-first prompt assembly,apps/api/app/modules/ai/context.py,M03 exit gate,Only approved chunks enter context,TODO,,agent/m04-02-02
+M04.02.03,M04,Generation,Implement answer verification and abstention,apps/api/app/modules/ai/verification.py,M03 exit gate,Unsupported claims are flagged or withheld,TODO,,agent/m04-02-03
+M04.02.04,M04,Generation,Implement persistent chat runs and SSE stream,apps/api/app/modules/ai/chat.py,M03 exit gate,Reconnect never duplicates run or tokens,TODO,,agent/m04-02-04
+M04.03.01,M04,Experience and evaluation,Build unified search UI,apps/web/src/features/search/,M03 exit gate,"Scope, filters and links persist",TODO,,agent/m04-03-01
+M04.03.02,M04,Experience and evaluation,Build chat and citation navigation,apps/web/src/features/chat/,M03 exit gate,Source click opens correct evidence,TODO,,agent/m04-03-02
+M04.03.03,M04,Experience and evaluation,Build split-view PDF/text evidence viewer,apps/web/src/features/evidence/,M03 exit gate,Page and excerpt highlights resolve,TODO,,agent/m04-03-03
+M04.03.04,M04,Experience and evaluation,Create golden RAG evaluation dataset,tests/evaluation/datasets/,M03 exit gate,"Answerable, unanswerable and permission cases included",TODO,,agent/m04-03-04
+M04.03.05,M04,Experience and evaluation,Add CI retrieval and citation quality gates,tests/evaluation/,M03 exit gate,Benchmark regression gate produces machine-readable report,TODO,,agent/m04-03-05
+M05.01.01,M05,Graph modeling,Define graph ontology and schema contracts,docs/architecture/knowledge-ontology.md,M04 exit gate,Node and edge types and provenance specified,TODO,,agent/m05-01-01
+M05.01.02,M05,Graph modeling,Implement entity extraction stage,apps/api/app/modules/knowledge/entities.py,M04 exit gate,Extractor records source and version IDs,TODO,,agent/m05-01-02
+M05.01.03,M05,Graph modeling,Implement entity resolution and canonical IDs,apps/api/app/modules/knowledge/resolution.py,M04 exit gate,Conflicting identities remain reviewable,TODO,,agent/m05-01-03
+M05.01.04,M05,Graph modeling,Implement claim and evidence-backed edge writes,apps/api/app/modules/knowledge/claims.py,M04 exit gate,Unsupported edges cannot appear verified,TODO,,agent/m05-01-04
+M05.02.01,M05,Graph retrieval,Implement permission-safe graph traversal,apps/api/app/modules/retrieval/graph.py,M04 exit gate,Restricted-edge leakage tests pass,TODO,,agent/m05-02-01
+M05.02.02,M05,Graph retrieval,Implement selective retrieval router,apps/api/app/modules/retrieval/router.py,M04 exit gate,Basic questions do not require graph path,TODO,,agent/m05-02-02
+M05.02.03,M05,Graph retrieval,Implement graph-enhanced evidence merge,apps/api/app/modules/retrieval/graph_merge.py,M04 exit gate,Graph paths cite accessible original evidence,TODO,,agent/m05-02-03
+M05.03.01,M05,Graph experience,Expose bounded neighborhood graph API,apps/api/app/modules/knowledge/graph_api.py,M04 exit gate,Pagination and node limits enforced,TODO,,agent/m05-03-01
+M05.03.02,M05,Graph experience,Build contextual React Flow explorer,apps/web/src/features/knowledge-graph/,M04 exit gate,Expandable nodes with keyboard use,TODO,,agent/m05-03-02
+M05.03.03,M05,Graph experience,Build edge provenance inspection,apps/web/src/features/knowledge-graph/evidence/,M04 exit gate,Selecting edge opens supporting citation,TODO,,agent/m05-03-03
+M05.03.04,M05,Graph experience,Benchmark hybrid versus GraphRAG,tests/evaluation/graph/,M04 exit gate,Quality and latency delta reported,TODO,,agent/m05-03-04
+M06.01.01,M06,Connector framework,Define source connector port and sync cursor,apps/api/app/modules/connectors/contracts.py,M05 exit gate,Cursor replay and authentication contract documented,TODO,,agent/m06-01-01
+M06.01.02,M06,Connector framework,Build safe URL capture processor,apps/api/app/modules/connectors/url_capture.py,M05 exit gate,"SSRF, redirect and size tests pass",TODO,,agent/m06-01-02
+M06.01.03,M06,Connector framework,Build connector token encryption abstraction,apps/api/app/modules/connectors/secrets.py,M05 exit gate,Secrets never appear in logs,TODO,,agent/m06-01-03
+M06.01.04,M06,Connector framework,Implement scheduler and webhook ingestion,apps/api/app/modules/connectors/scheduler.py,M05 exit gate,Duplicate notification safe,TODO,,agent/m06-01-04
+M06.01.05,M06,Connector framework,Implement first connector discovery and delta sync,apps/api/app/modules/connectors/provider_one/,M05 exit gate,New/update/delete delta fixture succeeds,TODO,,agent/m06-01-05
+M06.01.06,M06,Connector framework,Implement access revocation reconciliation,apps/api/app/modules/connectors/revocation.py,M05 exit gate,Revoked source immediately blocked,TODO,,agent/m06-01-06
+M06.02.01,M06,Format expansion,Add CSV/XLSX structural extraction,apps/api/app/modules/ingestion/processors/spreadsheet.py,M05 exit gate,Sheet/cell citations verified,TODO,,agent/m06-02-01
+M06.02.02,M06,Format expansion,Implement repository file and commit locators,apps/api/app/modules/ingestion/processors/code.py,M05 exit gate,File path and commit pinned,TODO,,agent/m06-02-02
+M06.02.03,M06,Format expansion,Add image OCR processor contract,apps/api/app/modules/ingestion/processors/image.py,M05 exit gate,OCR provenance and graceful no-model fallback,TODO,,agent/m06-02-03
+M06.02.04,M06,Format expansion,Add audio transcript processor contract,apps/api/app/modules/ingestion/processors/audio.py,M05 exit gate,Timestamped passages and size limits verified,TODO,,agent/m06-02-04
+M06.02.05,M06,Format expansion,Add video processing capability flag,apps/api/app/modules/ingestion/processors/video.py,M05 exit gate,Unsupported hardware/config gives explicit status,TODO,,agent/m06-02-05
+M07.01.01,M07,Memory,Define approved memory model and lifecycle,apps/api/app/modules/memory/models.py,M06 exit gate,"Owner, scope, evidence, approval and expiry recorded",TODO,,agent/m07-01-01
+M07.01.02,M07,Memory,Build memory suggestion and approval APIs,apps/api/app/modules/memory/api.py,M06 exit gate,Unapproved suggestion never becomes durable fact,TODO,,agent/m07-01-02
+M07.01.03,M07,Memory,Implement evidence-change memory invalidation,apps/api/app/modules/memory/invalidation.py,M06 exit gate,Source revocation invalidates derived memories,TODO,,agent/m07-01-03
+M07.01.04,M07,Memory,Build memory approval interface,apps/web/src/features/memory/,M06 exit gate,Approve/reject and provenance preview work,TODO,,agent/m07-01-04
+M07.02.01,M07,Research workflows,Implement saved research sessions,apps/api/app/modules/research/sessions.py,M06 exit gate,Sessions recover after interruption,TODO,,agent/m07-02-01
+M07.02.02,M07,Research workflows,Implement bounded research planner,apps/api/app/modules/research/planner.py,M06 exit gate,"Task count, cost and scope limits enforced",TODO,,agent/m07-02-02
+M07.02.03,M07,Research workflows,Generate sourced research reports,apps/api/app/modules/research/reports.py,M06 exit gate,Every sourced statement has traceable evidence,TODO,,agent/m07-02-03
+M07.02.04,M07,Research workflows,Build research workspace and saved outputs,apps/web/src/features/research/,M06 exit gate,Users reopen reports and citations,TODO,,agent/m07-02-04
+M07.03.01,M07,UX refinement,Implement command palette and keyboard navigation,apps/web/src/features/command-palette/,M06 exit gate,Main workflows usable from keyboard,TODO,,agent/m07-03-01
+M07.03.02,M07,UX refinement,Implement source-locator viewers for code and sheets,apps/web/src/features/evidence/renderers/,M06 exit gate,Exact line and cell ranges open,TODO,,agent/m07-03-02
+M07.03.03,M07,UX refinement,Implement light/dark and responsive panels,apps/web/src/features/workspace/layout/,M06 exit gate,Responsive and reduced-motion tests pass,TODO,,agent/m07-03-03
+M08.01.01,M08,Security,Run tenant and resource-grant adversarial suite,tests/security/isolation/,M07 exit gate,No unauthorized retrieval or graph counts,TODO,,agent/m08-01-01
+M08.01.02,M08,Security,Run prompt injection and tool permission tests,tests/security/ai_injection/,M07 exit gate,Malicious source cannot modify policy,TODO,,agent/m08-01-02
+M08.01.03,M08,Security,Test full deletion lineage and cache invalidation,tests/security/deletion/,M07 exit gate,Search/graph/memory/cache inaccessible after delete,TODO,,agent/m08-01-03
+M08.01.04,M08,Security,Validate credential rotation and connector revoke,tests/security/secrets/,M07 exit gate,Rotation/revocation does not leak tokens,TODO,,agent/m08-01-04
+M08.02.01,M08,Reliability,Implement database/object backup automation,infrastructure/backup/,M07 exit gate,All stores backed up with checksums,TODO,,agent/m08-02-01
+M08.02.02,M08,Reliability,Perform full restore rehearsal,tests/disaster_recovery/,M07 exit gate,"Catalog, files, graph and index checks pass",TODO,,agent/m08-02-02
+M08.02.03,M08,Reliability,Build load and fault-injection tests,tests/performance/,M07 exit gate,"p95, worker recovery and quota behavior recorded",TODO,,agent/m08-02-03
+M08.02.04,M08,Reliability,Add structured tracing and local dashboards,infrastructure/observability/,M07 exit gate,API to worker to AI spans correlated,TODO,,agent/m08-02-04
+M08.03.01,M08,Release,Create CI quality and contract gates,.github/workflows/ci.yml,M07 exit gate,"Lint, tests, dependency checks and build gated",TODO,,agent/m08-03-01
+M08.03.02,M08,Release,Document installation and security runbooks,docs/operations/,M07 exit gate,Reproducible clean-machine setup and incident steps,TODO,,agent/m08-03-02
+M08.03.03,M08,Release,Run acceptance suite and release checklist,docs/releases/mvp-checklist.md,M07 exit gate,All P0 gates and evidence attached,TODO,,agent/m08-03-03
+M08.03.04,M08,Release,Tag baseline and record deferrals,docs/releases/mvp-release.md,M07 exit gate,Release version and unsupported features explicit,TODO,,agent/m08-03-04

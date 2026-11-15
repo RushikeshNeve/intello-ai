@@ -1,0 +1,37 @@
+# Secrets / local env
+.env
+.env.*
+!.env.example
+!infrastructure/env/.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# Local runtime data / backups / reports
+.data/
+backups/
+tmp/
+*.log
+
+# Tooling state
+.omc/
+.claude/worktrees/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
