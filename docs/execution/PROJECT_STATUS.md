@@ -7,7 +7,7 @@
 
 | Milestone | Tasks | DONE | In progress | Gate |
 |---|---|---|---|---|
-| M00 Architecture & local infra | 13 | 1 | 10 | open |
+| M00 Architecture & local infra | 13 | 1 | 11 (4 in REVIEW, unverified) | open — session paused, see SESSION_HANDOFF.md |
 | M01 Identity, orgs, workspaces | 12 | 0 | 0 | blocked on M00 gate |
 | M02 Documents & object storage | 11 | 0 | 0 | blocked on M01 gate |
 | M03 Reliable ingestion | 14 | 0 | 0 | blocked on M02 gate |
