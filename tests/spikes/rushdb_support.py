@@ -94,7 +94,7 @@ class Tenant:
     # -- writes ------------------------------------------------------------
     def put(self, label: str, properties: dict, *, id: str | None = None, vectors: list | None = None) -> dict:
         m: dict[str, Any] = {"kind": "putRecord", "mode": "create", "label": label,
-                             "properties": properties, "options": {"suggestTypes": False}}
+                             "properties": properties, "options": {}}
         if id:
             m["id"] = id
         if vectors:
