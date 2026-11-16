@@ -39,11 +39,12 @@ Keep `DATABASE_URL`, `DATABASE_MIGRATION_URL`, `REDIS_URL` and `CELERY_BROKER_UR
 
 ```bash
 docker compose up -d --wait
-docker compose wait objectstore-init      # one-shot bucket/CORS bootstrap; must exit 0
+docker compose run --rm objectstore-init  # idempotent bucket/CORS bootstrap; must print "objectstore-init: done"
 ```
 
-`up --wait` returns once long-running services are healthy, but **not** when the one-shot `objectstore-init` has
-finished. That's why the second command is there.
+`up --wait` doesn't reliably report the result of the one-shot `objectstore-init`. Running it explicitly is
+idempotent and returns its exit code. (`docker compose wait objectstore-init` is **not** reliable: it errors with "no
+containers" once the one-shot has already exited.)
 
 ### Services and ports (all bound to 127.0.0.1)
 

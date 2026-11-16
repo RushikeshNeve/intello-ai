@@ -5,10 +5,10 @@
 #   docker compose -p ukos-objectstore --env-file infrastructure/env/.env.example \
 #     -f infrastructure/compose/objects.yml run --rm objectstore-init      # re-run is harmless
 #
-# NOTE: `up --wait` returns once objectstore is healthy and objectstore-init has *started*; it does
-# not wait for the one-shot to finish. Follow with `docker compose ... wait objectstore-init`
-# (returns its exit code), and give consumers
-# `depends_on: {objectstore-init: {condition: service_completed_successfully}}`.
+# NOTE: `up --wait` does not reliably report the one-shot's result. Run
+# `docker compose ... run --rm objectstore-init` (idempotent, returns its exit code); note that
+# `docker compose wait objectstore-init` errors with "no containers" once the one-shot has exited.
+# Consumers should declare `depends_on: {objectstore-init: {condition: service_completed_successfully}}`.
 #
 # Contract (infrastructure/env/.env.example): service `objectstore`, container port 9000
 # (S3_ENDPOINT_URL=http://objectstore:9000), host ${UKOS_BIND_HOST}:${OBJECT_STORE_HOST_PORT} (9300),

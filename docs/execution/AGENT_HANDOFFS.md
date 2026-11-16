@@ -52,3 +52,16 @@ One entry per task when it reaches REVIEW or DONE. The coordinator adds verifica
 - **Evidence:** `bash scripts/restore_smoke.sh` → `RESTORE SMOKE PASSED: restored data matches fixture checksums for objects, postgres, rushdb`, **exit code 0**. Restored: postgres rows=250 md5 c53b793a…; objects=12 sha256 dde726f4… (matches the generator); rushdb chunks=40, has_chunk_rels=40, mentions=8, sha256 d9d8ef50…. Nothing from `ukos-restore-smoke` was left behind afterwards.
 - **Fix during verification:** the first run failed at step 2 because Git Bash passed `/d/...` paths to Windows `docker.exe` with path conversion disabled. Fixed by normalizing the repo path with `cygpath -m`.
 - **Limitations:** Redis is deliberately not backed up (it's a broker, ADR-036). The object snapshot is valid only for the same provider and version; portable logical mirroring is M08.02.01. There is no point-in-time recovery: the RushDB WAL archive is untested.
+
+---
+
+## M00.02.05 — FastAPI + Next.js starters and apps.yml
+- **Owner:** platform-agent · **Branch:** `agent/m00-platform` (49c7447) · merged to `main` as b5607d6 · **Status:** DONE
+- **Files:** `apps/api/**` (uv project, `create_app()` factory, Settings, `/health/live`, `/health/ready`, Dockerfile, tests), `apps/web/**` (Next.js 16.4.6, React 19.3, Tailwind v4, shadcn/ui, `/api/health`, vitest, Dockerfile), `infrastructure/compose/apps.yml`, `tests/infrastructure/test_apps_health.py`
+- **Coordinator verification (on `main`):**
+  - API: `python -m ruff check` → All checks passed; `ruff format --check` → 12 files already formatted; `python -m pytest -q` → **8 passed** (1 Starlette deprecation warning); strict mypy in a `python:3.12-slim` container → **Success: no issues found in 11 source files**.
+  - Web, starting from `npm ci`: lint clean; test **1/1**; build compiled, `ƒ /api/health` dynamic; typecheck **initially FAILED on a fresh checkout** (`Cannot find name 'LayoutProps'`, a type generated only by a build). Fixed: `typecheck` now runs `next typegen && tsc --noEmit`, which passes after `rm -rf .next`.
+  - Integration: `UKOS_TEST_COMPOSE_PROJECT=ukos-verify-apps … python -m pytest -q tests/infrastructure/test_apps_health.py` → **6 passed in 43.43s**. All containers healthy and loopback-only; live 200, ready 200, openapi 200, web health 200; ready returns 503 when Redis is stopped. Nothing left behind.
+- **Deviation accepted:** the health route uses `await connection()` instead of `export const dynamic`, because Next 16 enables `cacheComponents` by default and that combination isn't supported.
+- **Host constraints:** Application Control blocks uv-managed Python and mypyc DLLs, so the venv is built from python.org Python and mypy runs in a container (runbook §7.1).
+- **Follow-ups:** readiness opens a new connection per call (pooling comes later); `npm audit` reports advisories in the scaffold's dependencies, to be triaged in M08.03.01; `API_SECRET_KEY` and `API_INTERNAL_BASE_URL` are reserved and not used yet.
