@@ -20,6 +20,7 @@ services:
       OIDC_API_CLIENT_SECRET: ${OIDC_API_CLIENT_SECRET:?OIDC_API_CLIENT_SECRET is required}
       OIDC_ID_TOKEN_TTL: ${OIDC_ID_TOKEN_TTL:-15m}
       OIDC_LOG_LEVEL: ${OIDC_LOG_LEVEL:-info}
+      OIDC_REDIRECT_URIS: ${OIDC_REDIRECT_URIS:-http://127.0.0.1:3300/api/auth/callback,http://localhost:3300/api/auth/callback}
     ports:
       - "${UKOS_BIND_HOST:-127.0.0.1}:${OIDC_HOST_PORT:-8380}:5556"
     volumes:

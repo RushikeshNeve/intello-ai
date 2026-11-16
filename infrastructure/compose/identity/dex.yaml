@@ -47,8 +47,9 @@ staticClients:
     name: Universal Knowledge OS
     secret: {{ getenv "OIDC_CLIENT_SECRET" | required "OIDC_CLIENT_SECRET is required" }}
     redirectURIs:
-      - http://127.0.0.1:3300/api/auth/callback
-      - http://localhost:3300/api/auth/callback
+{{- range (getenv "OIDC_REDIRECT_URIS" "http://127.0.0.1:3300/api/auth/callback,http://localhost:3300/api/auth/callback" | strings.Split ",") }}
+      - {{ . | strings.TrimSpace }}
+{{- end }}
   # The API's audience. ukos-web obtains tokens for it with scope
   # `audience:server:client_id:<OIDC_AUDIENCE>` (Dex cross-client trust).
   - id: {{ getenv "OIDC_AUDIENCE" "ukos-api" }}
