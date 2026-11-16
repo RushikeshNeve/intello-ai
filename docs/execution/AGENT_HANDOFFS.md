@@ -65,3 +65,29 @@ One entry per task when it reaches REVIEW or DONE. The coordinator adds verifica
 - **Deviation accepted:** the health route uses `await connection()` instead of `export const dynamic`, because Next 16 enables `cacheComponents` by default and that combination isn't supported.
 - **Host constraints:** Application Control blocks uv-managed Python and mypyc DLLs, so the venv is built from python.org Python and mypy runs in a container (runbook §7.1).
 - **Follow-ups:** readiness opens a new connection per call (pooling comes later); `npm audit` reports advisories in the scaffold's dependencies, to be triaged in M08.03.01; `API_SECRET_KEY` and `API_INTERNAL_BASE_URL` are reserved and not used yet.
+
+---
+
+## M00.03.04 — Local embeddings and generation benchmark (LM Studio)
+- **Owner:** models-agent · **Branch:** `agent/m00-models` (bdb07c7) · merged to `main` as 0e078e7 · **Status:** DONE
+- **History:** first run on Ollama in Docker. At the user's direction it was stopped and redone on LM Studio (DC-011); the Ollama numbers are discarded.
+- **Files:** `docs/spikes/local-models.md`, `docs/spikes/local-models-results.json`, `scripts/benchmarks/local_models.py`, `scripts/benchmarks/fixtures/{retrieval,grounded_qa}.json` (original fixtures: 50 retrieval pairs, 8 of them multilingual; 26 grounded-QA items: 16 answerable, 7 unanswerable, 3 injection)
+- **Agent results:**
+  - Embeddings: embedding-gemma-300m R@1 0.98 / MRR 0.985 / multilingual R@1 1.00, 768 dimensions, +396 MiB VRAM. qwen3-embedding-0.6b R@1 0.96. nomic-embed-v1.5 R@1 0.88.
+  - Chat: gemma-3-4b on GPU at 57.2 tok/s, correct 0.947, citations valid 0.737, abstention 1.00, injection resisted 0.667. On CPU: 12.3 tok/s with the same accuracy.
+  - gpt-oss-20b was aborted by the RAM watchdog. gemma-4-26b-a4b was skipped on its estimate (17.59 GiB against 9.4 GB available RAM).
+- **Coordinator verification (on `main`):** reran the chosen pair into a scratch output (committed results untouched): `python -I scripts/benchmarks/local_models.py --label coordinator-verify --gpu max --reps 1 --embed-models google/embedding-gemma-300m --chat-models google/gemma-3-4b --restore google/gemma-3-4b --out <scratch>`. Embedding accuracy **identical** (R@1 0.98, R@5 1.00, MRR 0.985, multilingual 1.00). Grounded QA **identical** (0.947 / 0.737 / abstention 1.0 / injection 0.667 / overall 0.769). VRAM delta 4460 vs 4459 MiB. Speed 52.8 tok/s against 57.2; that's a single rep, within run-to-run noise. LM Studio was left as found (gemma-3-4b loaded, server on 1234).
+- **Findings that bind later tasks:** the LM Studio licence forbids SaaS/ASP use, so it's local-only (DC-011). `/v1/embeddings` reports `prompt_tokens: 0`, so count tokens client-side. LM Studio loads models just-in-time, so allow-list models in the gateway. On 0.4.9, `--gpu off` is ignored for embedding models, so the CPU-only embedding path is unmeasured. The 3-injection set is small, and the model repeated one injected claim, so the gateway must post-validate citations (M04.02.03).
+- **Contract changes applied by coordinator:** `AI_PROVIDER=lmstudio`, `AI_BASE_URL`, `AI_HOST_BASE_URL`, `AI_EMBEDDING_MODEL`, `AI_EMBEDDING_DIMENSIONS=768`, `AI_CHAT_MODEL`. Removed `OLLAMA_*`.
+
+---
+
+## M00.01.02 — Local env contract
+- **Owner:** coordinator · **Status:** DONE
+- **Files:** `infrastructure/env/.env.example`, `tests/infrastructure/test_env_contract.py`
+- **Evidence:** `python -m pytest -q tests/infrastructure/test_env_contract.py` → **7 passed**. It checks that all 31 compose-interpolated variables are documented, every variable has a comment, secrets use `change-me-` placeholders, URLs embed only placeholder passwords, there are no credential-like strings, and ports bind through `UKOS_BIND_HOST`. A mutation check on a scratch copy (undocumented variable, real-looking password, 0.0.0.0 port) failed 3 tests, as expected.
+
+## M00.01.03 — Developer runbook
+- **Owner:** coordinator · **Status:** DONE
+- **File:** `docs/development/local-runbook.md`
+- **Evidence:** I executed §2–§5 on the full root stack: `cp .env.example .env`, `docker compose up -d --wait`, `docker compose run --rm objectstore-init`, the health checks, then `down -v`. All 6 services were healthy; ready returned postgres and redis ok; web 200; RushDB 200; anonymous object read 403; nothing left behind. The first execution caught an unreliable step (`docker compose wait objectstore-init`), which was replaced. The §4 LM Studio commands match the verified benchmark setup. The §6 test commands are the ones used for every verification above.

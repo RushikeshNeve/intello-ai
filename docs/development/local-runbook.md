@@ -12,7 +12,8 @@ Everything runs locally with **$0 recurring cost**. No cloud account is required
 | Python | 3.12, **python.org installer** on Windows | See §7.1 for why not uv-managed Python. |
 | uv | 0.11.x | `pip install uv` or the official installer. |
 | Node.js + npm | Node 24, npm 11 | npm is the package manager (no pnpm). |
-| NVIDIA driver (optional) | recent | Only for GPU-accelerated local inference. CPU works too. |
+| LM Studio (optional, for local AI) | 0.4.9, `lms` CLI | Runs natively on the host and serves the OpenAI-compatible API on 127.0.0.1:1234. See §4. |
+| NVIDIA driver (optional) | recent | GPU acceleration for LM Studio. CPU works too, just slower. |
 
 ## 2. First-time setup
 
@@ -56,7 +57,7 @@ containers" once the one-shot has already exited.)
 | objectstore (RustFS, S3 API) | http://127.0.0.1:9300 | container healthcheck |
 | postgres | 127.0.0.1:5532 | `pg_isready` |
 | redis | 127.0.0.1:6479 | `redis-cli ping` (password required) |
-| ollama (optional, §4) | http://127.0.0.1:11434 | container healthcheck |
+| LM Studio (host, optional, §4) | http://127.0.0.1:1234/v1 (containers: `host.docker.internal:1234`) | `lms server status` |
 
 These ports form a dedicated **UKOS block** (DC-003). It avoids clashes with other local projects that use 3000/5432/6379/8000.
 
@@ -68,10 +69,36 @@ curl -fsS http://127.0.0.1:8300/health/ready     # {"status":"ok","checks":{"pos
 curl -fsS http://127.0.0.1:3300/api/health       # {"status":"ok"}
 ```
 
-## 4. Local AI (optional)
+## 4. Local AI (optional): LM Studio
 
-<!-- Filled in from M00.03.04 (docs/spikes/local-models.md) once the benchmark is merged. -->
-See `docs/spikes/local-models.md` for the chosen models and the CPU fallback.
+Local inference runs in **LM Studio on the host**, not in a container (DC-011). It uses the GPU directly. The
+platform talks to it only through the OpenAI-compatible `/v1` API, so any other `/v1` server can replace it.
+
+```bash
+lms get google/embedding-gemma-300m        # default embedding model (768 dimensions, about 229 MB)
+lms get google/gemma-3-4b                  # default chat model (about 3.3 GB)
+lms load google/embedding-gemma-300m --gpu max -y
+lms load google/gemma-3-4b --gpu max --context-length 4096 -y
+lms server start                           # serves http://127.0.0.1:1234
+curl -fsS http://127.0.0.1:1234/v1/models  # both models listed
+```
+
+On Windows, if the `lms` command isn't found, use `%USERPROFILE%\.lmstudio\bin\lms.exe`.
+
+| Machine | What to run | Measured (M00.03.04, RTX 5050 8 GB) |
+|---|---|---|
+| NVIDIA GPU, ≥ 6 GB VRAM | both defaults with `--gpu max` | chat 57 tok/s; about 0.9 s per grounded answer; about 4.9 GB VRAM for both models |
+| CPU only | the same two models (no re-embedding needed) | chat about 12 tok/s; about 3.8 s per grounded answer |
+| Low RAM (< 8 GB free) | embeddings only (embedding-gemma uses about 220 MB); generation off or sent to an allowed provider | — |
+
+- Don't load models larger than your free VRAM plus RAM. `gpt-oss-20b` nearly exhausted 24 GB of RAM on the test machine.
+- LM Studio loads any downloaded model on first request ("just-in-time"). The gateway must only request
+  allow-listed models from `AI_CHAT_MODEL` and `AI_EMBEDDING_MODEL`.
+- **Licence:** LM Studio is free for personal and internal use only, and closed-source. Hosted or SaaS deployments must use
+  llama.cpp `llama-server`, Ollama or vLLM behind the same `AI_BASE_URL`.
+- Re-run the benchmark after changing models:
+  `uv run --no-project --with httpx python -I scripts/benchmarks/local_models.py --label gpu --gpu max --embed-models google/embedding-gemma-300m --chat-models google/gemma-3-4b --restore google/gemma-3-4b`
+  (details and every result: `docs/spikes/local-models.md`).
 
 ## 5. Stop and tear down
 

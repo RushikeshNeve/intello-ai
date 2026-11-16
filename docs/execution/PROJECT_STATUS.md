@@ -1,14 +1,14 @@
 # Project Status
 
-**Updated:** 2026-11-16 · **Current milestone:** M00 — Architecture & Local Infrastructure Validation
+**Updated:** 2026-11-16 · **Current milestone:** M00 complete → M01 (Identity, Organizations & Workspaces) next
 **Source of truth:** this Git repository. Notion mirror: **not synchronized** (no Notion integration in this session).
 
 ## Summary
 
 | Milestone | Tasks | DONE | In progress | Gate |
 |---|---|---|---|---|
-| M00 Architecture & local infra | 13 | 10 | 3 | open — RushDB CONDITIONAL GO (DC-009); object store = RustFS |
-| M01 Identity, orgs, workspaces | 12 | 0 | 0 | blocked on M00 gate |
+| M00 Architecture & local infra | 13 | **13** | 0 | **PASSED (conditional)**, 2026-11-16 |
+| M01 Identity, orgs, workspaces | 12 | 0 | 0 | ready to start |
 | M02 Documents & object storage | 11 | 0 | 0 | blocked on M01 gate |
 | M03 Reliable ingestion | 14 | 0 | 0 | blocked on M02 gate |
 | M04 Search & grounded chat | 13 | 0 | 0 | blocked on M03 gate |
@@ -16,18 +16,36 @@
 | M06 Connectors & formats | 11 | 0 | 0 | blocked on M05 gate |
 | M07 Memory, research, UX | 11 | 0 | 0 | blocked on M06 gate |
 | M08 Security, eval, release | 12 | 0 | 0 | blocked on M07 gate |
-| **Total** | **108** | **1** | **10** | |
+| **Total** | **108** | **13** | **0** | |
 
-## Repository readiness (audit, 2026-11-16)
-- The repo was empty (only tool state in `.omc/`), with no git history. Initialized `main` and imported the execution pack into `docs/plan/` unchanged.
-- No application code existed, so there was nothing to reconcile with the architecture.
-- Toolchain: Docker 29.3.1 / Compose v5.1.1, Python 3.12.10, uv 0.11.25, Node 24.14.1, npm 11.11.0, git 2.53. No Ollama or pnpm.
-- Hardware: i7-14650HX, 23.7 GB RAM (Docker VM about 12.4 GB), RTX 5050 Laptop 8 GB, about 290 GB free on D:.
+## M00 exit gate (definition in `DEPENDENCY_GRAPH.md`, DC-007)
 
-## Key risks being validated in M00
-1. RushDB 3 permission-safe multi-tenant retrieval and traversal (M00.03.01–03) is the critical path.
-2. Choice of object store after MinIO CE's retirement (M00.02.03).
-3. Local model capacity on an 8 GB GPU (M00.03.04).
-4. Backup/restore across three stores (M00.03.05).
+| Gate condition | Result | Evidence |
+|---|---|---|
+| All 13 M00 tasks DONE, with acceptance rerun by the coordinator on `main` | ✅ | `AGENT_HANDOFFS.md` (every task has a coordinator-verification line) |
+| RushDB PoC verdict (M00.03.01–03) | ✅ **CONDITIONAL GO** | 52/52 on `main`; the conditions in DC-009 bind M03.03.01+ |
+| Object-store choice accepted (M00.02.03) | ✅ RustFS 1.0.5, fallback SeaweedFS 4.53 | DC-002 closed; contract 21/21 and integration 5/5 on `main` |
+| Backup/restore across all stores | ✅ | `scripts/restore_smoke.sh` PASSED, exit 0 |
+| Local inference runtime and default models | ✅ LM Studio (user decision), embedding-gemma-300m (768 dimensions) + gemma-3-4b | DC-011; accuracy reproduced exactly |
 
-See `ACTIVE_TASKS.md`, `BLOCKERS.md`, `DECISION_CHANGES.md`.
+**Conditions carried forward** (these are not blockers; they are binding requirements on later tasks):
+1. RushDB: only the API holds the token; the server derives the tenant from a Postgres-validated org; one adapter injects the workspace and revision filters; never use `query.text`; version pinned; spikes rerun on every upgrade (DC-009).
+2. LM Studio is a **local-development runtime only** (licence forbids SaaS). Hosted deployments use a permissive `/v1` server (DC-011).
+3. Windows Application Control on the dev machine: tools run as `python -m`; venvs are built from python.org Python; mypy runs in a container (DC-010, runbook §7.1).
+
+## What exists now
+- One-command local stack (`compose.yaml`): PostgreSQL 17, Redis 7.4, RushDB 3.0.10 (multitenant), RustFS 1.0.5 with bucket bootstrap, FastAPI API and Next.js 16 web, all loopback-only on the UKOS port block. Local AI is served by LM Studio on the host.
+- Test suites: docs (4), env contract (7), data services (5), apps health (6), RushDB spikes (52), object-store contract (21) and integration (5), restore smoke, API unit tests (8) plus strict mypy, web lint, typecheck, unit test and build, local-model benchmark.
+- Runbook: `docs/development/local-runbook.md`.
+
+## Hardware and toolchain (audit 2026-11-16)
+Docker 29.3.1 / Compose v5.1.1, Python 3.12.10 (python.org), uv 0.11.25, Node 24.14.1, npm 11.11.0, git 2.53, LM Studio 0.4.9.
+i7-14650HX, 23.7 GB RAM (the Docker VM holds about 9.4 GB), RTX 5050 Laptop 8 GB.
+
+## Open risks
+1. RushDB 3 is very young (3.0.0 released 2026-10-29, about 11 releases since), and its deletes are not transactional.
+2. RAM is tight when Docker and LM Studio run together on a 24 GB host. Don't load chat models over about 4 GB alongside the stack.
+3. Gemma model licence terms are unreviewed (M08). The runner-up embedding model, qwen3-embedding-0.6b, is Apache-2.0.
+4. The npm scaffold has audit advisories (to triage in M08.03.01).
+
+See `ACTIVE_TASKS.md`, `BLOCKERS.md`, `DECISION_CHANGES.md`, `SESSION_HANDOFF.md`.
