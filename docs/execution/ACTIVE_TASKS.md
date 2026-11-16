@@ -40,7 +40,7 @@ A task is DONE only after the coordinator reruns its acceptance check on `main` 
 | M01.01.01 | OIDC issuer/audience/expiry verification | identity-agent | agent/m01-identity | foundation | IN_PROGRESS (batch 2) |
 | M01.01.03 | User provisioning on first sign-in | identity-agent | agent/m01-identity | foundation | IN_PROGRESS (batch 2) |
 | M01.03.02 | PostgreSQL RLS regression tests | rls-agent | agent/m01-rls | M01.02.01 | IN_PROGRESS (batch 2) |
-| M01.03.03 | Document grant model contracts | grants-agent | agent/m01-grants | foundation, M01.03.01 | IN_PROGRESS (batch 2) |
+| M01.03.03 | Document grant model contracts | grants-agent | agent/m01-grants | foundation, M01.03.01 | DONE (unit 693, DB 21+46 on main) |
 | M01.03.04 | Auditable security events | audit-agent | agent/m01-audit | foundation | IN_PROGRESS (batch 2) |
 | M01.02.02 | Organization REST endpoints | — | — | 01.01, 01.03, 03.01, 03.04 | TODO |
 | M01.02.04 | Workspace schema and endpoints | — | — | as 02.02 | TODO |

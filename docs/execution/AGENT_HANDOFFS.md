@@ -124,3 +124,12 @@ One entry per task when it reaches REVIEW or DONE. The coordinator adds verifica
   - Contract and docs tests → 11 passed.
 - **M01.02.01 acceptance:** "Unique organizations and owner membership constraints pass." Duplicate and case-variant slugs are rejected; an org with no owner fails at commit (23514 / `organization_has_owner`); demoting or removing the last owner is rejected; an ownership transfer inside one transaction is allowed.
 - **Contract updates accepted:** DC-014.
+
+---
+
+## M01.03.03 — Document grant model contracts
+- **Owner:** grants-agent · **Branch:** `agent/m01-grants` (824ef84) · merged to `main` as 522a195 · **Status:** DONE
+- **Files:** `apps/api/app/modules/authorization/grants.py`, `apps/api/tests/authorization/test_grants.py` (31 tests), `tests/integration/m01_grants/**` (21 DB tests)
+- **Coordinator verification (on `main`):** ruff clean; unit tests **693 passed**; `tests/integration/m01_grants` + `m01_foundation` on isolated ports → **67 passed**; nothing left behind.
+- **Acceptance (grant, revoke and expiry semantics):** grants are active once made, implied permissions apply, and grants never authorize outside their org. Revoke is idempotent and keeps the original revocation record. Past or naive expiry times are rejected, and a live grant becomes inactive at expiry without any update. Duplicate grants are idempotent, including under concurrency. Grants work end to end with `policy.decide`. These tests ran on a real Postgres as the app role.
+- **Decisions:** DC-015.
