@@ -1,19 +1,18 @@
-# Session Handoff — 2026-11-16, M00 complete
+# Session Handoff — 2026-11-16, paused in M01 batch 1 (usage limit)
 
 ## State
-- **M00: 13/13 DONE, exit gate PASSED (conditional).** Details in `PROJECT_STATUS.md`. Every task was verified by the coordinator on `main`.
-- All agent branches (`agent/m00-platform`, `agent/m00-rushdb`, `agent/m00-objectstore`, `agent/m00-models`) are merged into `main`. Their worktrees under `.claude/worktrees/` are clean, and their work is in `main`; they can be removed.
-- Docker: no UKOS containers are running. Volumes from the verification runs were removed. The Ollama volume was deleted at the user's request.
-- LM Studio: server on 127.0.0.1:1234, `google/gemma-3-4b` loaded. The `google/embedding-gemma-300m` and `qwen3-embedding-0.6b` models were downloaded by the benchmark.
+- **M00: 13/13 DONE, exit gate PASSED (conditional).** See `PROJECT_STATUS.md`.
+- **M01 prep on `main`:** Dex OIDC provider (DC-012, tokens verified), redirect URIs configurable, frozen contract `docs/architecture/m01-contracts.md`.
+- **M01 batch 1 agents were STOPPED mid-task because the usage limit was reached.** Their partial work, possibly uncommitted and none of it reviewed, is in these worktrees:
+  - foundation + M01.02.01 → `.claude/worktrees/agent-a3dad1613985f7485` (branch `agent/m01-foundation`)
+  - M01.01.02 web session → `.claude/worktrees/agent-a58c90cedf6652e73` (branch `agent/m01-web-session`)
+  - M01.03.01 RBAC policy → `.claude/worktrees/agent-a7c1868eaee7affbb` (branch `agent/m01-policy`)
+- Their Docker projects (`ukos-m01-foundation*`, `ukos-m01-web`) may still have containers. Check with `docker ps -a --filter name=ukos-m01`.
 
-## Next: M01 (Identity, Organizations & Workspaces), 12 tasks
-Declared prerequisite: M00 exit gate (met). Suggested first batch, honouring the ownership rules in `DEPENDENCY_GRAPH.md`:
-1. **Decision first:** choose the local OIDC provider for M01.01.01 (ADR-026; candidates such as Keycloak, ZITADEL or Authentik). This picks a new compose service on port 8380, so record it in `DECISION_CHANGES.md`.
-2. **Migration owner (coordinator):** set up Alembic in `apps/api/migrations/`, then M01.02.01 (organizations + memberships). Migrations stay serialized.
-3. **Can run in parallel once (1) and (2) are fixed:** M01.03.01 RBAC policy service (pure logic), M01.01.01 OIDC verification, M01.03.04 audit events. Frontend tasks (M01.01.02, M01.02.03, M01.02.05) start after the org/workspace API contracts are written schema-first.
-4. M01.03.02 RLS regression tests depend on the M01.02.01/M01.02.04 schemas.
+## Resume
+1. In each worktree, run `git status` and `git log main..HEAD`, then resume the agent or redo the task from its brief (the requirements are in `ACTIVE_TASKS.md` M01 batch 1 and the contract).
+2. Verify on `main` before merging. Order: foundation first (migration owner), then policy, then web session.
+3. Then batch 2: M01.01.01 + M01.01.03 (identity), M01.03.02 (RLS tests), M01.03.03 (grants), M01.03.04 (audit). After that, batch 3: M01.02.02 + M01.02.04 (REST), M01.02.03 + M01.02.05 (UI).
 
 ## Reminders
-- Run tests as `python -m pytest`. Build API venvs from python.org Python. Run mypy in a container.
-- Quit Docker Desktop from the tray. Never kill it.
-- Deny firewall prompts; everything binds to 127.0.0.1.
+`python -m pytest` (Application Control), python.org venv, mypy in a container, quit Docker from the tray.
