@@ -26,3 +26,25 @@ A task is DONE only after the coordinator reruns its acceptance check on `main` 
 - None of them edits `infrastructure/env/.env.example`, root `compose.yaml`, or `docs/execution/*`. They report needed env changes in their handoff, and the coordinator applies them.
 - Each agent runs Docker under its own compose project name (`ukos-<agent>`) on its own host ports from the UKOS block, so containers and volumes never collide.
 - Tasks that share a service (the three RushDB spikes) run sequentially inside one agent because they share a fixture helper.
+
+## M01 — Batch 1 (started 2026-11-16) · contract: `docs/architecture/m01-contracts.md` (frozen)
+
+| Task | Title | Owner (agent) | Branch | Practical deps | Status |
+|---|---|---|---|---|---|
+| (prep) | Local OIDC provider Dex + test users (DC-012) | coordinator | main | — | DONE (tokens verified) |
+| (prep) | Schema-first M01 contracts | coordinator | main | — | DONE |
+| (foundation) | DB layer, ORM models, security core, Alembic, api-migrate, test port overlay | foundation-agent | agent/m01-foundation | contracts | IN_PROGRESS |
+| M01.02.01 | Organization schema and migration | foundation-agent (migration owner) | agent/m01-foundation | contracts | IN_PROGRESS |
+| M01.01.02 | Web session handling (BFF, PKCE, HttpOnly) | web-session-agent | agent/m01-web-session | Dex, contracts | IN_PROGRESS |
+| M01.03.01 | RBAC policy decision service | policy-agent | agent/m01-policy | contracts | IN_PROGRESS |
+| M01.01.01 | OIDC issuer/audience/expiry verification | — | — | foundation (security.py) | TODO |
+| M01.01.03 | User provisioning on first sign-in | — | — | foundation (models) | TODO |
+| M01.03.02 | PostgreSQL RLS regression tests | — | — | M01.02.01 | TODO |
+| M01.03.03 | Document grant model contracts | — | — | foundation, M01.03.01 | TODO |
+| M01.03.04 | Auditable security events | — | — | foundation | TODO |
+| M01.02.02 | Organization REST endpoints | — | — | 01.01, 01.03, 03.01, 03.04 | TODO |
+| M01.02.04 | Workspace schema and endpoints | — | — | as 02.02 | TODO |
+| M01.02.03 | Organization switcher | — | — | 01.02, 02.02 | TODO |
+| M01.02.05 | Workspace navigation | — | — | 02.03, 02.04 | TODO |
+
+Parallel-safety: foundation owns `apps/api/**` except `authorization/policy.py`, plus `apps.yml` and `compose_support.py`. The policy agent owns only `policy.py` and its tests. The web agent owns `apps/web/**` auth paths and the web manifest, with isolated ports 23300/28380.
