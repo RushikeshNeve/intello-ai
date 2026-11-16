@@ -1,0 +1,676 @@
+{
+ "description": "Original UKOS spike corpus (M00.03.02). Text written for this test; vectors are hand-made 8-d topic vectors. Axes: 0 lighthouse/lamp, 1 ocean/tide, 2 bread, 3 astronomy, 4 compost, 5 bees, 6 harbor/ships, 7 misc.",
+ "dimensions": 8,
+ "authorized": {
+  "workspace_id": "ws-alpha",
+  "published_revision_ids": [
+   "light-r1",
+   "tides-r1",
+   "bread-r1",
+   "orbit-r1",
+   "compost-r1"
+  ]
+ },
+ "queries": {
+  "vector": [
+   1,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0.1,
+   0
+  ],
+  "bm25_terms": "tide tables harbor",
+  "bm25_lighthouse": "lighthouse keeper",
+  "hybrid_text": "lamp beam harbor"
+ },
+ "expected": {
+  "_note": "Hand-designed corpus; orders cross-checked with a reference BM25 (k1=1.2, b=0.75, idf=ln(1+(N-df+0.5)/(df+0.5)), alphanumeric tokenizer, lower-case, no stemming), cosine, and RRF (k=60, prefetch 4*limit). The test re-derives them at run time too.",
+  "bm25_unfiltered_tide_top6": [
+   "c30",
+   "c10",
+   "c29",
+   "c02",
+   "c09",
+   "c28"
+  ],
+  "bm25_unfiltered_lighthouse_top3": [
+   "c05",
+   "c21",
+   "c22"
+  ],
+  "bm25_filtered_lighthouse_top4": [
+   "c01",
+   "c04",
+   "c02",
+   "c03"
+  ],
+  "vector_unfiltered_top5": [
+   "c05",
+   "c24",
+   "c21",
+   "c22",
+   "c06"
+  ],
+  "vector_filtered_top6": [
+   "c04",
+   "c01",
+   "c02",
+   "c03",
+   "c18",
+   "c10"
+  ],
+  "hybrid_filtered_top6": [
+   "c02",
+   "c04",
+   "c01",
+   "c03",
+   "c10",
+   "c18"
+  ]
+ },
+ "chunks": [
+  {
+   "key": "c01",
+   "org_id": "org-1",
+   "workspace_id": "ws-alpha",
+   "document_id": "doc-light",
+   "version_id": "light-v1",
+   "revision_id": "light-r1",
+   "published": true,
+   "text": "The lighthouse keeper climbed one hundred steps each evening to light the lamp.",
+   "vector": [
+    0.9,
+    0.1,
+    0,
+    0,
+    0,
+    0,
+    0.2,
+    0
+   ]
+  },
+  {
+   "key": "c02",
+   "org_id": "org-1",
+   "workspace_id": "ws-alpha",
+   "document_id": "doc-light",
+   "version_id": "light-v1",
+   "revision_id": "light-r1",
+   "published": true,
+   "text": "A lighthouse lens bends lamp light into a narrow beam that sweeps the harbor.",
+   "vector": [
+    0.85,
+    0.15,
+    0,
+    0,
+    0,
+    0,
+    0.3,
+    0
+   ]
+  },
+  {
+   "key": "c03",
+   "org_id": "org-1",
+   "workspace_id": "ws-alpha",
+   "document_id": "doc-light",
+   "version_id": "light-v1",
+   "revision_id": "light-r1",
+   "published": true,
+   "text": "Fog horns warned the ships when the lighthouse beam could not cut through the thick mist.",
+   "vector": [
+    0.7,
+    0.3,
+    0,
+    0,
+    0,
+    0,
+    0.5,
+    0
+   ]
+  },
+  {
+   "key": "c04",
+   "org_id": "org-1",
+   "workspace_id": "ws-alpha",
+   "document_id": "doc-light",
+   "version_id": "light-v1",
+   "revision_id": "light-r1",
+   "published": true,
+   "text": "The keeper wrote the weather in a logbook beside the lamp room door.",
+   "vector": [
+    0.8,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0.1
+   ]
+  },
+  {
+   "key": "c05",
+   "org_id": "org-1",
+   "workspace_id": "ws-alpha",
+   "document_id": "doc-light",
+   "version_id": "light-v2",
+   "revision_id": "light-r2",
+   "published": false,
+   "text": "Draft revision: lighthouse keeper lighthouse keeper lamp lamp beam beam.",
+   "vector": [
+    1.0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0.1,
+    0
+   ]
+  },
+  {
+   "key": "c06",
+   "org_id": "org-1",
+   "workspace_id": "ws-alpha",
+   "document_id": "doc-light",
+   "version_id": "light-v2",
+   "revision_id": "light-r2",
+   "published": false,
+   "text": "Draft revision: the lighthouse lamp now runs on solar panels.",
+   "vector": [
+    0.95,
+    0,
+    0,
+    0.1,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "key": "c07",
+   "org_id": "org-1",
+   "workspace_id": "ws-alpha",
+   "document_id": "doc-tides",
+   "version_id": "tides-v1",
+   "revision_id": "tides-r1",
+   "published": true,
+   "text": "Tides rise and fall twice a day because the moon pulls on the ocean.",
+   "vector": [
+    0,
+    0.9,
+    0,
+    0.3,
+    0,
+    0,
+    0.1,
+    0
+   ]
+  },
+  {
+   "key": "c08",
+   "org_id": "org-1",
+   "workspace_id": "ws-alpha",
+   "document_id": "doc-tides",
+   "version_id": "tides-v1",
+   "revision_id": "tides-r1",
+   "published": true,
+   "text": "Spring tides happen when the sun and moon line up and pull together.",
+   "vector": [
+    0,
+    0.8,
+    0,
+    0.5,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "key": "c09",
+   "org_id": "org-1",
+   "workspace_id": "ws-alpha",
+   "document_id": "doc-tides",
+   "version_id": "tides-v1",
+   "revision_id": "tides-r1",
+   "published": true,
+   "text": "Tide pools hold crabs, anemones and small fish when the water retreats.",
+   "vector": [
+    0,
+    0.9,
+    0,
+    0,
+    0,
+    0.1,
+    0.2,
+    0
+   ]
+  },
+  {
+   "key": "c10",
+   "org_id": "org-1",
+   "workspace_id": "ws-alpha",
+   "document_id": "doc-tides",
+   "version_id": "tides-v1",
+   "revision_id": "tides-r1",
+   "published": true,
+   "text": "Harbor pilots read tide tables before guiding ships past the sandbar.",
+   "vector": [
+    0.1,
+    0.6,
+    0,
+    0,
+    0,
+    0,
+    0.7,
+    0
+   ]
+  },
+  {
+   "key": "c11",
+   "org_id": "org-1",
+   "workspace_id": "ws-alpha",
+   "document_id": "doc-bread",
+   "version_id": "bread-v1",
+   "revision_id": "bread-r1",
+   "published": true,
+   "text": "Sourdough bread rises slowly because wild yeast ferments the dough.",
+   "vector": [
+    0,
+    0,
+    0.95,
+    0,
+    0.2,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "key": "c12",
+   "org_id": "org-1",
+   "workspace_id": "ws-alpha",
+   "document_id": "doc-bread",
+   "version_id": "bread-v1",
+   "revision_id": "bread-r1",
+   "published": true,
+   "text": "Bakers fold the dough to build strength before the final proof.",
+   "vector": [
+    0,
+    0,
+    0.9,
+    0,
+    0,
+    0,
+    0,
+    0.1
+   ]
+  },
+  {
+   "key": "c13",
+   "org_id": "org-1",
+   "workspace_id": "ws-alpha",
+   "document_id": "doc-bread",
+   "version_id": "bread-v1",
+   "revision_id": "bread-r1",
+   "published": true,
+   "text": "A hot oven and a little steam give bread a crisp crust.",
+   "vector": [
+    0.1,
+    0,
+    0.85,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "key": "c14",
+   "org_id": "org-1",
+   "workspace_id": "ws-alpha",
+   "document_id": "doc-bread",
+   "version_id": "bread-v1",
+   "revision_id": "bread-r1",
+   "published": true,
+   "text": "Rye flour makes a dense loaf with a sour, earthy flavor.",
+   "vector": [
+    0,
+    0,
+    0.8,
+    0,
+    0.3,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "key": "c15",
+   "org_id": "org-1",
+   "workspace_id": "ws-alpha",
+   "document_id": "doc-orbit",
+   "version_id": "orbit-v1",
+   "revision_id": "orbit-r1",
+   "published": true,
+   "text": "Planets follow elliptical orbits with the sun at one focus.",
+   "vector": [
+    0,
+    0,
+    0,
+    0.95,
+    0,
+    0,
+    0,
+    0.1
+   ]
+  },
+  {
+   "key": "c16",
+   "org_id": "org-1",
+   "workspace_id": "ws-alpha",
+   "document_id": "doc-orbit",
+   "version_id": "orbit-v1",
+   "revision_id": "orbit-r1",
+   "published": true,
+   "text": "A satellite in low orbit circles the earth in about ninety minutes.",
+   "vector": [
+    0,
+    0.1,
+    0,
+    0.9,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "key": "c17",
+   "org_id": "org-1",
+   "workspace_id": "ws-alpha",
+   "document_id": "doc-orbit",
+   "version_id": "orbit-v1",
+   "revision_id": "orbit-r1",
+   "published": true,
+   "text": "The moon keeps one face toward the earth because its spin matches its orbit.",
+   "vector": [
+    0,
+    0.4,
+    0,
+    0.85,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "key": "c18",
+   "org_id": "org-1",
+   "workspace_id": "ws-alpha",
+   "document_id": "doc-orbit",
+   "version_id": "orbit-v1",
+   "revision_id": "orbit-r1",
+   "published": true,
+   "text": "Comets swing close to the sun and grow bright tails of gas and dust.",
+   "vector": [
+    0.2,
+    0,
+    0,
+    0.8,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "key": "c19",
+   "org_id": "org-1",
+   "workspace_id": "ws-alpha",
+   "document_id": "doc-compost",
+   "version_id": "compost-v1",
+   "revision_id": "compost-r1",
+   "published": true,
+   "text": "Compost heaps warm up as microbes break down kitchen scraps.",
+   "vector": [
+    0,
+    0,
+    0.2,
+    0,
+    0.9,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "key": "c20",
+   "org_id": "org-1",
+   "workspace_id": "ws-alpha",
+   "document_id": "doc-compost",
+   "version_id": "compost-v1",
+   "revision_id": "compost-r1",
+   "published": true,
+   "text": "Turning the compost adds air and keeps the pile from smelling.",
+   "vector": [
+    0,
+    0,
+    0,
+    0,
+    0.95,
+    0.1,
+    0,
+    0
+   ]
+  },
+  {
+   "key": "c21",
+   "org_id": "org-1",
+   "workspace_id": "ws-beta",
+   "document_id": "doc-beta-light",
+   "version_id": "blight-v1",
+   "revision_id": "blight-r1",
+   "published": true,
+   "text": "Lighthouse keeper lighthouse keeper: a beta workspace guide to lamp beams.",
+   "vector": [
+    0.98,
+    0.05,
+    0,
+    0,
+    0,
+    0,
+    0.1,
+    0
+   ]
+  },
+  {
+   "key": "c22",
+   "org_id": "org-1",
+   "workspace_id": "ws-beta",
+   "document_id": "doc-beta-light",
+   "version_id": "blight-v1",
+   "revision_id": "blight-r1",
+   "published": true,
+   "text": "Every lighthouse keeper in the beta archive kept a lamp logbook.",
+   "vector": [
+    0.95,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0.15,
+    0
+   ]
+  },
+  {
+   "key": "c23",
+   "org_id": "org-1",
+   "workspace_id": "ws-beta",
+   "document_id": "doc-beta-light",
+   "version_id": "blight-v1",
+   "revision_id": "blight-r1",
+   "published": true,
+   "text": "Beta notes on the lighthouse lamp, the beam, and the keeper routine.",
+   "vector": [
+    0.92,
+    0.1,
+    0,
+    0,
+    0,
+    0,
+    0.2,
+    0
+   ]
+  },
+  {
+   "key": "c24",
+   "org_id": "org-1",
+   "workspace_id": "ws-beta",
+   "document_id": "doc-beta-light",
+   "version_id": "blight-v1",
+   "revision_id": "blight-r1",
+   "published": true,
+   "text": "The beta lighthouse keeper polished the brass lens and trimmed the lamp.",
+   "vector": [
+    0.97,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0.05,
+    0
+   ]
+  },
+  {
+   "key": "c25",
+   "org_id": "org-1",
+   "workspace_id": "ws-beta",
+   "document_id": "doc-beta-bees",
+   "version_id": "bees-v1",
+   "revision_id": "bees-r1",
+   "published": true,
+   "text": "Honeybees dance to tell the hive where the flowers are.",
+   "vector": [
+    0,
+    0,
+    0,
+    0,
+    0.1,
+    0.95,
+    0,
+    0
+   ]
+  },
+  {
+   "key": "c26",
+   "org_id": "org-1",
+   "workspace_id": "ws-beta",
+   "document_id": "doc-beta-bees",
+   "version_id": "bees-v1",
+   "revision_id": "bees-r1",
+   "published": true,
+   "text": "A beekeeper uses smoke to calm the bees before opening the hive.",
+   "vector": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0.9,
+    0,
+    0.2
+   ]
+  },
+  {
+   "key": "c27",
+   "org_id": "org-1",
+   "workspace_id": "ws-beta",
+   "document_id": "doc-beta-bees",
+   "version_id": "bees-v1",
+   "revision_id": "bees-r1",
+   "published": true,
+   "text": "Bees store nectar as honey in wax cells for the winter.",
+   "vector": [
+    0,
+    0,
+    0.1,
+    0,
+    0,
+    0.85,
+    0,
+    0
+   ]
+  },
+  {
+   "key": "c28",
+   "org_id": "org-1",
+   "workspace_id": "ws-beta",
+   "document_id": "doc-beta-tides",
+   "version_id": "btides-v1",
+   "revision_id": "btides-r1",
+   "published": true,
+   "text": "Tide gauges along the rocky beta coast record the ocean level every single minute.",
+   "vector": [
+    0,
+    0.95,
+    0,
+    0,
+    0,
+    0,
+    0.2,
+    0
+   ]
+  },
+  {
+   "key": "c29",
+   "org_id": "org-1",
+   "workspace_id": "ws-beta",
+   "document_id": "doc-beta-tides",
+   "version_id": "btides-v1",
+   "revision_id": "btides-r1",
+   "published": true,
+   "text": "Storm surge adds to high tide and floods low streets near the harbor.",
+   "vector": [
+    0,
+    0.8,
+    0,
+    0,
+    0,
+    0,
+    0.5,
+    0
+   ]
+  },
+  {
+   "key": "c30",
+   "org_id": "org-1",
+   "workspace_id": "ws-beta",
+   "document_id": "doc-beta-tides",
+   "version_id": "btides-v1",
+   "revision_id": "btides-r1",
+   "published": true,
+   "text": "The beta harbor master posts tide tables at the pier.",
+   "vector": [
+    0,
+    0.7,
+    0,
+    0,
+    0,
+    0,
+    0.6,
+    0
+   ]
+  }
+ ]
+}
