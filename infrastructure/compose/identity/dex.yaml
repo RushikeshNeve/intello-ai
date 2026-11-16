@@ -1,0 +1,74 @@
+{{- /* UKOS local OIDC provider (Dex v2.46; DC-012). Rendered by the image entrypoint with gomplate:
+     every secret comes from the environment, nothing secret is committed.
+     Dex v2.46 rejects unknown config fields, so keep this file to documented keys only. */ -}}
+issuer: {{ getenv "OIDC_ISSUER_URL" | required "OIDC_ISSUER_URL is required" }}
+
+storage:
+  type: sqlite3
+  config:
+    file: /var/dex/dex.db
+
+web:
+  http: 0.0.0.0:5556
+
+expiry:
+  idTokens: {{ getenv "OIDC_ID_TOKEN_TTL" "15m" }}
+  authRequests: 10m
+  refreshTokens:
+    validIfNotUsedFor: 168h
+    absoluteLifetime: 720h
+
+signer:
+  type: local
+  config:
+    keysRotationPeriod: 6h
+    algorithm: RS256
+
+logger:
+  level: {{ getenv "OIDC_LOG_LEVEL" "info" }}
+  format: json
+
+oauth2:
+  responseTypes: [code]
+  skipApprovalScreen: true
+  # Resource-owner password grant for automated tests ONLY (local test users below). The web app
+  # uses the authorization-code flow with PKCE. Disable both for any non-local deployment.
+  passwordConnector: local
+  grantTypes:
+    - authorization_code
+    - refresh_token
+    - password
+
+enablePasswordDB: true
+
+staticClients:
+  # Next.js server (BFF): confidential client; browser never sees tokens (HttpOnly session cookie).
+  - id: {{ getenv "OIDC_CLIENT_ID" "ukos-web" }}
+    name: Universal Knowledge OS
+    secret: {{ getenv "OIDC_CLIENT_SECRET" | required "OIDC_CLIENT_SECRET is required" }}
+    redirectURIs:
+      - http://127.0.0.1:3300/api/auth/callback
+      - http://localhost:3300/api/auth/callback
+  # The API's audience. ukos-web obtains tokens for it with scope
+  # `audience:server:client_id:<OIDC_AUDIENCE>` (Dex cross-client trust).
+  - id: {{ getenv "OIDC_AUDIENCE" "ukos-api" }}
+    name: UKOS API
+    secret: {{ getenv "OIDC_API_CLIENT_SECRET" | required "OIDC_API_CLIENT_SECRET is required" }}
+    trustedPeers:
+      - {{ getenv "OIDC_CLIENT_ID" "ukos-web" }}
+    redirectURIs: []
+
+# TEST-ONLY local users (passwords documented in identity/README.md). Never reuse elsewhere.
+staticPasswords:
+  - email: alice@ukos.test
+    username: alice
+    userID: 6b1c4f0e-1a52-4c8e-9a0d-000000000001
+    hash: "$2b$10$slaUTD0wcd1FeKas6Hr0puhwPcUObLrbxGE2gGECBurBAs.4niQum"
+  - email: bob@ukos.test
+    username: bob
+    userID: 6b1c4f0e-1a52-4c8e-9a0d-000000000002
+    hash: "$2b$10$nfYQf9mJGRV7YB9lLBamO.unwtGxFZOFGDHy8VmtzQ7QfERriiNJO"
+  - email: mallory@ukos.test
+    username: mallory
+    userID: 6b1c4f0e-1a52-4c8e-9a0d-000000000003
+    hash: "$2b$10$9y1D9GNUw4AR4CmNzkyjJ.sApaOX1p4hsXxBo3QATUDZNhW.BbZuS"

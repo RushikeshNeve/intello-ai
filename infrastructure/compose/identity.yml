@@ -1,0 +1,36 @@
+# Local OIDC provider: Dex (ADR-026, DC-012). Managed OIDC replaces it in hosted deployments;
+# the API only validates standard OIDC JWTs, so the swap is configuration-only.
+#
+#   docker compose -p ukos-identity --env-file infrastructure/env/.env.example \
+#     -f infrastructure/compose/identity.yml up -d --wait
+#
+# The issuer (OIDC_ISSUER_URL) is the URL browsers see (127.0.0.1:8380). Containers reach Dex at
+# OIDC_INTERNAL_URL (http://dex:5556/dex) for JWKS and token exchange, but tokens still carry the
+# public issuer, so validators must check `iss` against OIDC_ISSUER_URL.
+services:
+  dex:
+    image: ${OIDC_IMAGE:-ghcr.io/dexidp/dex:v2.46.1}
+    # The image entrypoint renders the config with gomplate (getenv) before starting Dex.
+    command: ["dex", "serve", "/etc/dex/ukos.yaml"]
+    environment:
+      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:?OIDC_ISSUER_URL is required}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-ukos-web}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:?OIDC_CLIENT_SECRET is required}
+      OIDC_AUDIENCE: ${OIDC_AUDIENCE:-ukos-api}
+      OIDC_API_CLIENT_SECRET: ${OIDC_API_CLIENT_SECRET:?OIDC_API_CLIENT_SECRET is required}
+      OIDC_ID_TOKEN_TTL: ${OIDC_ID_TOKEN_TTL:-15m}
+      OIDC_LOG_LEVEL: ${OIDC_LOG_LEVEL:-info}
+    ports:
+      - "${UKOS_BIND_HOST:-127.0.0.1}:${OIDC_HOST_PORT:-8380}:5556"
+    volumes:
+      - ./identity/dex.yaml:/etc/dex/ukos.yaml:ro
+      - dex-data:/var/dex
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5556/dex/.well-known/openid-configuration >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+volumes:
+  dex-data:
