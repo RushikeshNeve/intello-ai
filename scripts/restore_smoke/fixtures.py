@@ -21,6 +21,7 @@ import hashlib
 import json
 import os
 import sys
+import time
 from typing import Any
 
 import boto3
@@ -124,15 +125,99 @@ def s3_digest() -> dict[str, Any]:
 
 
 # --- RushDB ------------------------------------------------------------------
-# Filled in from the RushDB spike's verified API patterns (docs/spikes/rushdb-validation.md).
+# Wire calls mirror tests/spikes/rushdb_support.py (Protocol v1, multitenant node):
+# every request carries the X-RushDB-Tenant header AND context.scope.
+
+RUSHDB_SCOPE = "ukos-restore-smoke"
+VEC_INDEX = "smoke-emb"
+TEXT_INDEX = "smoke-text"
+N_CHUNKS = 40
+VEC_DIMS = 8
+
+
+def _chunk_vector(i: int) -> list[float]:
+    raw = hashlib.sha256(f"restore-smoke-vec-{i}".encode()).digest()[:VEC_DIMS]
+    return [round(b / 255.0, 6) for b in raw]
+
+
+def _rushdb(operation: dict[str, Any]) -> dict[str, Any]:
+    resp = httpx.post(
+        f"{_env('SMOKE_RUSHDB_URL')}/protocol/v1/execute",
+        json={"protocolVersion": 1, "operation": operation, "context": {"scope": RUSHDB_SCOPE}},
+        headers={"Authorization": f"Bearer {_env('SMOKE_RUSHDB_TOKEN')}", "X-RushDB-Tenant": RUSHDB_SCOPE},
+        timeout=60.0,
+    )
+    if resp.status_code != 200:
+        raise SystemExit(f"RushDB error HTTP {resp.status_code}: {resp.text[:500]}")
+    body: dict[str, Any] = resp.json()["response"]
+    return body
+
+
+def _put(label: str, properties: dict[str, Any], vectors: list[dict[str, Any]] | None = None) -> str:
+    mutation: dict[str, Any] = {"kind": "putRecord", "mode": "create", "label": label, "properties": properties, "options": {}}
+    if vectors:
+        mutation["vectors"] = vectors
+    record_id: str = _rushdb({"kind": "mutate", "mutation": mutation})["record"]["id"]
+    return record_id
+
+
+def _wait_index_ready(name: str, timeout: float = 30.0) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        indexes = _rushdb({"kind": "describe", "describe": {"kind": "indexes"}}).get("indexes", [])
+        if any(i.get("name") == name and i.get("state") == "ready" for i in indexes):
+            return
+        time.sleep(0.2)
+    raise SystemExit(f"RushDB index {name} not ready after {timeout}s")
 
 
 def rushdb_seed() -> None:
-    raise NotImplementedError("pending RushDB API patterns from M00.03.0x")
+    _rushdb({"kind": "index", "index": {"kind": "createVector", "definition": {
+        "name": VEC_INDEX, "label": "SmokeChunk", "property": "embedding", "dimensions": VEC_DIMS,
+        "similarity": "cosine", "model": "restore-smoke-v1"}}})
+    doc_id = _put("SmokeDocument", {"title": "Restore smoke document", "workspace_id": "ws-smoke"})
+    chunk_ids = [
+        _put(
+            "SmokeChunk",
+            {"key": f"c{i:03d}", "text": f"restore smoke chunk {i} topic {i % 5}", "workspace_id": "ws-smoke"},
+            vectors=[{"propertyName": "embedding", "vector": _chunk_vector(i), "index": VEC_INDEX}],
+        )
+        for i in range(N_CHUNKS)
+    ]
+    _rushdb({"kind": "mutate", "mutation": {"kind": "linkRecordsById", "command": {
+        "relationType": "HAS_CHUNK", "direction": "out", "sourceIds": [doc_id], "targetIds": chunk_ids}}})
+    entity_id = _put("SmokeEntity", {"name": "Topic three"})
+    _rushdb({"kind": "mutate", "mutation": {"kind": "linkRecordsById", "command": {
+        "relationType": "MENTIONS", "direction": "out", "sourceIds": chunk_ids[3::5], "targetIds": [entity_id]}}})
+    _rushdb({"kind": "index", "index": {"kind": "create", "definition": {
+        "name": TEXT_INDEX, "label": "SmokeChunk", "property": "text", "kind": "text", "consistency": "immediate"}}})
+    _wait_index_ready(TEXT_INDEX)
 
 
 def rushdb_digest() -> dict[str, Any]:
-    raise NotImplementedError("pending RushDB API patterns from M00.03.0x")
+    chunks = _rushdb({"kind": "query", "query": {"kind": "records", "query": {
+        "labels": ["SmokeChunk"], "limit": 1000, "order": {"key": "asc"}}}})["records"]
+    mentions = _rushdb({"kind": "query", "query": {"kind": "records", "query": {
+        "labels": ["SmokeChunk"], "limit": 1000, "order": {"key": "asc"},
+        "predicate": {"SmokeEntity": {"$relation": {"type": "MENTIONS", "direction": "out"}, "name": "Topic three"}}}}})["records"]
+    vector = _rushdb({"kind": "query", "query": {"kind": "vector", "query": {
+        "labels": ["SmokeChunk"], "property": "embedding", "index": VEC_INDEX,
+        "vector": _chunk_vector(7), "limit": 5, "mode": "exact"}}})["records"]
+    text = _rushdb({"kind": "query", "query": {"kind": "text", "index": TEXT_INDEX, "query": "topic 3", "limit": 10}})["rows"]
+    rels = _rushdb({"kind": "query", "query": {"kind": "relationships", "query": {"relationType": "HAS_CHUNK"}}})["relationships"]
+    observed = {
+        "chunks": [(r["id"], r["properties"]) for r in chunks],
+        "mentions": [r["id"] for r in mentions],
+        "vector": [(r["id"], round(r["score"], 6)) for r in vector],
+        "text": [row["id"] for row in text],
+        "rels": sorted((r["sourceId"], r["targetId"]) for r in rels),
+    }
+    return {
+        "chunks": len(chunks),
+        "mentions": len(mentions),
+        "has_chunk_rels": len(rels),
+        "sha256": _sha256(json.dumps(observed, sort_keys=True, default=str).encode()),
+    }
 
 
 def main(argv: list[str]) -> int:
@@ -150,5 +235,4 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
-    _ = httpx  # used by the RushDB section
     raise SystemExit(main(sys.argv))
