@@ -20,7 +20,19 @@ class Settings(BaseSettings):
     UKOS_LOG_LEVEL: Literal["debug", "info", "warning", "error"] = "info"
 
     DATABASE_URL: SecretStr = SecretStr("postgresql+psycopg://ukos_app@127.0.0.1:5532/ukos")
+    # Admin-role connection used only by Alembic (never by the request path; RLS bypass risk).
+    DATABASE_MIGRATION_URL: SecretStr = SecretStr(
+        "postgresql+psycopg://ukos_admin@127.0.0.1:5532/ukos"
+    )
     REDIS_URL: SecretStr = SecretStr("redis://127.0.0.1:6479/0")
+
+    # OIDC bearer-token validation (contract docs/architecture/m01-contracts.md section 1).
+    # Tokens carry the public issuer; JWKS is fetched from the compose-internal URL.
+    OIDC_ISSUER_URL: str = "http://127.0.0.1:8380/dex"
+    OIDC_INTERNAL_URL: str = "http://127.0.0.1:8380/dex"
+    OIDC_AUDIENCE: str = "ukos-api"
+    OIDC_JWKS_CACHE_SECONDS: int = Field(default=300, ge=0, le=86_400)
+    OIDC_LEEWAY_SECONDS: int = Field(default=30, ge=0, le=30)
 
     # Comma-separated list of allowed CORS origins.
     API_CORS_ORIGINS: str = ""
@@ -36,11 +48,36 @@ class Settings(BaseSettings):
     @property
     def psycopg_dsn(self) -> str:
         """DATABASE_URL as a libpq URI (drops the SQLAlchemy `+psycopg` driver suffix)."""
-        url = self.DATABASE_URL.get_secret_value()
-        scheme, sep, rest = url.partition("://")
-        if sep and "+" in scheme:
-            scheme = scheme.split("+", 1)[0]
-        return f"{scheme}{sep}{rest}"
+        return to_libpq_dsn(self.DATABASE_URL.get_secret_value())
+
+    @property
+    def sqlalchemy_url(self) -> str:
+        """DATABASE_URL with the psycopg 3 driver forced (``postgresql+psycopg://``)."""
+        return to_sqlalchemy_url(self.DATABASE_URL.get_secret_value())
+
+    @property
+    def sqlalchemy_migration_url(self) -> str:
+        """DATABASE_MIGRATION_URL with the psycopg 3 driver forced."""
+        return to_sqlalchemy_url(self.DATABASE_MIGRATION_URL.get_secret_value())
+
+
+def to_libpq_dsn(url: str) -> str:
+    """Drop a SQLAlchemy ``+driver`` suffix so libpq/psycopg accept the URI."""
+    scheme, sep, rest = url.partition("://")
+    if sep and "+" in scheme:
+        scheme = scheme.split("+", 1)[0]
+    return f"{scheme}{sep}{rest}"
+
+
+def to_sqlalchemy_url(url: str) -> str:
+    """Normalize ``postgres://``, ``postgresql://`` or ``postgresql+x://`` to psycopg 3."""
+    scheme, sep, rest = url.partition("://")
+    if not sep:
+        return url
+    base = scheme.split("+", 1)[0]
+    if base in ("postgres", "postgresql"):
+        return f"postgresql+psycopg://{rest}"
+    return url
 
 
 @lru_cache
