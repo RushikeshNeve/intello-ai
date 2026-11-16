@@ -35,3 +35,10 @@ One entry per task when it reaches REVIEW or DONE. The coordinator adds verifica
 - **Integration notes:** `up --wait` doesn't wait for `objectstore-init` to finish, so consumers use `depends_on: objectstore-init: service_completed_successfully`. The adapter (M02.01.x) uses plain S3 only: path-style SigV4, `x-amz-checksum-sha256` on originals, `If-None-Match: *` on immutable keys, and a separate presign client on `S3_PUBLIC_ENDPOINT_URL`. Providers return either 400 or 403 for an expired presigned URL, so the adapter treats any 4xx as "re-issue".
 - **Backup:** for portability the primary should be a logical S3 mirror with SHA-256 verification (M08.02.01). A cold volume tar is valid only for the same provider and version; the M00.03.05 smoke uses that.
 - **Contract changes applied by coordinator:** `OBJECT_STORE_IMAGE`, `OBJECT_STORE_INIT_IMAGE`, `OBJECT_STORE_LOG_LEVEL`, and a note that R2 uses region `auto`.
+
+---
+
+## M00.02.01 — Compose PostgreSQL + Redis
+- **Owner:** platform-agent · **Commit:** f6d04a8 on `agent/m00-platform`. The coordinator merged this commit into `main` early (8383b9d), while the agent was still finishing M00.02.05 on the same branch, because M00.03.05 needs `data.yml`. **Status:** DONE
+- **Files:** `infrastructure/compose/data.yml`, `infrastructure/compose/postgres/init/10-app-role.sh`, `tests/infrastructure/{compose_support,test_data_services}.py`
+- **Coordinator verification (on `main`):** `UKOS_TEST_COMPOSE_PROJECT=ukos-verify-data uv run --no-project --with pytest --with "psycopg[binary]" --with redis python -m pytest -q -rA tests/infrastructure/test_data_services.py` → **5 passed in 37.92s**. The tests cover health, volumes and loopback-only ports; that secrets are not exposed in container config; that Redis requires a password and uses AOF; that the app role is least-privilege (NOSUPERUSER, NOBYPASSRLS); and persistence across restart and recreate.
