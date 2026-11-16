@@ -1,0 +1,59 @@
+# M00.02.04 — local S3-compatible object store (provider chosen in docs/spikes/object-storage.md).
+#
+#   docker compose -p ukos-objectstore --env-file infrastructure/env/.env.example \
+#     -f infrastructure/compose/objects.yml up -d --wait
+#   docker compose -p ukos-objectstore --env-file infrastructure/env/.env.example \
+#     -f infrastructure/compose/objects.yml run --rm objectstore-init      # re-run is harmless
+#
+# NOTE: `up --wait` returns once objectstore is healthy and objectstore-init has *started*; it does
+# not wait for the one-shot to finish. Follow with `docker compose ... wait objectstore-init`
+# (returns its exit code), and give consumers
+# `depends_on: {objectstore-init: {condition: service_completed_successfully}}`.
+#
+# Contract (infrastructure/env/.env.example): service `objectstore`, container port 9000
+# (S3_ENDPOINT_URL=http://objectstore:9000), host ${UKOS_BIND_HOST}:${OBJECT_STORE_HOST_PORT} (9300),
+# named volume `objectstore-data`, two private buckets created by `objectstore-init`.
+# Only the S3 API is used by the platform, so the provider is swappable (ADR-007/051, DC-002).
+
+services:
+  objectstore:
+    # RustFS (Apache-2.0). Fallback: chrislusf/seaweedfs:4.53 (see spike doc section 9).
+    image: ${OBJECT_STORE_IMAGE:-rustfs/rustfs:1.0.5}
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY_ID:?S3_ACCESS_KEY_ID is required}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_ACCESS_KEY:?S3_SECRET_ACCESS_KEY is required}
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_VOLUMES: /data
+      RUSTFS_CONSOLE_ENABLE: "false"
+      RUSTFS_OBS_LOGGER_LEVEL: ${OBJECT_STORE_LOG_LEVEL:-warn}
+    ports:
+      - "${UKOS_BIND_HOST:-127.0.0.1}:${OBJECT_STORE_HOST_PORT:-9300}:9000"
+    volumes:
+      - objectstore-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/health >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  objectstore-init:
+    # One-shot: idempotently creates the private buckets and applies CORS from API_CORS_ORIGINS.
+    image: ${OBJECT_STORE_INIT_IMAGE:-amazon/aws-cli:2.40.3}
+    entrypoint: ["/bin/sh", "/ukos/init.sh"]
+    environment:
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-http://objectstore:9000}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?S3_ACCESS_KEY_ID is required}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?S3_SECRET_ACCESS_KEY is required}
+      S3_BUCKET_ORIGINALS: ${S3_BUCKET_ORIGINALS:-ukos-originals}
+      S3_BUCKET_ARTIFACTS: ${S3_BUCKET_ARTIFACTS:-ukos-artifacts}
+      API_CORS_ORIGINS: ${API_CORS_ORIGINS:-}
+    volumes:
+      - ./objectstore/init.sh:/ukos/init.sh:ro
+    depends_on:
+      objectstore:
+        condition: service_healthy
+
+volumes:
+  objectstore-data:
