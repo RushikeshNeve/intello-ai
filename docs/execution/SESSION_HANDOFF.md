@@ -1,4 +1,4 @@
-# Session Handoff — 2026-11-16, paused in M01 batch 1 (usage limit)
+# Session Handoff — 2026-11-16, M01 batch 1 RESUMED (foundation resumed; policy and web-session restarted fresh because their worktrees were auto-cleaned with no changes)
 
 ## State
 - **M00: 13/13 DONE, exit gate PASSED (conditional).** See `PROJECT_STATUS.md`.

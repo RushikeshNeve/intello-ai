@@ -8,7 +8,7 @@
 | Milestone | Tasks | DONE | In progress | Gate |
 |---|---|---|---|---|
 | M00 Architecture & local infra | 13 | **13** | 0 | **PASSED (conditional)**, 2026-11-16 |
-| M01 Identity, orgs, workspaces | 12 | 0 | 3 (paused) | batch 1 paused — see SESSION_HANDOFF.md |
+| M01 Identity, orgs, workspaces | 12 | 0 | 3 | batch 1 running (resumed) |
 | M02 Documents & object storage | 11 | 0 | 0 | blocked on M01 gate |
 | M03 Reliable ingestion | 14 | 0 | 0 | blocked on M02 gate |
 | M04 Search & grounded chat | 13 | 0 | 0 | blocked on M03 gate |
