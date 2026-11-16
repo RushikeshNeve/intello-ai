@@ -8,15 +8,24 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Annotated
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import Engine
 
-from app.api import health
+from app.api import health, me
 from app.core.config import Settings, get_settings
-from app.core.db import dispose_engines
-from app.core.security import NotConfiguredError
+from app.core.db import dispose_engines, get_engine
+from app.core.security import (
+    NotConfiguredError,
+    UserProvisioner,
+    get_token_verifier,
+    get_user_provisioner,
+)
+from app.modules.identity.oidc import OidcTokenVerifier
+from app.modules.identity.provisioning import DbUserProvisioner
 
 logger = logging.getLogger("ukos.app")
 
@@ -26,9 +35,17 @@ def _configure_logging(settings: Settings) -> None:
 
 
 @asynccontextmanager
-async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
+    verifier = getattr(app.state, "token_verifier", None)
+    if isinstance(verifier, OidcTokenVerifier):
+        verifier.close()
     dispose_engines()
+
+
+def _db_user_provisioner(engine: Annotated[Engine, Depends(get_engine)]) -> UserProvisioner:
+    # Follows ``get_engine`` (and its overrides), i.e. the app-role engine for these settings.
+    return DbUserProvisioner(engine)
 
 
 async def _not_configured_handler(_: Request, exc: Exception) -> JSONResponse:
@@ -49,6 +66,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_exception_handler(NotConfiguredError, _not_configured_handler)
     app.dependency_overrides[get_settings] = lambda: settings
 
+    # Identity (M01.01.01 / M01.01.03): one verifier per app (shared JWKS cache; no network until
+    # the first token) and a provisioner on the app-role engine.
+    token_verifier = OidcTokenVerifier(settings)
+    app.state.token_verifier = token_verifier
+    app.dependency_overrides[get_token_verifier] = lambda: token_verifier
+    app.dependency_overrides[get_user_provisioner] = _db_user_provisioner
+
     origins = settings.cors_origins
     if origins:
         app.add_middleware(
@@ -60,4 +84,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     app.include_router(health.router)
+    app.include_router(me.router)
     return app
