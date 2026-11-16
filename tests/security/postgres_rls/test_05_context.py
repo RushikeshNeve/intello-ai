@@ -196,17 +196,7 @@ def test_tenant_session_masks_session_level_user_and_org(app_url: URL, world: Wo
         engine.dispose()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "GAP (app.core.db, not the migration): set_tenant_context() overrides only"
-        " app.current_user_id / app.current_org_id. A session-level (or ALTER ROLE ... SET)"
-        " app.current_issuer / app.current_subject is NOT masked, so every tenant_session on"
-        " that connection also matches that identity's users row (users_select/_update"
-        " _SELF_USER branch). Fix: set_tenant_context sets all four GUCs transaction-locally"
-        " ('' for identity unless set_identity_context is called afterwards)."
-    ),
-)
+# Regression for the former gap fixed in app.core.db.set_tenant_context (clears identity GUCs).
 def test_tenant_session_masks_session_level_identity(app_url: URL, world: World) -> None:
     engine = _single_conn_engine(app_url)
     b_owner = world.b.owner_id

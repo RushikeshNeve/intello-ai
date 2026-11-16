@@ -133,3 +133,44 @@ One entry per task when it reaches REVIEW or DONE. The coordinator adds verifica
 - **Coordinator verification (on `main`):** ruff clean; unit tests **693 passed**; `tests/integration/m01_grants` + `m01_foundation` on isolated ports → **67 passed**; nothing left behind.
 - **Acceptance (grant, revoke and expiry semantics):** grants are active once made, implied permissions apply, and grants never authorize outside their org. Revoke is idempotent and keeps the original revocation record. Past or naive expiry times are rejected, and a live grant becomes inactive at expiry without any update. Duplicate grants are idempotent, including under concurrency. Grants work end to end with `policy.decide`. These tests ran on a real Postgres as the app role.
 - **Decisions:** DC-015.
+
+---
+
+## M01 batch 2 + web session — coordinator integration and verification (2026-11-16)
+Merged into `main`: `agent/m01-audit` (fe05afd), `agent/m01-web-session` (521c3a1), `agent/m01-rls` (552858b), `agent/m01-identity` (de588a8).
+
+**Coordinator fixes during integration:**
+- `app/core/db.py`: `set_tenant_context` now clears the identity context. This fixes the gap the RLS suite found (DC-016).
+- Migration **0002_rls_hardening**: no forged audit actor; `pg_temp` last on the SECURITY DEFINER search path; `users.issuer`/`subject` immutable. Five regression tests added in `test_09_hardening.py`.
+- **Dex pinned to v2.45.1**, because v2.46.x hangs on refresh (DC-016).
+- `test_security.py` updated for the wired identity.
+- Two stale assertions updated: the migration head is now read from Alembic, and the identity rename is allowed to be denied by either the trigger or RLS.
+- Web env (`WEB_SESSION_SECRET`, `WEB_PUBLIC_URL`, OIDC_*) added to the contract and `apps.yml` (DC-017).
+
+**Final verification on `main`** (each suite isolated on its own project and ports; nothing left behind):
+
+| Suite | Result |
+|---|---|
+| API ruff | clean |
+| API unit | **820 passed** |
+| strict mypy (container), app + tests + migrations | **no issues, 41 files** |
+| `tests/integration/m01_foundation` | **46 passed** |
+| `tests/integration/m01_grants` | **21 passed** |
+| `tests/integration/m01_audit` | **15 passed** |
+| `tests/integration/m01_identity` (real Dex v2.45.1) | **17 passed** |
+| `tests/security/postgres_rls` | **324 passed** |
+| `tests/infrastructure/test_apps_health.py` (api-migrate + new web env) | **6 passed** |
+| web lint / typecheck / unit / build | clean / clean / **67 passed** / ok |
+| `tests/e2e/web_auth` with `E2E_REQUIRE_REFRESH=1` | **12/12**, "provider refreshed the token server-side" |
+
+**Acceptance verdicts:**
+- M01.01.01: invalid issuer, audience and expired tokens rejected, both forged and real Dex ✔
+- M01.01.02: login/logout and the HttpOnly cookie flow tested end to end ✔
+- M01.01.03: idempotent user creation, including a 10-thread race producing 1 user and 1 audit row ✔
+- M01.03.02: cross-organization SQL access denied (324 adversarial tests) ✔
+- M01.03.04: membership and role changes create redacted audit records ✔
+
+**Open follow-ups:**
+- The web session store is in-memory, which is fine for a single process; a shared store is needed before scaling out.
+- Repo-level `tests/` aren't covered by the apps/api ruff per-file ignores (S101). This needs a repo-level ruff config in M08.03.01.
+- Optional org-membership checks in RLS policies are deferred to M08 (DC-016 item 4).

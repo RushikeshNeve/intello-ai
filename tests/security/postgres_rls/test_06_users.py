@@ -99,14 +99,17 @@ def test_own_identity_upsert_cannot_be_renamed_to_another(app_engine: Engine, wo
             text("INSERT INTO users (id, issuer, subject) VALUES (:id, :iss, :sub)"),
             {"id": uuid.uuid4(), "iss": ISSUER, "sub": me},
         )
-    expect_denied(
+    # Denied with 42501 either by RLS WITH CHECK or, since migration 0002, earlier by the
+    # users_identity_immutable BEFORE UPDATE trigger (DC-016). Both must remain denials.
+    err = expect_denied(
         app_engine,
         "UPDATE users SET subject = :new WHERE subject = :me",
         {"new": f"unclaimed-{uuid.uuid4()}", "me": me},
-        match="row-level security",
         issuer=ISSUER,
         subject=me,
     )
+    message = str(err.orig)
+    assert "row-level security" in message or "immutable" in message, message
 
 
 def test_insert_for_other_user_id_rejected(app_engine: Engine, world: World) -> None:

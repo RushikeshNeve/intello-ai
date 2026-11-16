@@ -9,7 +9,7 @@
 # public issuer, so validators must check `iss` against OIDC_ISSUER_URL.
 services:
   dex:
-    image: ${OIDC_IMAGE:-ghcr.io/dexidp/dex:v2.46.1}
+    image: ${OIDC_IMAGE:-ghcr.io/dexidp/dex:v2.45.1}
     # The image entrypoint renders the config with gomplate (getenv) before starting Dex.
     command: ["dex", "serve", "/etc/dex/ukos.yaml"]
     environment:

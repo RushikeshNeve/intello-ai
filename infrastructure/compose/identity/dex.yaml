@@ -1,6 +1,6 @@
-{{- /* UKOS local OIDC provider (Dex v2.46; DC-012). Rendered by the image entrypoint with gomplate:
+{{- /* UKOS local OIDC provider (Dex v2.45.1 pinned, DC-012/DC-016). Rendered by the image entrypoint with gomplate:
      every secret comes from the environment, nothing secret is committed.
-     Dex v2.46 rejects unknown config fields, so keep this file to documented keys only. */ -}}
+     Keep to documented keys only (v2.46+ rejects unknown fields; we stay compatible with both). */ -}}
 issuer: {{ getenv "OIDC_ISSUER_URL" | required "OIDC_ISSUER_URL is required" }}
 
 storage:

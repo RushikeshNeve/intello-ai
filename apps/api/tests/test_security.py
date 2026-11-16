@@ -128,6 +128,10 @@ def test_valid_token_verifies_then_provisions() -> None:
 
 def test_unwired_components_map_to_500_without_detail_leak() -> None:
     app = create_app(Settings())
+    # create_app wires the real verifier/provisioner (M01.01.01/03); remove them to exercise the
+    # unwired defaults, which must fail closed as a 500 without leaking details.
+    app.dependency_overrides.pop(get_token_verifier, None)
+    app.dependency_overrides.pop(get_user_provisioner, None)
 
     @app.get("/whoami")
     async def whoami(principal: Annotated[Principal, Depends(get_current_principal)]) -> str:

@@ -66,6 +66,16 @@ services:
     environment:
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://127.0.0.1:8300}
       API_INTERNAL_BASE_URL: ${API_INTERNAL_BASE_URL:-http://api:8000}
+      # Web session / BFF (M01.01.02, contract §6, DC-017).
+      UKOS_ENV: ${UKOS_ENV:-local}
+      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:?OIDC_ISSUER_URL is required}
+      OIDC_INTERNAL_URL: ${OIDC_INTERNAL_URL:-http://dex:5556/dex}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-ukos-web}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:?OIDC_CLIENT_SECRET is required}
+      OIDC_AUDIENCE: ${OIDC_AUDIENCE:-ukos-api}
+      OIDC_REDIRECT_URIS: ${OIDC_REDIRECT_URIS:-http://127.0.0.1:3300/api/auth/callback}
+      WEB_PUBLIC_URL: ${WEB_PUBLIC_URL:-http://127.0.0.1:3300}
+      WEB_SESSION_SECRET: ${WEB_SESSION_SECRET:?WEB_SESSION_SECRET is required}
     ports:
       - "${UKOS_BIND_HOST:-127.0.0.1}:${WEB_HOST_PORT:-3300}:3000"
     healthcheck:

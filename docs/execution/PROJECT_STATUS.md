@@ -8,7 +8,7 @@
 | Milestone | Tasks | DONE | In progress | Gate |
 |---|---|---|---|---|
 | M00 Architecture & local infra | 13 | **13** | 0 | **PASSED (conditional)**, 2026-11-16 |
-| M01 Identity, orgs, workspaces | 12 | 0 | 3 | batch 1 running (resumed) |
+| M01 Identity, orgs, workspaces | 12 | 8 | 0 | batch 3 next: REST endpoints + UI |
 | M02 Documents & object storage | 11 | 0 | 0 | blocked on M01 gate |
 | M03 Reliable ingestion | 14 | 0 | 0 | blocked on M02 gate |
 | M04 Search & grounded chat | 13 | 0 | 0 | blocked on M03 gate |
@@ -16,7 +16,7 @@
 | M06 Connectors & formats | 11 | 0 | 0 | blocked on M05 gate |
 | M07 Memory, research, UX | 11 | 0 | 0 | blocked on M06 gate |
 | M08 Security, eval, release | 12 | 0 | 0 | blocked on M07 gate |
-| **Total** | **108** | **13** | **0** | |
+| **Total** | **108** | **21** | **0** | |
 
 ## M00 exit gate (definition in `DEPENDENCY_GRAPH.md`, DC-007)
 

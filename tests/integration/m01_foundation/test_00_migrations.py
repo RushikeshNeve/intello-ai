@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from alembic import command
+from alembic.script import ScriptDirectory
 from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
@@ -43,9 +44,8 @@ def test_upgrade_downgrade_upgrade(
     command.upgrade(alembic_config, "head")
     assert set(RLS_TABLES) <= _tables(admin_engine)
     with admin_engine.connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == (
-            "0001_identity_tenancy"
-        )
+        head = ScriptDirectory.from_config(alembic_config).get_current_head()
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == head
 
 
 def test_rls_enabled_and_forced_everywhere(admin_engine: Engine, migrated: None) -> None:

@@ -43,8 +43,13 @@ CURRENT_ORG_SETTING = "app.current_org_id"
 CURRENT_ISSUER_SETTING = "app.current_issuer"
 CURRENT_SUBJECT_SETTING = "app.current_subject"
 
+# Sets user/org context AND clears the identity context, all transaction-locally. Clearing the
+# identity here means a session-level `app.current_issuer`/`app.current_subject` (e.g. smuggled in
+# via SQL injection with set_config(..., false)) can never leak into a later tenant_session on the
+# same pooled connection. set_identity_context() sets the identity afterwards when needed.
 _SET_CONTEXT = text(
-    "SELECT set_config(:user_key, :user_id, true), set_config(:org_key, :org_id, true)"
+    "SELECT set_config(:user_key, :user_id, true), set_config(:org_key, :org_id, true), "
+    "set_config(:issuer_key, '', true), set_config(:subject_key, '', true)"
 )
 
 _lock = threading.Lock()
@@ -95,6 +100,8 @@ def set_tenant_context(session: Session, *, user_id: UUID | None, org_id: UUID |
             "user_id": "" if user_id is None else str(user_id),
             "org_key": CURRENT_ORG_SETTING,
             "org_id": "" if org_id is None else str(org_id),
+            "issuer_key": CURRENT_ISSUER_SETTING,
+            "subject_key": CURRENT_SUBJECT_SETTING,
         },
     )
 
