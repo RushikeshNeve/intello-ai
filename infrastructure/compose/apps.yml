@@ -1,6 +1,6 @@
 # Universal Knowledge OS — application services (M00.02.05)
 #
-# FastAPI (`api`) and Next.js (`web`) starters. Depends on the `postgres` and `redis` services
+# FastAPI (`api`, after the one-shot `api-migrate`) and Next.js (`web`) starters. Depends on the `postgres` and `redis` services
 # from data.yml, so a standalone run must include both files:
 #
 #   docker compose -p ukos-platform --env-file infrastructure/env/.env.example \
@@ -10,6 +10,21 @@
 # ${UKOS_BIND_HOST} (127.0.0.1) only. Each service receives only the variables it needs.
 
 services:
+  # One-shot schema migration (M01.02.01): same image as `api`, runs Alembic as the ADMIN role
+  # and grants table privileges to POSTGRES_APP_USER. `api` starts only after it exits 0.
+  api-migrate:
+    build:
+      context: ../../apps/api
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    environment:
+      DATABASE_MIGRATION_URL: ${DATABASE_MIGRATION_URL:?DATABASE_MIGRATION_URL is required}
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER:?POSTGRES_APP_USER is required}
+    healthcheck:
+      disable: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   api:
     build:
       context: ../../apps/api
@@ -24,6 +39,9 @@ services:
       REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
       API_CORS_ORIGINS: ${API_CORS_ORIGINS:-}
       API_SECRET_KEY: ${API_SECRET_KEY:?API_SECRET_KEY is required}
+      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-http://127.0.0.1:8380/dex}
+      OIDC_INTERNAL_URL: ${OIDC_INTERNAL_URL:-http://dex:5556/dex}
+      OIDC_AUDIENCE: ${OIDC_AUDIENCE:-ukos-api}
     ports:
       - "${UKOS_BIND_HOST:-127.0.0.1}:${API_HOST_PORT:-8300}:8000"
     healthcheck:
@@ -37,6 +55,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      api-migrate:
+        condition: service_completed_successfully
 
   web:
     build:

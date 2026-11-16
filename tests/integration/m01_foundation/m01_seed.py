@@ -1,0 +1,101 @@
+"""Seeding helpers (run as the admin role, which bypasses RLS)."""
+
+from __future__ import annotations
+
+import uuid
+from dataclasses import dataclass
+
+from sqlalchemy import Connection, Engine, text
+from sqlalchemy.exc import DBAPIError
+
+
+def new_slug(prefix: str = "org") -> str:
+    return f"{prefix}-{uuid.uuid4().hex[:12]}"
+
+
+def insert_user(conn: Connection, *, subject: str | None = None) -> uuid.UUID:
+    user_id = uuid.uuid4()
+    conn.execute(
+        text(
+            "INSERT INTO users (id, issuer, subject, email, display_name)"
+            " VALUES (:id, 'http://issuer.test', :sub, :email, 'Test User')"
+        ),
+        {"id": user_id, "sub": subject or f"sub-{user_id}", "email": f"{user_id}@example.test"},
+    )
+    return user_id
+
+
+def insert_org(conn: Connection, *, created_by: uuid.UUID, slug: str | None = None) -> uuid.UUID:
+    org_id = uuid.uuid4()
+    conn.execute(
+        text("INSERT INTO organizations (id, slug, name, created_by) VALUES (:id, :s, 'Org', :u)"),
+        {"id": org_id, "s": slug or new_slug(), "u": created_by},
+    )
+    return org_id
+
+
+def add_member(conn: Connection, org_id: uuid.UUID, user_id: uuid.UUID, role: str) -> None:
+    conn.execute(
+        text("INSERT INTO organization_memberships (org_id, user_id, role) VALUES (:o, :u, :r)"),
+        {"o": org_id, "u": user_id, "r": role},
+    )
+
+
+def insert_workspace(conn: Connection, org_id: uuid.UUID, created_by: uuid.UUID) -> uuid.UUID:
+    ws_id = uuid.uuid4()
+    conn.execute(
+        text(
+            "INSERT INTO workspaces (id, org_id, slug, name, created_by)"
+            " VALUES (:id, :o, :s, 'Workspace', :u)"
+        ),
+        {"id": ws_id, "o": org_id, "s": new_slug("ws"), "u": created_by},
+    )
+    return ws_id
+
+
+@dataclass(frozen=True)
+class Tenant:
+    org_id: uuid.UUID
+    owner_id: uuid.UUID
+    workspace_id: uuid.UUID
+
+
+def seed_tenant(engine: Engine) -> Tenant:
+    """A complete org: owner, workspace, workspace membership, grant and audit event."""
+    with engine.begin() as conn:
+        owner = insert_user(conn)
+        org = insert_org(conn, created_by=owner)
+        add_member(conn, org, owner, "owner")
+        ws = insert_workspace(conn, org, owner)
+        conn.execute(
+            text(
+                "INSERT INTO workspace_memberships (workspace_id, org_id, user_id, role)"
+                " VALUES (:w, :o, :u, 'admin')"
+            ),
+            {"w": ws, "o": org, "u": owner},
+        )
+        conn.execute(
+            text(
+                "INSERT INTO resource_grants (id, org_id, workspace_id, resource_type, resource_id,"
+                " grantee_type, grantee_id, permission, granted_by)"
+                " VALUES (:id, :o, :w, 'document', :r, 'workspace_role', 'viewer', 'read', :u)"
+            ),
+            {"id": uuid.uuid4(), "o": org, "w": ws, "r": uuid.uuid4(), "u": owner},
+        )
+        conn.execute(
+            text(
+                "INSERT INTO audit_events (id, org_id, actor_user_id, event_type, target_type,"
+                " target_id, outcome) VALUES (:id, :o, :u, 'org.created', 'org', :t, 'success')"
+            ),
+            {"id": uuid.uuid4(), "o": org, "u": owner, "t": str(org)},
+        )
+    return Tenant(org_id=org, owner_id=owner, workspace_id=ws)
+
+
+def sqlstate(exc: DBAPIError) -> str | None:
+    return getattr(exc.orig, "sqlstate", None)
+
+
+def constraint_name(exc: DBAPIError) -> str | None:
+    diag = getattr(exc.orig, "diag", None)
+    return getattr(diag, "constraint_name", None)

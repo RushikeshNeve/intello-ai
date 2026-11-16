@@ -7,7 +7,7 @@ Usage::
     stack = ComposeProject([compose_file("data.yml")])   # project "ukos-platform"
     stack.down(volumes=True)                             # clean slate
     stack.up(wait=True)
-    stack.env["POSTGRES_HOST_PORT"]                      # values from the env file
+    stack.env["POSTGRES_HOST_PORT"]                      # env file, overlaid by OS env
     stack.down(volumes=True)
 
 Every command is scoped with ``-p <project>`` so tests never touch containers or volumes that
@@ -52,6 +52,22 @@ def load_env_file(path: Path) -> dict[str, str]:
             value = value[1:-1]
         values[key.strip()] = value
     return values
+
+
+def overlay_os_environ(
+    values: Mapping[str, str], environ: Mapping[str, str] | None = None
+) -> dict[str, str]:
+    """Return ``values`` with same-named OS environment variables taking precedence.
+
+    This mirrors Docker Compose interpolation (shell environment beats ``--env-file``), so
+    ``stack.env`` reports the ports/credentials the containers really use. Only keys already in
+    the env file are overlaid. Example for an isolated parallel stack::
+
+        UKOS_TEST_COMPOSE_PROJECT=ukos-m01-foundation POSTGRES_HOST_PORT=25532 \\
+            REDIS_HOST_PORT=26479 python -m pytest ...
+    """
+    source = os.environ if environ is None else environ
+    return {key: source.get(key, value) for key, value in values.items()}
 
 
 def docker_available() -> bool:
@@ -123,7 +139,8 @@ class ComposeProject:
         self.project = project
         self.env_file = Path(env_file)
         self.extra_env = dict(extra_env or {})
-        self.env: dict[str, str] = {**load_env_file(self.env_file), **self.extra_env}
+        self.env: dict[str, str] = overlay_os_environ(load_env_file(self.env_file))
+        self.env.update(self.extra_env)
 
     # -- low level -----------------------------------------------------------------
     def _base(self) -> list[str]:

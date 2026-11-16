@@ -25,6 +25,9 @@ RUN groupadd --system --gid 10001 app \
 WORKDIR /app
 COPY --from=build /opt/venv /opt/venv
 COPY app ./app
+# Alembic (M01.02.01): run by the one-shot `api-migrate` compose service as the admin role.
+COPY alembic.ini ./
+COPY migrations ./migrations
 USER app:app
 EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=6 \
