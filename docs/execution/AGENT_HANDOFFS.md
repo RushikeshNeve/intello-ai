@@ -91,3 +91,13 @@ One entry per task when it reaches REVIEW or DONE. The coordinator adds verifica
 - **Owner:** coordinator · **Status:** DONE
 - **File:** `docs/development/local-runbook.md`
 - **Evidence:** I executed §2–§5 on the full root stack: `cp .env.example .env`, `docker compose up -d --wait`, `docker compose run --rm objectstore-init`, the health checks, then `down -v`. All 6 services were healthy; ready returned postgres and redis ok; web 200; RushDB 200; anonymous object read 403; nothing left behind. The first execution caught an unreliable step (`docker compose wait objectstore-init`), which was replaced. The §4 LM Studio commands match the verified benchmark setup. The §6 test commands are the ones used for every verification above.
+
+---
+
+## M01.03.01 — RBAC policy decision service
+- **Owner:** policy-agent · **Branch:** `agent/m01-policy` (8f26377) · merged to `main` as 72f0b72 · **Status:** DONE
+- **Files:** `apps/api/app/modules/authorization/{__init__,policy}.py`, `apps/api/tests/authorization/{__init__,test_policy}.py` (standard library only)
+- **Agent results:** 632 tests. The role matrix is 4 org × 4 workspace roles × 13 actions = 208 cells, each run twice (Action values and plain strings), against an independent hand-written expected table. Also covered: grants (49 cases), non-member with every grant (52 cases), unknown actions (40), and the `can_assign_org_role` matrix (64). Branch coverage of policy.py is 100% (105 statements, 28 branches). Strict mypy passes in a container.
+- **Coordinator verification (on `main`):** `python -m pytest -q tests/authorization` → **632 passed**; ruff clean. The full API suite on the host with the venv under `%LOCALAPPDATA%` → **640 passed**.
+- **Contract clarification:** DC-013 (the `not_workspace_member` reason code, and precedence rules).
+- **Integration (for M01.02.02/04):** build `SubjectContext` from Postgres, then `decide()`. A denial maps to 404 when `is_concealed()` is true, otherwise 403. Member changes call `decide(ORG_MEMBERS_MANAGE)` and then `can_assign_org_role()`. The last-owner rule is enforced by the database trigger and the caller.

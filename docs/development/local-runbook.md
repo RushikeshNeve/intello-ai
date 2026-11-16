@@ -116,7 +116,9 @@ On Windows, **quit Docker Desktop from the system tray**. Never kill it from Tas
 
 ```bash
 cd apps/api
-uv venv --python <python.org python.exe> .venv   # Windows: see §7.1. Elsewhere: uv venv
+# Windows: keep the venv under %LOCALAPPDATA% (see §7.1). Elsewhere: plain `uv venv` + `uv sync`.
+export UV_PROJECT_ENVIRONMENT="$LOCALAPPDATA/ukos/venvs/api"
+uv venv --python <python.org python.exe> "$UV_PROJECT_ENVIRONMENT"
 uv sync --frozen
 uv run --no-sync python -m ruff check
 uv run --no-sync python -m ruff format --check
@@ -167,6 +169,7 @@ This machine enforces an Application Control policy (WDAC / Smart App Control). 
 - **uv-managed CPython.** Its `python.exe` is blocked, so build venvs from the python.org install
   (`uv venv --python C:/Users/<you>/AppData/Local/Programs/Python/Python312/python.exe .venv`).
 - **mypy's compiled (mypyc) modules.** Run mypy in a Linux container (§6).
+- **Compiled extension DLLs inside a venv on the `D:` drive** (e.g. psycopg's binary driver: `DLL load failed while importing pq`). The same files load from a venv under `%LOCALAPPDATA%`, so set `UV_PROJECT_ENVIRONMENT=$LOCALAPPDATA/ukos/venvs/api` (verified 2026-11-16: the full API suite passes, 640 tests). `uv run --no-project --with …` environments already live there.
 
 ### 7.2 Windows Defender Firewall prompts
 Prompts for Docker, Python or Node can be **denied** (untick Private and Public, then Cancel). Every service binds to

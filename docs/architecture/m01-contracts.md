@@ -88,7 +88,7 @@ class SubjectContext:                      # loaded by the caller from PostgreSQ
     workspace_role: WorkspaceRole | None
     grants: frozenset[GrantPermission] = frozenset()   # active grants on the target resource
 @dataclass(frozen=True)
-class Decision: allowed: bool; reason: str  # reason is a stable machine code, e.g. "not_org_member"
+class Decision: allowed: bool; reason: str  # stable codes: allowed_by_org_role | allowed_by_workspace_role | allowed_by_grant | not_org_member | not_workspace_member | insufficient_role | unknown_action (DC-013)
 def decide(subject: SubjectContext, action: Action) -> Decision
 ```
 
