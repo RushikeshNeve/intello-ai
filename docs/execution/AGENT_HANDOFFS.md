@@ -101,3 +101,26 @@ One entry per task when it reaches REVIEW or DONE. The coordinator adds verifica
 - **Coordinator verification (on `main`):** `python -m pytest -q tests/authorization` → **632 passed**; ruff clean. The full API suite on the host with the venv under `%LOCALAPPDATA%` → **640 passed**.
 - **Contract clarification:** DC-013 (the `not_workspace_member` reason code, and precedence rules).
 - **Integration (for M01.02.02/04):** build `SubjectContext` from Postgres, then `decide()`. A denial maps to 404 when `is_concealed()` is true, otherwise 403. Member changes call `decide(ORG_MEMBERS_MANAGE)` and then `can_assign_org_role()`. The last-owner rule is enforced by the database trigger and the caller.
+
+---
+
+## M01 foundation + M01.02.01 — DB layer, models, security core, Alembic migration 0001
+- **Owner:** foundation-agent (single migration owner) · **Branch:** `agent/m01-foundation` (82db3d9…04298c5) · merged to `main` as 1c1bf6a · **Status:** DONE
+- **Delivered:**
+  - Dependencies: SQLAlchemy 2.1, Alembic, PyJWT[crypto], and runtime httpx.
+  - Settings for OIDC and the migration URL.
+  - `app/core/db.py`: `tenant_session`, `set_tenant_context`, `set_identity_context`.
+  - `app/core/models.py`: 7 typed models.
+  - `app/core/security.py`: Principal, VerifiedClaims, the verifier/provisioner protocols, and `get_current_principal` with 401 + `WWW-Authenticate`.
+  - Alembic migration `0001_identity_tenancy`: every constraint, deferred owner triggers, append-only audit, RLS ENABLE + FORCE fail-closed on all 7 tables, and least-privilege grants.
+  - An `api-migrate` one-shot that `api` waits on.
+  - The env overlay in `compose_support.py` for isolated test ports.
+- **Coordinator verification (on `main`):**
+  - ruff clean; 27 files formatted.
+  - Unit tests **662 passed** (including the 632 policy tests).
+  - `tests/integration/m01_foundation` → **46 passed**: migration round trip, slug and owner constraints, workspace membership FKs, append-only audit, RLS smoke as `ukos_app`.
+  - Strict mypy in a container → **no issues in 26 files**.
+  - `test_apps_health.py` with `api-migrate` → **6 passed**. The first attempt hit a port clash on 23301 with another agent's server; the retry on free ports passed.
+  - Contract and docs tests → 11 passed.
+- **M01.02.01 acceptance:** "Unique organizations and owner membership constraints pass." Duplicate and case-variant slugs are rejected; an org with no owner fails at commit (23514 / `organization_has_owner`); demoting or removing the last owner is rejected; an ownership transfer inside one transaction is allowed.
+- **Contract updates accepted:** DC-014.

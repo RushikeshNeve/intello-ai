@@ -33,15 +33,15 @@ A task is DONE only after the coordinator reruns its acceptance check on `main` 
 |---|---|---|---|---|---|
 | (prep) | Local OIDC provider Dex + test users (DC-012) | coordinator | main | — | DONE (tokens verified) |
 | (prep) | Schema-first M01 contracts | coordinator | main | — | DONE |
-| (foundation) | DB layer, ORM models, security core, Alembic, api-migrate, test port overlay | foundation-agent | agent/m01-foundation | contracts | IN_PROGRESS |
-| M01.02.01 | Organization schema and migration | foundation-agent (migration owner) | agent/m01-foundation | contracts | IN_PROGRESS |
+| (foundation) | DB layer, ORM models, security core, Alembic, api-migrate, test port overlay | foundation-agent | agent/m01-foundation | contracts | DONE (verified on main) |
+| M01.02.01 | Organization schema and migration | foundation-agent (migration owner) | agent/m01-foundation | contracts | DONE (46 DB tests on main) |
 | M01.01.02 | Web session handling (BFF, PKCE, HttpOnly) | web-session-agent | agent/m01-web-session | Dex, contracts | IN_PROGRESS |
 | M01.03.01 | RBAC policy decision service | policy-agent | agent/m01-policy | contracts | DONE (632 on main; full API suite 640) |
-| M01.01.01 | OIDC issuer/audience/expiry verification | — | — | foundation (security.py) | TODO |
-| M01.01.03 | User provisioning on first sign-in | — | — | foundation (models) | TODO |
-| M01.03.02 | PostgreSQL RLS regression tests | — | — | M01.02.01 | TODO |
-| M01.03.03 | Document grant model contracts | — | — | foundation, M01.03.01 | TODO |
-| M01.03.04 | Auditable security events | — | — | foundation | TODO |
+| M01.01.01 | OIDC issuer/audience/expiry verification | identity-agent | agent/m01-identity | foundation | IN_PROGRESS (batch 2) |
+| M01.01.03 | User provisioning on first sign-in | identity-agent | agent/m01-identity | foundation | IN_PROGRESS (batch 2) |
+| M01.03.02 | PostgreSQL RLS regression tests | rls-agent | agent/m01-rls | M01.02.01 | IN_PROGRESS (batch 2) |
+| M01.03.03 | Document grant model contracts | grants-agent | agent/m01-grants | foundation, M01.03.01 | IN_PROGRESS (batch 2) |
+| M01.03.04 | Auditable security events | audit-agent | agent/m01-audit | foundation | IN_PROGRESS (batch 2) |
 | M01.02.02 | Organization REST endpoints | — | — | 01.01, 01.03, 03.01, 03.04 | TODO |
 | M01.02.04 | Workspace schema and endpoints | — | — | as 02.02 | TODO |
 | M01.02.03 | Organization switcher | — | — | 01.02, 02.02 | TODO |
