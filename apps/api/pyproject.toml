@@ -5,10 +5,14 @@ description = "Universal Knowledge OS API (FastAPI modular monolith)"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "alembic>=1.20.1",
     "fastapi>=0.163.1",
+    "httpx>=0.28.1",
     "psycopg[binary]>=3.3.9",
     "pydantic-settings>=2.16.3",
+    "pyjwt[crypto]>=2.15.1",
     "redis>=8.1.0",
+    "sqlalchemy>=2.1.8",
     "uvicorn[standard]>=0.54.0",
 ]
 
@@ -46,7 +50,6 @@ addopts = "-ra"
 
 [dependency-groups]
 dev = [
-    "httpx>=0.28.1",
     "mypy>=2.4.1",
     "pytest>=9.2.0",
     "ruff>=0.17.5",
