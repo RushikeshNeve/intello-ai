@@ -1,0 +1,17 @@
+# Universal Knowledge OS — local stack (ADR-050/051). Owned by the integration owner (DC-006).
+#
+#   cp infrastructure/env/.env.example .env      # then replace every change-me-* value
+#   docker compose up -d --wait                  # project name: ukos
+#   docker compose down                          # keeps volumes; add -v ONLY to wipe all data
+#
+# Each included file also runs standalone (see its header). Relative paths inside an included
+# file resolve against that file's directory; variables come from the root `.env`.
+name: ukos
+
+include:
+  - path: infrastructure/compose/data.yml
+    env_file: .env
+  - path: infrastructure/compose/rushdb.yml
+    env_file: .env
+  - path: infrastructure/compose/objects.yml
+    env_file: .env
