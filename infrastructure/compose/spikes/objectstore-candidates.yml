@@ -1,0 +1,110 @@
+# M00.02.03 — candidate object stores for EVALUATION ONLY (not part of the runtime stack).
+#
+#   docker compose -p ukos-objectstore-eval -f infrastructure/compose/spikes/objectstore-candidates.yml up -d --wait
+#   docker compose -p ukos-objectstore-eval -f infrastructure/compose/spikes/objectstore-candidates.yml down -v
+#
+# Each candidate gets its own 127.0.0.1 host port: SeaweedFS 9301, RustFS 9302, Garage 9303.
+# Credentials are throwaway evaluation placeholders (not secrets). Garage requires its own key
+# formats (GK + 24 hex / 64 hex) and a one-time layout/key bootstrap, see docs/spikes/object-storage.md.
+
+services:
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.53
+    # `weed mini` = master + volume + filer + S3 in one process (single-node dev mode).
+    # WebDAV / Admin UI / Iceberg catalog disabled: we only want the S3 gateway.
+    command:
+      - mini
+      - -s3.port=9000
+      - -s3.config=/etc/seaweedfs/s3.json
+      - -webdav=false
+      - -admin.ui=false
+      - -s3.allowedOrigins=http://127.0.0.1:3300,http://localhost:3300
+    configs:
+      - source: seaweedfs_s3
+        target: /etc/seaweedfs/s3.json
+    ports:
+      - "127.0.0.1:9301:9000"
+    volumes:
+      - seaweedfs-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9000/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  rustfs:
+    image: rustfs/rustfs:1.0.5
+    environment:
+      RUSTFS_ACCESS_KEY: eval-rustfs-access
+      RUSTFS_SECRET_KEY: eval-rustfs-secret-key-0000
+      RUSTFS_VOLUMES: /data
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_CONSOLE_ENABLE: "false"
+    ports:
+      - "127.0.0.1:9302:9000"
+    volumes:
+      - rustfs-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/health >/dev/null || wget -q -O /dev/null http://127.0.0.1:9000/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  garage:
+    image: dxflrs/garage:v2.5.0
+    configs:
+      - source: garage_toml
+        target: /etc/garage.toml
+    ports:
+      - "127.0.0.1:9303:3900"
+    volumes:
+      - garage-meta:/var/lib/garage/meta
+      - garage-data:/var/lib/garage/data
+    # Image is FROM scratch (no shell/curl), so health is probed by the garage CLI itself.
+    healthcheck:
+      test: ["CMD", "/garage", "status"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+
+configs:
+  seaweedfs_s3:
+    content: |
+      {
+        "identities": [
+          {
+            "name": "ukos-eval",
+            "credentials": [
+              {"accessKey": "eval-seaweed-access", "secretKey": "eval-seaweed-secret-key-0000"}
+            ],
+            "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+          }
+        ]
+      }
+  garage_toml:
+    content: |
+      metadata_dir = "/var/lib/garage/meta"
+      data_dir = "/var/lib/garage/data"
+      db_engine = "sqlite"
+      replication_factor = 1
+      rpc_bind_addr = "[::]:3901"
+      rpc_public_addr = "127.0.0.1:3901"
+      rpc_secret = "0000000000000000000000000000000000000000000000000000000000000000"
+
+      [s3_api]
+      s3_region = "us-east-1"
+      api_bind_addr = "[::]:3900"
+      root_domain = ".s3.garage.localhost"
+
+      [admin]
+      api_bind_addr = "[::]:3903"
+      admin_token = "eval-garage-admin-token"
+
+volumes:
+  seaweedfs-data:
+  rustfs-data:
+  garage-meta:
+  garage-data:
