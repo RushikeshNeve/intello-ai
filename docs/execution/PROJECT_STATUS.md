@@ -7,7 +7,7 @@
 
 | Milestone | Tasks | DONE | In progress | Gate |
 |---|---|---|---|---|
-| M00 Architecture & local infra | 13 | 7 | 5 | open — RushDB CONDITIONAL GO (DC-009); object store = RustFS |
+| M00 Architecture & local infra | 13 | 9 | 3 | open — RushDB CONDITIONAL GO (DC-009); object store = RustFS |
 | M01 Identity, orgs, workspaces | 12 | 0 | 0 | blocked on M00 gate |
 | M02 Documents & object storage | 11 | 0 | 0 | blocked on M01 gate |
 | M03 Reliable ingestion | 14 | 0 | 0 | blocked on M02 gate |

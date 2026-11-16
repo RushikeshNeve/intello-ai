@@ -18,7 +18,7 @@ A task is DONE only after the coordinator reruns its acceptance check on `main` 
 | M00.02.03 | Evaluate local S3-compatible storage | objectstore-agent | agent/m00-objectstore | — | DONE (RustFS chosen; verified on main) |
 | M00.02.04 | Compose local object store | objectstore-agent | agent/m00-objectstore | M00.02.03 | DONE (integration 5/5 on main) |
 | M00.03.04 | Benchmark local embeddings + generation | models-agent | agent/m00-models | — | IN_PROGRESS (paused, uncommitted WIP) |
-| M00.03.05 | Backup/restore smoke | coordinator | main | 02.01, 02.02, 02.04 | IN_PROGRESS (draft, not run) |
+| M00.03.05 | Backup/restore smoke | coordinator | main | 02.01, 02.02, 02.04 | DONE (passed, exit 0) |
 | M00.01.03 | Developer runbook | coordinator | main | 02.01–02.05 | TODO |
 
 ### Why these groupings are parallel-safe

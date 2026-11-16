@@ -42,3 +42,13 @@ One entry per task when it reaches REVIEW or DONE. The coordinator adds verifica
 - **Owner:** platform-agent · **Commit:** f6d04a8 on `agent/m00-platform`. The coordinator merged this commit into `main` early (8383b9d), while the agent was still finishing M00.02.05 on the same branch, because M00.03.05 needs `data.yml`. **Status:** DONE
 - **Files:** `infrastructure/compose/data.yml`, `infrastructure/compose/postgres/init/10-app-role.sh`, `tests/infrastructure/{compose_support,test_data_services}.py`
 - **Coordinator verification (on `main`):** `UKOS_TEST_COMPOSE_PROJECT=ukos-verify-data uv run --no-project --with pytest --with "psycopg[binary]" --with redis python -m pytest -q -rA tests/infrastructure/test_data_services.py` → **5 passed in 37.92s**. The tests cover health, volumes and loopback-only ports; that secrets are not exposed in container config; that Redis requires a password and uses AOF; that the app role is least-privilege (NOSUPERUSER, NOBYPASSRLS); and persistence across restart and recreate.
+
+---
+
+## M00.03.05 — Backup/restore smoke
+- **Owner:** coordinator · **Branch:** main · **Status:** DONE
+- **Files:** `scripts/restore_smoke.sh`, `scripts/restore_smoke/fixtures.py`
+- **Method:** runs in an isolated project `ukos-restore-smoke` on ports 15532/16479/13310/19300 and refuses to run against the project `ukos`. Steps: seed Postgres (250 rows), RushDB (40 chunks with vectors, a text index, HAS_CHUNK and MENTIONS links) and RustFS (12 objects from 1 KiB to about 280 KiB). Record content digests. Back up with `pg_dump -Fc` plus cold `tar` snapshots of the stopped RushDB and object-store volumes, and write a SHA-256 manifest. `down -v`, then assert the volumes are gone and verify the manifest. Restore into fresh volumes (`pg_restore`, untar), restart the stores and compare digests. RushDB's digest includes vector scores and BM25 hits, per RushDB condition (4).
+- **Evidence:** `bash scripts/restore_smoke.sh` → `RESTORE SMOKE PASSED: restored data matches fixture checksums for objects, postgres, rushdb`, **exit code 0**. Restored: postgres rows=250 md5 c53b793a…; objects=12 sha256 dde726f4… (matches the generator); rushdb chunks=40, has_chunk_rels=40, mentions=8, sha256 d9d8ef50…. Nothing from `ukos-restore-smoke` was left behind afterwards.
+- **Fix during verification:** the first run failed at step 2 because Git Bash passed `/d/...` paths to Windows `docker.exe` with path conversion disabled. Fixed by normalizing the repo path with `cygpath -m`.
+- **Limitations:** Redis is deliberately not backed up (it's a broker, ADR-036). The object snapshot is valid only for the same provider and version; portable logical mirroring is M08.02.01. There is no point-in-time recovery: the RushDB WAL archive is untested.

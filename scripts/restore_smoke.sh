@@ -18,6 +18,9 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Git Bash on Windows: docker.exe / uv.exe need Windows-style paths (D:/...), because
+# MSYS_NO_PATHCONV (set below) stops MSYS from translating /d/... for them.
+if command -v cygpath >/dev/null 2>&1; then REPO="$(cygpath -m "$REPO")"; fi
 SMOKE_PROJECT="${SMOKE_PROJECT:-ukos-restore-smoke}"
 ENV_FILE="${ENV_FILE:-$REPO/infrastructure/env/.env.example}"
 WORK="${WORK:-$REPO/.data/restore-smoke}"
