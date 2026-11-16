@@ -58,6 +58,17 @@ All ids are UUIDv4 generated in the application. Timestamps are `timestamptz`, U
   - `workspaces`, `workspace_memberships`, `resource_grants`, `audit_events`: rows only where `org_id = current_org_id`.
   - `users`: visible if `id = current_user_id` OR they share `current_org_id` membership.
 - With **no context set, nothing org-scoped is visible** (fail closed).
+- **Identity context (DC-014):** the provisioner can't know `users.id` before upserting, so it also sets
+  transaction-local `app.current_issuer` / `app.current_subject` (`set_identity_context()`). The `users` SELECT,
+  INSERT and UPDATE policies additionally allow the row matching that verified (issuer, subject).
+- **Org-less audit (DC-014):** the `audit_events` INSERT check also allows `org_id IS NULL AND (actor_user_id IS NULL OR
+  actor_user_id = current_user_id)`, for events such as `user.provisioned`. SELECT stays current-org only. Audit rows are
+  inserted without RETURNING (`eager_defaults=False`).
+- Write policies beyond the summary: `organizations` UPDATE only where `id = current_org_id`; there is no DELETE grant on
+  `organizations`, `workspaces` or `resource_grants` (soft delete, and revoke is an update).
+- **Database error → HTTP mapping:** SQLSTATE `23514` with constraint `organization_has_owner` (raised at COMMIT, because the
+  check is deferred) → 409 `last_owner`. `uq_organizations_slug` / `uq_workspaces_org_id_slug` (and
+  `ck_organizations_slug_format` for a case-variant collision) → 409 `slug_taken`. Audit UPDATE/DELETE → 42501.
 - RLS is defense in depth. **Authorization is still decided by the policy service (§3).**
 
 ## 3. Authorization (M01.03.01 policy, M01.03.03 grants)
