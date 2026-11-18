@@ -440,6 +440,29 @@ def _session(conn: Connection, t: Tenant, **kw: Any) -> uuid.UUID:
     )
 
 
+@pytest.mark.parametrize("title", ["", " ", "  padded", "padded  ", "\tx", "x" * 256], ids=repr)
+def test_session_title_check(admin_engine: Engine, tenant: Tenant, title: str) -> None:
+    """Migration 0004: the optional title follows the same shape rule as documents.title."""
+    with admin_engine.begin() as conn:
+        session_id = _session(conn, tenant)
+    with pytest.raises(IntegrityError) as exc, admin_engine.begin() as conn:
+        conn.execute(
+            text("UPDATE upload_sessions SET title = :t WHERE id = :s"),
+            {"t": title, "s": session_id},
+        )
+    _violation(exc, name="ck_upload_sessions_title")
+
+
+@pytest.mark.parametrize("title", [None, "x", "x" * 255, "with inner  spaces", "日本語"])
+def test_session_title_valid(admin_engine: Engine, tenant: Tenant, title: str | None) -> None:
+    with admin_engine.begin() as conn:
+        session_id = _session(conn, tenant)
+        conn.execute(
+            text("UPDATE upload_sessions SET title = :t WHERE id = :s"),
+            {"t": title, "s": session_id},
+        )
+
+
 def test_session_version_id_unique(admin_engine: Engine, tenant: Tenant) -> None:
     version_id = uuid.uuid4()
     with admin_engine.begin() as conn:

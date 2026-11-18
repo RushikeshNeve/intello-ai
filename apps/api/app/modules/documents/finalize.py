@@ -178,7 +178,9 @@ def _create_version(
     if document is not None and document.deleted:
         raise not_found()
     if document is None:
-        upload_service.create_document(session, sess, source_id, default_title(sess.filename))
+        upload_service.create_document(
+            session, sess, source_id, sess.title or default_title(sess.filename)
+        )
         event = AuditEventType.DOCUMENT_CREATED
         version_number = 1
     else:

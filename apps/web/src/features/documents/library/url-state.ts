@@ -13,10 +13,12 @@ export const TYPE_FILTERS = [
   { value: "pdf", label: "PDF", contentType: "application/pdf" },
   { value: "text", label: "Text", contentType: "text/" },
   { value: "image", label: "Images", contentType: "image/" },
-  // Prefix of the OOXML spreadsheet type; the API filters by an exact type or a prefix only.
-  { value: "spreadsheet", label: "Spreadsheets", contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml." },
-  // The generic fallback type: the API cannot express "everything else" as a single prefix.
-  { value: "other", label: "Other", contentType: "application/octet-stream" },
+  // The API filters by one exact type or one prefix, so the labels say exactly what matches:
+  // the OOXML spreadsheet prefix covers .xlsx only (CSV is text/csv, so it is under "Text").
+  { value: "spreadsheet", label: "Excel (.xlsx)", contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml." },
+  // application/octet-stream is what a browser reports for files whose type it can't identify.
+  // The API cannot express "everything else", so this is deliberately not called "Other".
+  { value: "other", label: "Unknown type", contentType: "application/octet-stream" },
 ] as const;
 export type TypeFilter = (typeof TYPE_FILTERS)[number]["value"];
 const TYPE_VALUES: readonly string[] = TYPE_FILTERS.map((t) => t.value);

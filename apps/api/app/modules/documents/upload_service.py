@@ -13,8 +13,9 @@ Interpretations of the contract (reported in the M02.01.03/04 handoff):
 * Races on the pending cap and the quota are closed with a transaction-scoped advisory lock keyed
   on the org (held until the session row is committed), not with a lock on the organization row.
 * All "now" comparisons use the database clock (``clock_timestamp()``), never the API host's.
-* The ``title`` of ``POST uploads`` is validated but **not persisted**: ``upload_sessions`` has no
-  column for it (schema gap, reported). A new document's title is the filename without extension.
+* The optional ``title`` of ``POST uploads`` is kept on the session (``upload_sessions.title``,
+  migration 0004, DC-022) and becomes the new document's title at finalize; without one the title is
+  the filename without its extension.
 """
 
 from __future__ import annotations
@@ -271,6 +272,7 @@ def insert_session(
     version_id: uuid.UUID,
     user_id: uuid.UUID,
     filename: str,
+    title: str | None,
     content_type: str,
     size_bytes: int,
     sha256: str,
@@ -288,6 +290,7 @@ def insert_session(
             version_id=version_id,
             created_by=user_id,
             filename=filename,
+            title=title,
             content_type=content_type,
             size_bytes=size_bytes,
             sha256=sha256,
@@ -313,6 +316,7 @@ class SessionRow:
     version_id: uuid.UUID
     created_by: uuid.UUID
     filename: str
+    title: str | None  # the optional title requested for a new document
     content_type: str
     size_bytes: int
     sha256: str
@@ -333,6 +337,7 @@ def load_session(
         UploadSession.version_id,
         UploadSession.created_by,
         UploadSession.filename,
+        UploadSession.title,
         UploadSession.content_type,
         UploadSession.size_bytes,
         UploadSession.sha256,
@@ -354,6 +359,7 @@ def load_session(
         version_id=row.version_id,
         created_by=row.created_by,
         filename=row.filename,
+        title=row.title,
         content_type=row.content_type,
         size_bytes=row.size_bytes,
         sha256=row.sha256,

@@ -30,6 +30,40 @@ def _key(session: dict[str, Any], scene: Scene) -> str:
 # ---------------------------------------------------------------------------------------------
 
 
+def test_custom_title_is_used_for_a_new_document(api: UploadApi, scene: Scene) -> None:
+    session = api.session(scene, scene.editor, DATA, filename="scan0042.pdf", title="Q3 board pack")
+    res = api.finalize(scene, scene.editor, session["upload_id"])
+    assert res.status == 201, res.body
+    assert res.body["document"]["title"] == "Q3 board pack"
+    # The filename is still recorded on the version, separately from the title.
+    assert res.body["version"]["original_filename"] == "scan0042.pdf"
+
+
+def test_title_falls_back_to_the_filename_when_not_given(api: UploadApi, scene: Scene) -> None:
+    session = api.session(scene, scene.editor, DATA, filename="notes.v2.md")
+    assert api.session_row(session["upload_id"])["title"] is None
+    res = api.finalize(scene, scene.editor, session["upload_id"])
+    assert res.body["document"]["title"] == "notes.v2"
+
+
+def test_title_is_ignored_for_a_new_version_of_an_existing_document(
+    api: UploadApi, scene: Scene
+) -> None:
+    first = api.finalize(
+        scene, scene.editor, api.session(scene, scene.editor, DATA, title="Original")["upload_id"]
+    )
+    document_id = first.body["document"]["id"]
+    more = b"second version"
+    session = api.session(
+        scene, scene.editor, more, document_id=document_id, title="A different title"
+    )
+    assert api.session_row(session["upload_id"])["title"] is None  # a version never renames
+    res = api.finalize(scene, scene.editor, session["upload_id"])
+    assert res.status == 201, res.body
+    assert res.body["document"]["title"] == "Original"
+    assert res.body["version"]["version_number"] == 2
+
+
 def test_finalize_creates_document_version_source_and_audit(api: UploadApi, scene: Scene) -> None:
     session = api.session(scene, scene.editor, DATA, filename="Q3 plan.final.txt")
     res = api.finalize(scene, scene.editor, session["upload_id"])

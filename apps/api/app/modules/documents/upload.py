@@ -122,6 +122,8 @@ def create_upload(
             version_id=version_id,
             user_id=tenant.user_id,
             filename=body.filename,
+            # Only meaningful for a NEW document; a version upload keeps the document's own title.
+            title=body.title if body.document_id is None else None,
             content_type=body.content_type,
             size_bytes=body.size_bytes,
             sha256=body.sha256,

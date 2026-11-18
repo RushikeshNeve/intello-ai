@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { resolveWorkspaceScope } from "@/features/organizations/server";
 import { SessionRedirect } from "@/features/shell/session-redirect";
@@ -35,13 +36,20 @@ async function WorkspaceHome({ params }: { params: Promise<{ orgSlug: string; wo
           Workspace{workspace.role ? ` · your role: ${WORKSPACE_ROLE_LABEL[workspace.role]}` : ""}
         </p>
       </div>
-      <section aria-labelledby="ws-content-heading" className="rounded-lg border border-dashed border-border p-6">
+      <section aria-labelledby="ws-content-heading" className="rounded-lg border border-border p-6">
         <h2 id="ws-content-heading" className="text-base font-medium">
           Documents
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Nothing here yet. Sources and documents arrive in a later milestone.
+          Upload, search and open the documents in this workspace.
         </p>
+        <Link
+          href={`${path}/documents`}
+          className="mt-4 inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          data-testid="open-documents"
+        >
+          Open documents
+        </Link>
       </section>
     </div>
   );

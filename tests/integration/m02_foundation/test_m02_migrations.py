@@ -14,7 +14,7 @@ from app.core.models import RLS_TABLES, Base
 
 M02_TABLES = ("sources", "documents", "document_versions", "upload_sessions")
 M02_FUNCTIONS = ("ukos_document_versions_immutable", "ukos_upload_sessions_forward_only")
-HEAD = "0003_documents"
+HEAD = "0004_upload_session_title"
 PREVIOUS = "0002_rls_hardening"
 
 

@@ -444,6 +444,11 @@ class UploadSession(Base):
         CheckConstraint(_in("state", UPLOAD_STATES), name="ck_upload_sessions_state"),
         CheckConstraint("length(filename) BETWEEN 1 AND 255", name="ck_upload_sessions_filename"),
         CheckConstraint(
+            "title IS NULL OR (length(title) BETWEEN 1 AND 255"
+            " AND title !~ '^[[:space:]]|[[:space:]]$')",
+            name="ck_upload_sessions_title",
+        ),
+        CheckConstraint(
             "length(content_type) BETWEEN 1 AND 255", name="ck_upload_sessions_content_type"
         ),
         CheckConstraint("size_bytes >= 1", name="ck_upload_sessions_size_bytes"),
@@ -481,6 +486,8 @@ class UploadSession(Base):
         UUID(as_uuid=True), ForeignKey("users.id", name="fk_upload_sessions_created_by")
     )
     filename: Mapped[str] = mapped_column(Text)
+    # Optional title for a NEW document, kept until finalize (NULL = derive it from the filename).
+    title: Mapped[str | None] = mapped_column(Text, nullable=True)
     content_type: Mapped[str] = mapped_column(Text)
     size_bytes: Mapped[int] = mapped_column(BigInteger)
     sha256: Mapped[str] = mapped_column(Text)

@@ -374,7 +374,7 @@ def test_session_shape_and_database_row(
 ) -> None:
     started = time.time()
     res = api.create(
-        scene, scene.editor, body_for(DATA, filename="Q3 plan.txt", title="Ignored title")
+        scene, scene.editor, body_for(DATA, filename="Q3 plan.txt", title="Custom title")
     )
     assert res.status == 201, res.body
     body = res.body
@@ -394,6 +394,7 @@ def test_session_shape_and_database_row(
     assert row["failure_code"] is None
     assert row["finalized_at"] is None
     assert row["object_key"] == key
+    assert row["title"] == "Custom title"  # kept on the session until finalize (DC-022)
     assert (row["filename"], row["content_type"], row["size_bytes"], row["sha256"]) == (
         "Q3 plan.txt",
         "text/plain",
