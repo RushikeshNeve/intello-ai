@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-11-17 · **Office closed until Saturday 2026-11-21** · **Current milestone:** M01 (8/12 done), batch 3 paused
+**Updated:** 2026-11-18 · **Current milestone:** M01 (8/12 done), batch 3 running
 **Source of truth:** this Git repository. Notion mirror: **not synchronized** (no Notion integration in this session).
 
 ## Summary
@@ -8,7 +8,7 @@
 | Milestone | Tasks | DONE | In progress | Gate |
 |---|---|---|---|---|
 | M00 Architecture & local infra | 13 | **13** | 0 | **PASSED (conditional)**, 2026-11-16 |
-| M01 Identity, orgs, workspaces | 12 | 8 | 0 | batch 3 paused until Saturday (SESSION_HANDOFF.md) |
+| M01 Identity, orgs, workspaces | 12 | 8 | 4 | batch 3 running (REST API + UI) |
 | M02 Documents & object storage | 11 | 0 | 0 | blocked on M01 gate |
 | M03 Reliable ingestion | 14 | 0 | 0 | blocked on M02 gate |
 | M04 Search & grounded chat | 13 | 0 | 0 | blocked on M03 gate |
