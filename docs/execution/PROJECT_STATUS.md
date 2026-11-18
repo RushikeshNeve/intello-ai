@@ -9,7 +9,7 @@
 |---|---|---|---|---|
 | M00 Architecture & local infra | 13 | **13** | 0 | **PASSED (conditional)**, 2026-11-16 |
 | M01 Identity, orgs, workspaces | 12 | **12** | 0 | **PASSED**, 2026-11-18 |
-| M02 Documents & object storage | 11 | 4 | 0 | batch A done; batch B next (upload sessions, catalog, library UI) |
+| M02 Documents & object storage | 11 | 4 | 7 | batch B running (upload API, catalog API, library UI) |
 | M03 Reliable ingestion | 14 | 0 | 0 | blocked on M02 gate |
 | M04 Search & grounded chat | 13 | 0 | 0 | blocked on M03 gate |
 | M05 Graph & GraphRAG | 11 | 0 | 0 | blocked on M04 gate |

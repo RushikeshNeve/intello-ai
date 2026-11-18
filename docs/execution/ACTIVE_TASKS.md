@@ -58,13 +58,13 @@ Parallel-safety: foundation owns `apps/api/**` except `authorization/policy.py`,
 | M02.01.01 | S3-compatible storage port | storage-agent | agent/m02-storage | contract | DONE (unit 90) |
 | M02.01.02 | Local object-store adapter (RustFS) + in-memory fake | storage-agent | agent/m02-storage | M02.01.01 | DONE (47 against real RustFS) |
 | M02.03.01 | Drag/drop upload component | web-upload-agent | agent/m02-web-upload | contract | DONE (web unit 190, lint/typecheck/build clean on main; 3 mutation checks) |
-| M02.01.03 | Upload sessions with quotas | — | — | 02.02.01, 02.01.01/02 | TODO (batch B) |
-| M02.01.04 | Finalize uploads with checksum verification | — | — | 02.01.03 | TODO (batch B) |
-| M02.02.02 | Document catalog CRUD | — | — | 02.02.01 | TODO (batch B) |
-| M02.02.03 | Version timeline and retention status | — | — | 02.02.01 | TODO (batch B) |
-| M02.02.04 | Deletion request and access denial | — | — | 02.02.01 | TODO (batch B) |
-| M02.03.02 | Searchable document table | — | — | 03.01 (manifest), contract | TODO (batch B) |
-| M02.03.03 | Versioned document preview | — | — | 03.02, contract | TODO (batch B) |
+| M02.01.03 | Upload sessions with quotas | upload-api-agent | agent/m02-upload-api | batch A | IN_PROGRESS (batch B) |
+| M02.01.04 | Finalize uploads with checksum verification | upload-api-agent | agent/m02-upload-api | 02.01.03 | IN_PROGRESS (batch B) |
+| M02.02.02 | Document catalog CRUD | catalog-api-agent | agent/m02-catalog-api | batch A | IN_PROGRESS (batch B) |
+| M02.02.03 | Version timeline and retention status | catalog-api-agent | agent/m02-catalog-api | batch A | IN_PROGRESS (batch B) |
+| M02.02.04 | Deletion request and access denial | catalog-api-agent | agent/m02-catalog-api | batch A | IN_PROGRESS (batch B) |
+| M02.03.02 | Searchable document table | web-library-agent | agent/m02-web-library | 03.01, contract | IN_PROGRESS (batch B) |
+| M02.03.03 | Versioned document preview | web-library-agent | agent/m02-web-library | 03.02, contract | IN_PROGRESS (batch B) |
 | (coverage) | Adversarial RLS tests for the new tables | — | — | 02.02.01 | TODO (batch C) |
 | (gate) | M02 full-stack e2e + exit gate | coordinator | main | all | TODO |
 
