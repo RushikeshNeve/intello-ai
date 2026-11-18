@@ -114,23 +114,29 @@ On Windows, **quit Docker Desktop from the system tray**. Never kill it from Tas
 
 ### API (`apps/api`)
 
-```bash
-cd apps/api
-# Windows: keep the venv under %LOCALAPPDATA% (see §7.1). Elsewhere: plain `uv venv` + `uv sync`.
-export UV_PROJECT_ENVIRONMENT="$LOCALAPPDATA/ukos/venvs/api"
-uv venv --python <python.org python.exe> "$UV_PROJECT_ENVIRONMENT"
-uv sync --frozen
-uv run --no-sync python -m ruff check
-uv run --no-sync python -m ruff format --check
-uv run --no-sync python -m pytest -q
-```
-
-Type checking (strict mypy). On Windows it runs in a Linux container (see §7.1):
+On Linux/macOS, run Python directly:
 
 ```bash
-docker run --rm -v "$(pwd):/src:ro" python:3.12-slim sh -c \
-  'cp -r /src /work && cd /work && rm -rf .venv && pip install -q "uv>=0.11,<0.12" && uv sync -q --frozen && uv run --no-sync python -m mypy app tests'
+cd apps/api && uv sync --frozen
+uv run python -m ruff check && uv run python -m ruff format --check
+uv run python -m pytest -q
+uv run python -m mypy app tests migrations
 ```
+
+On this Windows machine, anything that imports psycopg (the unit suite, every database test) or mypy must run
+in Linux, because Application Control blocks their compiled files on the host (§7.1, DC-018). Use the repo's
+runner. It builds a small image once, mounts the repo, and passes `UKOS_*`, `POSTGRES_*`, `REDIS_*`, `API_*`,
+`WEB_*` and `OIDC_*` variables through:
+
+```bash
+scripts/dev/linux-runner/run.sh apps/api "python -m pytest -q tests"
+scripts/dev/linux-runner/run.sh apps/api "python -m mypy app tests migrations"
+UKOS_TEST_COMPOSE_PROJECT=ukos-v-x POSTGRES_HOST_PORT=35801 REDIS_HOST_PORT=36801 \
+  scripts/dev/linux-runner/run.sh apps/api "python -m pytest -q ../../tests/integration/m01_tenancy"
+scripts/dev/linux-runner/run.sh . "python -m pytest -q tests/security/postgres_rls"
+```
+
+Ruff has no compiled-extension problem on the host (`python -m ruff` from any venv works).
 
 ### Web (`apps/web`)
 
@@ -169,7 +175,7 @@ This machine enforces an Application Control policy (WDAC / Smart App Control). 
 - **uv-managed CPython.** Its `python.exe` is blocked, so build venvs from the python.org install
   (`uv venv --python C:/Users/<you>/AppData/Local/Programs/Python/Python312/python.exe .venv`).
 - **mypy's compiled (mypyc) modules.** Run mypy in a Linux container (§6).
-- **Compiled extension DLLs inside a venv on the `D:` drive** (e.g. psycopg's binary driver: `DLL load failed while importing pq`). The same files load from a venv under `%LOCALAPPDATA%`, so set `UV_PROJECT_ENVIRONMENT=$LOCALAPPDATA/ukos/venvs/api` (verified 2026-11-16: the full API suite passes, 640 tests). `uv run --no-project --with …` environments already live there.
+- **Compiled extension DLLs: psycopg's binary driver (`DLL load failed while importing pq`) and mypyc.** On 2026-11-16 these loaded from a venv under `%LOCALAPPDATA%`. **By 2026-11-18 they were blocked everywhere on the host, including fresh isolated `uv run --no-project --with "psycopg[binary]"` environments.** The policy can change between days, so don't rely on any host workaround. Run every test that imports psycopg, and mypy, through `scripts/dev/linux-runner/run.sh` (§6). Tests that need only Docker and HTTP still run on the host: the Node suites in `tests/e2e/*`, `tests/docs`, and `tests/infrastructure/test_env_contract.py`. `test_data_services.py` and `test_apps_health.py` import psycopg, so run them through the runner too.
 
 ### 7.2 Windows Defender Firewall prompts
 Prompts for Docker, Python or Node can be **denied** (untick Private and Public, then Cancel). Every service binds to

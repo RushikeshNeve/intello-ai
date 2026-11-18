@@ -42,8 +42,8 @@ A task is DONE only after the coordinator reruns its acceptance check on `main` 
 | M01.03.02 | PostgreSQL RLS regression tests | rls-agent | agent/m01-rls | M01.02.01 | DONE (324 on main; gap fixed, DC-016) |
 | M01.03.03 | Document grant model contracts | grants-agent | agent/m01-grants | foundation, M01.03.01 | DONE (unit 693, DB 21+46 on main) |
 | M01.03.04 | Auditable security events | audit-agent | agent/m01-audit | foundation | DONE (unit 45, DB 15) |
-| M01.02.02 | Organization REST endpoints | tenancy-api-agent | agent/m01-tenancy-api | batch 2 | IN_PROGRESS (restarted 2026-11-18) |
-| M01.02.04 | Workspace schema and endpoints | tenancy-api-agent | agent/m01-tenancy-api | batch 2 | IN_PROGRESS (restarted 2026-11-18) |
+| M01.02.02 | Organization REST endpoints | tenancy-api-agent | agent/m01-tenancy-api | batch 2 | DONE (45 DB + real Dex on main; gate e2e 12/12) |
+| M01.02.04 | Workspace schema and endpoints | tenancy-api-agent | agent/m01-tenancy-api | batch 2 | DONE (schema from 0001; endpoints + memberships tested) |
 | M01.02.03 | Organization switcher | web-tenancy-agent | agent/m01-web-tenancy | 01.02 + contract §4 | DONE (unit 95, e2e 6/6 + web_auth 12/12 on main) |
 | M01.02.05 | Workspace navigation | web-tenancy-agent | agent/m01-web-tenancy | 01.02 + contract §4 | DONE (deep link through login verified) |
 

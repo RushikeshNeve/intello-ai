@@ -159,3 +159,16 @@ def record_event(session, *, event_type: str, actor_user_id: uuid.UUID | None, o
   (tokens are never readable by browser JS). `state`, `nonce` and the PKCE verifier are verified. Logout clears the session (and revokes the refresh token where supported).
 - The web server proxies `/api/v1/*` → API with the bearer token (BFF), so the browser never sees it.
 - Org and workspace scope live in the URL: `/o/{orgSlug}/w/{workspaceSlug}/…`. Switching org clears the TanStack Query cache (ADR-044/047).
+
+## 7. As implemented (M01.02.02 / M01.02.04, DC-018/DC-019)
+
+The REST API follows §4. These details were fixed during implementation and are binding for later milestones.
+
+- **Lists:** `{"items": [...], "next_cursor": string|null}`; `?limit=1..200` (default 50; outside the range is 422, not clamped) and an opaque `cursor`. A null cursor is the last page.
+- **Workspace `role`** is the caller's *explicit* workspace role (`admin|editor|viewer`), always present as a key, and `null` for an org owner/admin without a workspace membership (they still see and manage every workspace).
+- **Slugs** (orgs and workspaces) must match `^[a-z0-9][a-z0-9-]{1,62}$` at the API. Anything else, including upper-case, is **422 `invalid_request`**. `409 slug_taken` means a real collision only. Soft-deleted slugs stay reserved.
+- **Error codes beyond §4:** 404 `user_not_found` (PUT org member for an unknown user id); 409 `conflict` (two concurrent requests adding the same membership); 422 `invalid_cursor`; 422 `{"detail": "invalid_request", "errors": [{"loc","msg","type"}]}` for bad ids, bodies, roles, limits and unknown fields (request models forbid extra fields; input values are never echoed).
+- **Behaviours:** PUT of a member's current role returns 200 and writes no audit row; a PATCH with no change writes none either; DELETE of a non-existent membership is 404; the request id is a safe `X-Request-ID` header (up to 128 characters of `[A-Za-z0-9._:-]`) or a fresh uuid4.
+- **Authorization and audit:** a denial is a 404 `not_found` when concealed (non-member, or an org member without any workspace role) and a 403 `forbidden` otherwise, and is audited as `authz.denied` with `{action, reason}` in its own transaction. Every successful mutation writes its §5 event in the same transaction; the actor is always the principal.
+- **Last-owner race:** the deferred owner trigger alone cannot stop two concurrent owners demoting each other under READ COMMITTED, so the member PUT/DELETE routes lock the org row with `SELECT … FOR UPDATE`. A database-level guarantee is a follow-up for M08.
+- **Known accepted risk:** `user_not_found` lets an org owner/admin learn whether a user id exists. Members are added by user id in M01. M08 should replace this with invitations by email.

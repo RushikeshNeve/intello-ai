@@ -193,3 +193,22 @@ Merged into `main`: `agent/m01-audit` (fe05afd), `agent/m01-web-session` (521c3a
 - **Acceptance:** "Scope visibly changes and query cache clears" — the test asserts the event order `clear` then `navigate`, and a DOM recorder shows no state between the switch and the new page contains the previous org's workspace names. The agent mutation-checked this: removing either the content-hiding step or the clear makes it fail. "Deep links load authorized workspace" — a fresh-session deep link goes to login with `returnTo`, lands on the workspace after a real Dex login, and renders it with `aria-current="page"`.
 - **API assumptions sent to the API agent:** `Workspace.role` is null for an org owner/admin without an explicit workspace membership; list responses are `{items, next_cursor|null}`; a member creating a workspace gets 403; a duplicate slug gets 409 `slug_taken`.
 - **Follow-ups:** the root layout has no `.dark` toggle, so dark mode works only once something sets the class (M07.03.03). One vitest sub-case with a mocked rejecting `apiFetch` behaved oddly and was replaced by direct classification tests; the network-error path is covered elsewhere (`api-client.test.ts`).
+
+---
+
+## M01.02.02 + M01.02.04 — Organization and workspace REST API
+- **Owner:** tenancy-api-agent · **Branch:** `agent/m01-tenancy-api` (f6bd378, 00851b2) · merged to `main` as d029aaf · **Status:** DONE
+- **Files:** `apps/api/app/api/deps.py`, `apps/api/app/modules/{organizations,workspaces}/{schemas,service,router}.py`, `apps/api/tests/tenancy/`, `tests/integration/m01_tenancy/`, plus 8 lines in `app/main.py`. No migrations.
+- **Delivered:** all 16 `/v1` routes of contract §4, each running principal → tenant transaction → role load → `decide()`, with denials audited in their own transaction, the DB-error to HTTP mapping, keyset pagination, and an audit event per mutation.
+- **Coordinator verification (on `main`, through the Linux runner):** API unit **856 passed**; `tests/integration/m01_tenancy` **45 passed** (including the real-Dex flow); strict mypy **no issues in 50 files**; ruff clean; the full-stack gate **12/12**.
+- **Acceptance:** "CRUD enforces membership roles": the owner/admin/member/outsider matrix on every endpoint, distinguishing 404 from 403; admins cannot grant or revoke owner; last-owner 409 on demote and remove; soft delete returns 404 on all sub-routes; cross-org id guessing returns 404; an audit row per mutation and per denial. "Workspace CRUD and memberships tested": passed.
+- **Coordinator changes after merge (DC-018):** slugs are strictly lower-case at the API (422 `invalid_request` for upper-case, never `slug_taken`), with the unit, integration and e2e tests updated. The `0002` migration was formatted.
+- **Contract:** as implemented, in `m01-contracts.md` §7 (DC-019).
+
+## Linux test runner (coordinator, DC-018)
+- **Why:** Application Control blocks psycopg's compiled driver and mypyc everywhere on the host as of 2026-11-18.
+- **What:** `scripts/dev/linux-runner/{Dockerfile,run.sh}`. It runs a command in a Linux container with the repo mounted at Docker Desktop's VM path (so compose bind mounts resolve), host networking, and a persistent venv volume.
+- **Verified:** API unit 856, all five DB suites, 324 RLS, mypy, and 11 infrastructure tests all ran through it with results identical to the agent's own runs.
+
+## M01 gate: full-stack e2e
+`tests/e2e/fullstack_m01` → **12/12** on the merged `main` (see `PROJECT_STATUS.md`).
