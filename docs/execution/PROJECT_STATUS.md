@@ -9,14 +9,14 @@
 |---|---|---|---|---|
 | M00 Architecture & local infra | 13 | **13** | 0 | **PASSED (conditional)**, 2026-11-16 |
 | M01 Identity, orgs, workspaces | 12 | **12** | 0 | **PASSED**, 2026-11-18 |
-| M02 Documents & object storage | 11 | 1 | 3 | batch A: upload UI done; DB foundation and storage running |
+| M02 Documents & object storage | 11 | 4 | 0 | batch A done; batch B next (upload sessions, catalog, library UI) |
 | M03 Reliable ingestion | 14 | 0 | 0 | blocked on M02 gate |
 | M04 Search & grounded chat | 13 | 0 | 0 | blocked on M03 gate |
 | M05 Graph & GraphRAG | 11 | 0 | 0 | blocked on M04 gate |
 | M06 Connectors & formats | 11 | 0 | 0 | blocked on M05 gate |
 | M07 Memory, research, UX | 11 | 0 | 0 | blocked on M06 gate |
 | M08 Security, eval, release | 12 | 0 | 0 | blocked on M07 gate |
-| **Total** | **108** | **26** | **3** | |
+| **Total** | **108** | **29** | **0** | |
 
 ## M00 exit gate (definition in `DEPENDENCY_GRAPH.md`, DC-007)
 

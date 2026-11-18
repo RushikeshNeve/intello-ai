@@ -34,19 +34,19 @@ for extra in (
     if str(extra) not in sys.path:
         sys.path.insert(0, str(extra))
 
-from compose_support import (  # type: ignore[import-not-found,unused-ignore]  # noqa: E402
+from compose_support import (  # type: ignore[import-not-found,unused-ignore]
     ComposeProject,
     compose_file,
     require_docker,
     wait_until,
 )
-from storage_support import Browser, Stack  # noqa: E402
+from storage_support import Browser, Stack
 
-from app.infrastructure.object_storage.memory import InMemoryObjectStore  # noqa: E402
-from app.infrastructure.object_storage.s3 import S3ObjectStore  # noqa: E402
-from app.infrastructure.object_storage.settings import ObjectStoreSettings  # noqa: E402
-from app.modules.storage.keys import original_key  # noqa: E402
-from app.modules.storage.ports import ObjectStore  # noqa: E402
+from app.infrastructure.object_storage.memory import InMemoryObjectStore
+from app.infrastructure.object_storage.s3 import S3ObjectStore
+from app.infrastructure.object_storage.settings import ObjectStoreSettings
+from app.modules.storage.keys import original_key
+from app.modules.storage.ports import ObjectStore
 
 PROJECT = os.environ.get("UKOS_TEST_STORAGE_PROJECT", "ukos-m02-storage")
 HOST_PORT = os.environ.get("UKOS_TEST_STORAGE_PORT", "39301")

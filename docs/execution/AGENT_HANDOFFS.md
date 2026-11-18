@@ -221,3 +221,35 @@ Merged into `main`: `agent/m01-audit` (fe05afd), `agent/m01-web-session` (521c3a
 - **Coordinator verification (on `main`):** web lint clean; typecheck clean; unit tests **190 passed** (95 existing + 95 new); build ok. The agent mutation-checked "retry same session", "headers sent verbatim with no credentials" and "store 4xx starts a new session"; each made tests fail.
 - **Acceptance:** "Upload retries and error states testable": the engine takes injectable XHR, hash, sleep, API and backoff, so every path has a deterministic test.
 - **Notes for the library page:** render `<DocumentUploader orgId workspaceId disabled={!can_upload} onUploaded=… />` inside `QueryProvider`, with ids (not slugs); pass `documentId` for a new version. A hand-written accessible `progress.tsx` was added instead of a shadcn dependency.
+
+---
+
+## M02 batch A — DB foundation, storage port + adapter (2026-11-19)
+Merged to `main`: `agent/m02-storage` (8e5c5d5, merge 2b0dfb2), `agent/m02-foundation` (826bfb5, merge 4e921f1), earlier `agent/m02-web-upload`.
+
+### M02.02.01 — Documents, versions, sources migration (+ models, settings, shared schemas, router skeleton)
+- **Delivered:** migration `0003_documents` (tables `sources`, `documents`, `document_versions`, `upload_sessions`; composite FKs so a row can never name another org's or workspace's parent; FORCE RLS with fail-closed per-command policies; no DELETE for the app role; column-level UPDATE only; the **version-immutability trigger** (only `purged_at` NULL → timestamp, SQLSTATE 42501, for every role including admin); forward-only upload-session states; the partial unique index for active grants). Models, five new settings (`UPLOAD_MAX_BYTES`, `ORG_STORAGE_QUOTA_BYTES`, `UPLOAD_SESSION_TTL_SECONDS`, `UPLOAD_MAX_PENDING_PER_USER`, `DOCUMENT_PURGE_GRACE_DAYS`) in `.env.example` and `apps.yml` together with the nine `S3_*` variables, four audit event types, and the `app/modules/documents/` skeleton (schemas, sanitizers, errors, four empty sub-routers for batch B).
+- **Contract refinements accepted (DC-021):** composite FKs for `source_id` and `(document_id, workspace_id)`; the `documents.title` check also rejects leading/trailing tabs (a bug the agent's own test caught); extra `upload_sessions` invariants (`failed` ⇔ `failure_code`, `finalized` ⇔ `finalized_at`, `expires_at > created_at`); forward-only trigger uses SQLSTATE 23514; `sanitize_filename` keeps the last path component only; `content_type` must be a bare `type/subtype` (lower-cased, parameters rejected).
+- **Acceptance** ("Immutable version and foreign key invariants tested"): 134 real-Postgres tests, as admin and as the app role.
+
+### M02.01.01 + M02.01.02 — Storage port and RustFS adapter
+- **Delivered:** the `ObjectStore` protocol (put, head, get, delete, presigned PUT/GET, the full multipart set), typed errors, `original_key()` (UUID-only key builder), the `get_object_store` dependency, the boto3 `S3ObjectStore` (path-style SigV4, presign client signed against the public endpoint, `If-None-Match: *`, no secrets in logs or exceptions) and an `InMemoryObjectStore` with a browser-upload emulator for API tests. Adds `boto3`.
+- **Observed on RustFS 1.0.5:** a wrong-checksum PUT returns 400 `BadDigest`; `If-None-Match: *` on an existing key returns 412; a tampered presigned GET returns 403.
+- **Acceptance:** "Port covers put/get/delete/sign and multipart contract" and "Contract tests pass against local store": 47 passed against the real store (4 HTTP-only checks skip for the in-memory variant).
+
+### Coordinator verification (on `main`, each suite isolated, Linux runner)
+| Suite | Result |
+|---|---|
+| API unit | **1037 passed** |
+| `m02_foundation` (new) | **134 passed** |
+| `m01_foundation` / `grants` / `audit` / `identity` / `tenancy` | **46 / 21 / 15 / 17 / 45 passed** |
+| RLS adversarial suite (now covering the 4 new tables' catalog) | **396 passed** |
+| `m02_storage` (real RustFS 1.0.5) | **47 passed, 4 skipped** |
+| infrastructure (data services + apps health, with the new `apps.yml` env) | **11 passed** |
+| strict mypy `app tests migrations` + foundation integration (helpers on MYPYPATH) | **no issues, 84 files** |
+| ruff (API and the new test folders), env-contract + docs tests | clean, **11 passed** |
+
+### Coordinator fixes after the merges
+- A genuine `Any`-return type error in `m02_foundation/test_m02_constraints.py`; the lambda-default type error in `compose_support.wait_healthy` (now a typed nested function); a long line and now-redundant `noqa` comments.
+- New `tests/ruff.toml`: lints the repo-level `tests/` tree with the API's rules, minus checks that don't suit test code (S101/S105/S106/S608/PT012/E402). The frozen `spikes/` are excluded. **Follow-up for M08.03.01 (CI):** 56 style findings remain across the older maintained test folders (28 auto-fixable).
+- My combined mypy command failed only because two `conftest.py` files collide when checked in one run; run integration folders one at a time (with `MYPYPATH=../../tests/integration/m01_foundation:../../tests/infrastructure` for the runtime-loaded helpers).

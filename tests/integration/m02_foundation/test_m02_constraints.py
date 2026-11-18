@@ -297,10 +297,11 @@ def test_same_version_number_in_different_documents_is_fine(
 
 
 def _source_for_workspace(conn: Connection, t: Tenant) -> uuid.UUID:
-    return conn.execute(
+    source_id: uuid.UUID = conn.execute(
         text("SELECT id FROM sources WHERE workspace_id = :w AND kind = 'upload'"),
         {"w": t.workspace_id},
     ).scalar_one()
+    return source_id
 
 
 def test_object_key_unique(admin_engine: Engine, tenant: Tenant, document: uuid.UUID) -> None:

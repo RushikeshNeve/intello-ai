@@ -31,12 +31,12 @@ for extra in (
     if str(extra) not in sys.path:
         sys.path.insert(0, str(extra))
 
-from alembic import command  # noqa: E402
-from alembic.config import Config  # noqa: E402
-from compose_support import ComposeProject, compose_file, require_docker, wait_until  # noqa: E402
-from m01_seed import Tenant, seed_tenant  # noqa: E402
-from sqlalchemy import Engine, create_engine, text  # noqa: E402
-from sqlalchemy.engine import URL  # noqa: E402
+from alembic import command
+from alembic.config import Config
+from compose_support import ComposeProject, compose_file, require_docker, wait_until
+from m01_seed import Tenant, seed_tenant
+from sqlalchemy import Engine, create_engine, text
+from sqlalchemy.engine import URL
 
 require_docker()
 

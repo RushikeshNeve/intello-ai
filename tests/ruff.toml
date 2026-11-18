@@ -1,0 +1,16 @@
+# Lint rules for the repo-level tests/ tree (integration, security, e2e helpers, infrastructure).
+# Same rules as the API (apps/api/pyproject.toml), minus the checks that don't make sense for test code:
+#   S101  assert is the point of a test      S105/S106  literal test passwords and tokens
+#   S608  test setup builds SQL from constant table names (never from input)
+#   PT012 multi-statement `pytest.raises` blocks are deliberate in transaction tests
+#   E402  conftests insert helper folders on sys.path before importing them
+# Run from the repo root:  python -m ruff check tests && python -m ruff format --check tests
+extend = "../apps/api/pyproject.toml"
+line-length = 100
+# The M00 spikes are frozen proof-of-concept evidence scripts, not maintained code.
+extend-exclude = ["spikes"]
+
+[lint]
+extend-ignore = ["S101", "S105", "S106", "S608", "PT012", "E402"]
+# Spike/e2e scripts and shared helpers invoke docker/uv with fixed arguments.
+per-file-ignores = { "infrastructure/*.py" = ["S603", "S607"] }

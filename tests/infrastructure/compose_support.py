@@ -116,7 +116,8 @@ def wait_until(
         except Exception as exc:  # noqa: BLE001 - probing, retried until timeout
             last_error = exc
         if time.monotonic() >= deadline:
-            raise TimeoutError(f"timed out after {timeout}s waiting for {description}") from last_error
+            message = f"timed out after {timeout}s waiting for {description}"
+            raise TimeoutError(message) from last_error
         time.sleep(interval)
 
 
@@ -235,8 +236,12 @@ class ComposeProject:
 
     def wait_healthy(self, services: Iterable[str], *, timeout: float = 180.0) -> None:
         for service in services:
+
+            def is_healthy(s: str = service) -> bool:
+                return self.health(s) == "healthy"
+
             wait_until(
-                lambda s=service: self.health(s) == "healthy",
+                is_healthy,
                 timeout=timeout,
                 interval=1.0,
                 description=f"{self.project}/{service} to become healthy",

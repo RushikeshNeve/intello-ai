@@ -62,10 +62,10 @@ def world(admin_engine: Engine, migrated: None) -> World:
 
 def _count(session: Any, table: str, org: uuid.UUID | None = None) -> int:
     if org is None:
-        return int(session.execute(text(f"SELECT count(*) FROM {table}")).scalar_one())  # noqa: S608
+        return int(session.execute(text(f"SELECT count(*) FROM {table}")).scalar_one())
     return int(
         session.execute(
-            text(f"SELECT count(*) FROM {table} WHERE org_id = :o"),  # noqa: S608
+            text(f"SELECT count(*) FROM {table} WHERE org_id = :o"),
             {"o": org},
         ).scalar_one()
     )
@@ -174,7 +174,7 @@ def test_app_role_cannot_delete(app_engine: Engine, world: World, table: str) ->
         pytest.raises(DBAPIError) as exc,
         tenant_session(user_id=world.a.owner_id, org_id=world.a.org_id, engine=app_engine) as s,
     ):
-        s.execute(text(f"DELETE FROM {table} WHERE org_id = :o"), {"o": world.a.org_id})  # noqa: S608
+        s.execute(text(f"DELETE FROM {table} WHERE org_id = :o"), {"o": world.a.org_id})
     assert sqlstate(exc.value) == "42501"
     assert "permission denied" in str(exc.value.orig)
 
@@ -206,7 +206,7 @@ def test_app_role_documents_update_columns(app_engine: Engine, world: World) -> 
             pytest.raises(DBAPIError) as exc,
             tenant_session(user_id=a.owner_id, org_id=a.org_id, engine=app_engine) as s,
         ):
-            s.execute(text(f"UPDATE documents SET {column} = {column} WHERE id = :d"), {"d": doc_a})  # noqa: S608
+            s.execute(text(f"UPDATE documents SET {column} = {column} WHERE id = :d"), {"d": doc_a})
         assert sqlstate(exc.value) == "42501", column
 
 
@@ -253,7 +253,8 @@ def test_app_role_end_to_end_finalize_shape(app_engine: Engine, admin_engine: En
             text(
                 "INSERT INTO document_versions (id, org_id, workspace_id, document_id,"
                 " version_number, original_filename, content_type, size_bytes, sha256, object_key,"
-                " created_by) VALUES (:v, :o, :w, :d, 1, 'f.pdf', 'application/pdf', 10, :s, :k, :u)"
+                " created_by)"
+                " VALUES (:v, :o, :w, :d, 1, 'f.pdf', 'application/pdf', 10, :s, :k, :u)"
             ),
             {
                 "v": ver_id,

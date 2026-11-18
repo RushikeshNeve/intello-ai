@@ -54,9 +54,9 @@ Parallel-safety: foundation owns `apps/api/**` except `authorization/policy.py`,
 | Task | Title | Owner (agent) | Branch | Practical deps | Status |
 |---|---|---|---|---|---|
 | (prep) | M02 contract; per-checkout runner venv | coordinator | main | M01 gate | DONE |
-| M02.02.01 | Documents, versions, sources migrations (+ models, settings, shared schemas, router skeleton) | foundation-agent (migration owner) | agent/m02-foundation | contract | IN_PROGRESS (batch A) |
-| M02.01.01 | S3-compatible storage port | storage-agent | agent/m02-storage | contract | IN_PROGRESS (batch A) |
-| M02.01.02 | Local object-store adapter (RustFS) + in-memory fake | storage-agent | agent/m02-storage | M02.01.01 | IN_PROGRESS (batch A) |
+| M02.02.01 | Documents, versions, sources migrations (+ models, settings, shared schemas, router skeleton) | foundation-agent (migration owner) | agent/m02-foundation | contract | DONE (134 DB tests + RLS 396 on main) |
+| M02.01.01 | S3-compatible storage port | storage-agent | agent/m02-storage | contract | DONE (unit 90) |
+| M02.01.02 | Local object-store adapter (RustFS) + in-memory fake | storage-agent | agent/m02-storage | M02.01.01 | DONE (47 against real RustFS) |
 | M02.03.01 | Drag/drop upload component | web-upload-agent | agent/m02-web-upload | contract | DONE (web unit 190, lint/typecheck/build clean on main; 3 mutation checks) |
 | M02.01.03 | Upload sessions with quotas | — | — | 02.02.01, 02.01.01/02 | TODO (batch B) |
 | M02.01.04 | Finalize uploads with checksum verification | — | — | 02.01.03 | TODO (batch B) |
