@@ -52,7 +52,7 @@ class WorkspaceAccess:
             slug=row.slug,
             name=row.name,
             created_at=row.created_at,
-            role=service.effective_role(subject.org_role, subject.workspace_role),
+            role=subject.workspace_role,
         )
 
 

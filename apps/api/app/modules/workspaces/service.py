@@ -37,14 +37,6 @@ class WorkspaceMemberRow:
     role: WorkspaceRole
 
 
-def effective_role(org_role: OrgRole | None, workspace_role: WorkspaceRole | None) -> WorkspaceRole:
-    """Org owners/admins act as workspace admins; otherwise the explicit workspace role."""
-    if org_role in _ORG_MANAGERS:
-        return WorkspaceRole.ADMIN
-    assert workspace_role is not None  # noqa: S101 - callers only ask for readable workspaces
-    return workspace_role
-
-
 def load_workspace(
     session: Session, org_id: uuid.UUID, workspace_id: uuid.UUID, user_id: uuid.UUID
 ) -> tuple[WorkspaceRow, WorkspaceRole | None] | None:
@@ -83,8 +75,12 @@ def list_readable(
     user_id: uuid.UUID,
     org_role: OrgRole,
     page: Pagination,
-) -> tuple[list[tuple[WorkspaceRow, WorkspaceRole]], str | None]:
-    """Live workspaces the caller may read: all for org owners/admins, else their memberships."""
+) -> tuple[list[tuple[WorkspaceRow, WorkspaceRole | None]], str | None]:
+    """Live workspaces the caller may read: all for org owners/admins, else their memberships.
+
+    Each comes with the caller's **explicit** workspace role, ``None`` when an org owner/admin has
+    no membership in it (they still read and manage it through their org role).
+    """
     stmt = (
         select(
             WorkspaceModel.id,
@@ -119,7 +115,7 @@ def list_readable(
             WorkspaceRow(
                 id=r.id, org_id=r.org_id, slug=r.slug, name=r.name, created_at=r.created_at
             ),
-            effective_role(org_role, WorkspaceRole(r.role) if r.role is not None else None),
+            WorkspaceRole(r.role) if r.role is not None else None,
         )
         for r in rows[: page.limit]
     ]

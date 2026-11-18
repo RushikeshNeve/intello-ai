@@ -30,8 +30,9 @@ class Workspace(BaseModel):
     slug: str
     name: str
     created_at: datetime
-    # The caller's effective role: org owners/admins are implicit workspace admins.
-    role: WorkspaceRole
+    # The caller's explicit workspace role; None for an org owner/admin without a membership
+    # (they still see and manage every workspace of the org).
+    role: WorkspaceRole | None
 
 
 class WorkspacePage(BaseModel):

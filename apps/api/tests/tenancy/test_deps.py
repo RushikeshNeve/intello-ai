@@ -32,9 +32,8 @@ from app.core.security import (
     get_user_provisioner,
 )
 from app.main import create_app
-from app.modules.authorization.policy import Decision, OrgRole, WorkspaceRole
+from app.modules.authorization.policy import Decision
 from app.modules.organizations.schemas import MemberRoleIn, OrgCreate, OrgUpdate
-from app.modules.workspaces.service import effective_role
 
 USER = uuid.UUID("11111111-1111-4111-8111-111111111111")
 ORG = uuid.UUID("33333333-3333-4333-8333-333333333333")
@@ -219,12 +218,6 @@ def test_names_are_trimmed_and_bounded() -> None:
         OrgUpdate.model_validate({"name": "x", "slug": "nope"})
     with pytest.raises(ValidationError):
         MemberRoleIn.model_validate({"role": "editor"})
-
-
-def test_effective_workspace_role() -> None:
-    assert effective_role(OrgRole.OWNER, None) is WorkspaceRole.ADMIN
-    assert effective_role(OrgRole.ADMIN, WorkspaceRole.VIEWER) is WorkspaceRole.ADMIN
-    assert effective_role(OrgRole.MEMBER, WorkspaceRole.EDITOR) is WorkspaceRole.EDITOR
 
 
 class _Provisioner:

@@ -103,13 +103,15 @@ def test_list_workspaces_is_filtered_to_readable_ones(api: Api) -> None:
     other = api.create_workspace(f.t.org_id, f.t.admin)
     path = f"/v1/orgs/{f.t.org_id}/workspaces"
 
-    for manager in (f.t.owner, f.t.admin):
+    # Org owners/admins see every workspace; `role` is their explicit workspace role or null.
+    for manager, roles in ((f.t.owner, ["admin", None]), (f.t.admin, [None, "admin"])):
         res = api.get(path, manager)
         assert res.status == 200
         assert [(w["id"], w["role"]) for w in res.body["items"]] == [
-            (str(f.ws), "admin"),
-            (str(other), "admin"),
+            (str(f.ws), roles[0]),
+            (str(other), roles[1]),
         ]
+        assert all("role" in w for w in res.body["items"])
         assert res.body["next_cursor"] is None
     for user, role in ((f.ws_admin, "admin"), (f.editor, "editor"), (f.viewer, "viewer")):
         res = api.get(path, user)
@@ -142,7 +144,7 @@ def test_get_workspace_role_matrix(api: Api) -> None:
     f = _setup(api)
     for user, role in (
         (f.t.owner, "admin"),
-        (f.t.admin, "admin"),
+        (f.t.admin, None),  # org admin without a workspace membership: key present, null
         (f.ws_admin, "admin"),
         (f.editor, "editor"),
         (f.viewer, "viewer"),
