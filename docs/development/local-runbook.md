@@ -182,7 +182,7 @@ A force-killed Docker Desktop leaves stale AF_UNIX socket stubs that Windows can
    `%LOCALAPPDATA%\Docker\run` → `run.stale-<date>` or `%LOCALAPPDATA%\docker-secrets-engine` → `docker-secrets-engine.stale-<date>`.
 3. Start Docker Desktop. It recreates the folder.
 
-Shortcut: `powershell -ExecutionPolicy Bypass -File scripts\windowsix-docker-sockets.ps1 -Start` does steps 2–3 safely. It refuses while Docker is running and only renames folders that contain nothing but socket stubs.
+Shortcut: `powershell -ExecutionPolicy Bypass -File scripts\windows\fix-docker-sockets.ps1 -Start` does steps 2–3 safely. It refuses while Docker is running and only renames folders that contain nothing but socket stubs.
 
 ### 7.4 Port already in use
 Another local project may publish one of the UKOS ports. Find it with `docker ps --format "{{.Names}} {{.Ports}}"`
