@@ -1,33 +1,43 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { SignOutButton } from "@/features/auth/components/auth-controls";
 import { getSessionUser } from "@/features/auth/server";
+import { loginUrl } from "@/features/organizations/api/http";
+import { OrgDirectory } from "@/features/organizations/components/org-directory";
+import { getMyOrgs } from "@/features/organizations/server";
+import { AppHeader, userLabelOf } from "@/features/shell/app-header";
+import { SessionRedirect } from "@/features/shell/session-redirect";
+import { PageLoading, ServiceUnavailable } from "@/features/shell/states";
 
 /**
- * Protected placeholder. `src/proxy.ts` already 307s unauthenticated requests to the login route; the
- * DAL check below is the defence-in-depth re-check close to the data.
+ * `/home`: the user's organizations. `src/proxy.ts` already 307s unauthenticated requests to the login
+ * route; the DAL check below is the defence-in-depth re-check close to the data.
  */
 export default function HomePage() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
-      <h1 className="text-2xl font-semibold tracking-tight">Home</h1>
-      <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
-        <SignedInPanel />
-      </Suspense>
-    </main>
+    <Suspense fallback={<PageLoading />}>
+      <HomeContent />
+    </Suspense>
   );
 }
 
-async function SignedInPanel() {
+async function HomeContent() {
   const user = await getSessionUser();
-  if (!user) redirect("/api/auth/login?returnTo=%2Fhome");
+  if (!user) redirect(loginUrl("/home"));
+  const orgs = await getMyOrgs();
+  if (!orgs.ok && orgs.reason === "unauthenticated") return <SessionRedirect fallbackPath="/home" />;
   return (
-    <div className="flex flex-col items-center gap-3">
-      <p className="text-sm" data-testid="session-user">
-        Signed in as <span className="font-medium">{user.email ?? user.name ?? "unknown user"}</span>
-      </p>
-      <p className="text-sm text-muted-foreground">Organizations and workspaces arrive in M01.02.</p>
-      <SignOutButton />
-    </div>
+    <>
+      <AppHeader userLabel={userLabelOf(user)} />
+      {orgs.ok ? (
+        <main id="main" className="mx-auto grid w-full max-w-3xl flex-1 content-start gap-6 px-4 py-8">
+          <h1 tabIndex={-1} className="text-2xl font-semibold tracking-tight outline-none">
+            Home
+          </h1>
+          <OrgDirectory initialOrgs={orgs.data} />
+        </main>
+      ) : (
+        <ServiceUnavailable />
+      )}
+    </>
   );
 }
