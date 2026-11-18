@@ -10,10 +10,10 @@ from pydantic import BaseModel, ConfigDict, StringConstraints
 
 from app.modules.authorization.policy import OrgRole
 
-# The stored format is ``^[a-z0-9][a-z0-9-]{1,62}$`` (ck_*_slug_format). Upper-case letters are
-# accepted here so that a case variant of an existing slug reaches the database and is answered
-# 409 ``slug_taken`` (contract §2); every other malformed slug is a 422.
-SLUG_INPUT_PATTERN: Final = r"^[A-Za-z0-9][A-Za-z0-9-]{1,62}$"
+# The stored format is ``^[a-z0-9][a-z0-9-]{1,62}$`` (ck_*_slug_format) and the API enforces
+# exactly that: an upper-case slug is a 422 ``invalid_request``, never a misleading 409
+# ``slug_taken`` (DC-018). ``slug_taken`` is reserved for real collisions.
+SLUG_INPUT_PATTERN: Final = r"^[a-z0-9][a-z0-9-]{1,62}$"
 NAME_MAX_LENGTH: Final = 200
 
 Slug = Annotated[str, StringConstraints(pattern=SLUG_INPUT_PATTERN)]

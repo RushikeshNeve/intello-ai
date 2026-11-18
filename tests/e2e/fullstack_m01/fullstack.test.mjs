@@ -111,7 +111,11 @@ test("alice creates an organization and becomes its owner", async () => {
   assert.equal(r.body.role, "owner");
   state.orgId = r.body.id;
   const dup = await web("/api/v1/orgs", { session: state.alice.session, method: "POST", json: { ...ORG, slug: ORG.slug.toUpperCase() } });
-  assert.ok([409, 422].includes(dup.status), `case-variant slug rejected (${dup.status})`);
+  assert.equal(dup.status, 422, "upper-case slug is invalid input, not 'taken'");
+  assert.equal(dup.body.detail, "invalid_request");
+  const taken = await web("/api/v1/orgs", { session: state.alice.session, method: "POST", json: ORG });
+  assert.equal(taken.status, 409, "the same slug again is a real collision");
+  assert.equal(taken.body.detail, "slug_taken");
 });
 
 test("bob and mallory sign in; neither can see alice's org yet", async () => {

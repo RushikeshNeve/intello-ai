@@ -59,9 +59,7 @@ $$"""
 def downgrade() -> None:
     op.execute("DROP TRIGGER IF EXISTS users_identity_immutable ON users")
     op.execute("DROP FUNCTION IF EXISTS ukos_users_identity_immutable()")
-    op.execute(
-        "ALTER FUNCTION ukos_assert_org_has_owner() SET search_path = pg_catalog, public"
-    )
+    op.execute("ALTER FUNCTION ukos_assert_org_has_owner() SET search_path = pg_catalog, public")
     op.execute("DROP POLICY audit_events_insert ON audit_events")
     op.execute(
         f"""

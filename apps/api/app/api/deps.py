@@ -143,15 +143,17 @@ def _constraint_name(exc: IntegrityError) -> str | None:
 def map_integrity_error(exc: IntegrityError) -> HTTPException | None:
     """Contract §2 DB error -> HTTP mapping; ``None`` when the error is not a known case.
 
-    ``ck_*_slug_format`` only reaches the database for a slug that is valid apart from upper-case
-    letters (request validation rejects every other shape): the stored slugs are lower-case, so
-    that is a case-variant collision -> ``slug_taken``.
+    Request validation already enforces the slug format, so ``ck_*_slug_format`` is a backstop that
+    should be unreachable through the API; if it ever fires it is a client error (422), not a
+    collision (DC-018). Only the unique constraints mean ``slug_taken``.
     """
     name = _constraint_name(exc)
     if name == ORG_OWNER_CONSTRAINT:
         return api_error(status.HTTP_409_CONFLICT, LAST_OWNER)
-    if name in (ORG_SLUG_UNIQUE, WORKSPACE_SLUG_UNIQUE) or name in _SLUG_FORMAT_CONSTRAINTS:
+    if name in (ORG_SLUG_UNIQUE, WORKSPACE_SLUG_UNIQUE):
         return api_error(status.HTTP_409_CONFLICT, SLUG_TAKEN)
+    if name in _SLUG_FORMAT_CONSTRAINTS:
+        return api_error(status.HTTP_422_UNPROCESSABLE_CONTENT, "invalid_request")
     return None
 
 

@@ -88,10 +88,13 @@ def test_workspace_slug_taken_per_org_including_case_variant(api: Api) -> None:
     b = api.tenant()
     slug = new_slug("ws")
     api.create_workspace(a.org_id, a.owner, slug)
-    for candidate in (slug, slug.upper()):
-        res = api.post(f"/v1/orgs/{a.org_id}/workspaces", a.admin, {"slug": candidate, "name": "x"})
-        assert (res.status, res.body) == (409, {"detail": "slug_taken"})
-        assert api.audit(res.request_id) == []
+    res = api.post(f"/v1/orgs/{a.org_id}/workspaces", a.admin, {"slug": slug, "name": "x"})
+    assert (res.status, res.body) == (409, {"detail": "slug_taken"})
+    assert api.audit(res.request_id) == []
+    # Upper-case is invalid input (422), never "taken" (DC-018).
+    res = api.post(f"/v1/orgs/{a.org_id}/workspaces", a.admin, {"slug": slug.upper(), "name": "x"})
+    assert (res.status, res.body["detail"]) == (422, "invalid_request")
+    assert api.audit(res.request_id) == []
     # The same slug in another org is fine.
     api.create_workspace(b.org_id, b.owner, slug)
     res = api.post(f"/v1/orgs/{a.org_id}/workspaces", a.owner, {"slug": "x", "name": "x"})

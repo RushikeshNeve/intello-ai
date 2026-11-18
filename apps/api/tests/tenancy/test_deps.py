@@ -91,8 +91,8 @@ def _integrity(name: str | None) -> IntegrityError:
         ("organization_has_owner", (409, "last_owner")),
         ("uq_organizations_slug", (409, "slug_taken")),
         ("uq_workspaces_org_id_slug", (409, "slug_taken")),
-        ("ck_organizations_slug_format", (409, "slug_taken")),
-        ("ck_workspaces_slug_format", (409, "slug_taken")),
+        ("ck_organizations_slug_format", (422, "invalid_request")),
+        ("ck_workspaces_slug_format", (422, "invalid_request")),
     ],
 )
 def test_map_integrity_error(constraint: str, expected: tuple[int, str]) -> None:
@@ -197,12 +197,14 @@ def test_integrity_errors_from_commit_are_mapped() -> None:
         raise _integrity("something_else")
 
 
-@pytest.mark.parametrize("slug", ["ab", "a-b-c", "ACME", "x" * 63, "0rg"])
-def test_slug_input_accepts_valid_and_case_variants(slug: str) -> None:
+@pytest.mark.parametrize("slug", ["ab", "a-b-c", "x" * 63, "0rg"])
+def test_slug_input_accepts_valid_slugs(slug: str) -> None:
     assert OrgCreate(slug=slug, name="n").slug == slug
 
 
-@pytest.mark.parametrize("slug", ["a", "-ab", "a b", "x" * 64, "ü-org", "a_b", ""])
+@pytest.mark.parametrize(
+    "slug", ["a", "-ab", "a b", "x" * 64, "ü-org", "a_b", "", "ACME", "Acme-Co"]
+)
 def test_slug_input_rejects_bad_shapes(slug: str) -> None:
     with pytest.raises(ValidationError):
         OrgCreate(slug=slug, name="n")

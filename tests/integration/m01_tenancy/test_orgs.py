@@ -35,15 +35,21 @@ def test_create_org_makes_the_creator_owner_atomically(api: Api) -> None:
     assert (got.status, got.body) == (200, body)
 
 
-def test_slug_taken_including_case_variant_and_nothing_written(api: Api) -> None:
+def test_slug_taken_and_uppercase_is_invalid_not_taken(api: Api) -> None:
     alice, bob = api.user("alice"), api.user("bob")
     slug = new_slug()
     api.create_org(alice, slug)
     before = api.scalar("SELECT count(*) FROM organizations")
-    for candidate in (slug, slug.upper(), slug[:4].upper() + slug[4:]):
+    # A real collision is 409 slug_taken and nothing is written.
+    res = api.post("/v1/orgs", bob, {"slug": slug, "name": "Clash"})
+    assert (res.status, res.body) == (409, {"detail": "slug_taken"})
+    assert api.audit(res.request_id) == []  # rolled back: no org.created
+    # Upper-case variants are invalid input (422), never reported as "taken" (DC-018): an
+    # upper-case slug with no twin must not claim a slug is taken, and must not reveal one.
+    for candidate in (slug.upper(), slug[:4].upper() + slug[4:]):
         res = api.post("/v1/orgs", bob, {"slug": candidate, "name": "Clash"})
-        assert (res.status, res.body) == (409, {"detail": "slug_taken"}), candidate
-        assert api.audit(res.request_id) == []  # rolled back: no org.created
+        assert (res.status, res.body["detail"]) == (422, "invalid_request"), candidate
+        assert api.audit(res.request_id) == []
     assert api.scalar("SELECT count(*) FROM organizations") == before
     assert api.get("/v1/orgs", bob).body["items"] == []
 
