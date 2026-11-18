@@ -174,3 +174,12 @@ Merged into `main`: `agent/m01-audit` (fe05afd), `agent/m01-web-session` (521c3a
 - The web session store is in-memory, which is fine for a single process; a shared store is needed before scaling out.
 - Repo-level `tests/` aren't covered by the apps/api ruff per-file ignores (S101). This needs a repo-level ruff config in M08.03.01.
 - Optional org-membership checks in RLS policies are deferred to M08 (DC-016 item 4).
+
+---
+
+## M01 full-stack e2e harness (coordinator, 2026-11-18)
+- **Files:** `tests/e2e/fullstack_m01/run.sh`, `tests/e2e/fullstack_m01/fullstack.test.mjs`
+- **What it does:** starts the real stack (PostgreSQL, Redis, Dex, API with `api-migrate`, web) as project `ukos-e2e-m01` (web 33400, API 38400, Dex 38480), then plays alice / bob / mallory over HTTP like a browser through the BFF: sign-in, org creation, membership, role enforcement (403 vs 404), last-owner 409, workspaces, UI pages, deep link through login, audit rows checked directly in Postgres, and no token anywhere in browser-facing responses or container logs.
+- **Dry run against `main` before batch 3 merged: 4 pass / 8 fail, as expected.** Passing: alice signs in and is provisioned; the first API call provisions exactly one user and one `user.provisioned` audit row per user (3 and 3); an anonymous deep link redirects to login and returns to it; no token reached the browser. The 8 failures are exactly the tests that need the org and workspace routes, which return 404 until M01.02.02/04 merge. The secrets check and cleanup were clean.
+- **Harness lessons:** user rows are created on the first authenticated API call, not at web login, so the test makes explicit `/me` calls for every user. `PG_EXEC` uses `docker exec <project>-postgres-1`, since compose paths with spaces break when shell-split.
+- **Status:** the M01 gate check. It must pass in full after batch 3 merges.
