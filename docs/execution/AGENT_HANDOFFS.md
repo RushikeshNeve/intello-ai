@@ -212,3 +212,12 @@ Merged into `main`: `agent/m01-audit` (fe05afd), `agent/m01-web-session` (521c3a
 
 ## M01 gate: full-stack e2e
 `tests/e2e/fullstack_m01` → **12/12** on the merged `main` (see `PROJECT_STATUS.md`).
+
+---
+
+## M02.03.01 — Drag/drop upload component
+- **Owner:** web-upload-agent · **Branch:** `agent/m02-web-upload` (cc93bf5) · merged to `main` as cf5fd76 · **Status:** DONE
+- **Delivered:** `apps/web/src/features/documents/upload/`: a framework-free upload engine (queued → hashing → creating-session → uploading → finalizing → done, with failure states), a typed API client, WebCrypto SHA-256, an XHR PUT sending exactly `upload.headers` with no credentials, and an accessible drag-and-drop UI with progress, retry, cancel and calm error messages. Retry rules follow contract §7: network error or 5xx retries the same session (3 times, backoff); a store 4xx, `upload_expired`, `checksum_mismatch` or `size_mismatch` starts a new session (max 2 restarts); `object_missing` re-PUTs; finalize 200 and 201 are both success.
+- **Coordinator verification (on `main`):** web lint clean; typecheck clean; unit tests **190 passed** (95 existing + 95 new); build ok. The agent mutation-checked "retry same session", "headers sent verbatim with no credentials" and "store 4xx starts a new session"; each made tests fail.
+- **Acceptance:** "Upload retries and error states testable": the engine takes injectable XHR, hash, sleep, API and backoff, so every path has a deterministic test.
+- **Notes for the library page:** render `<DocumentUploader orgId workspaceId disabled={!can_upload} onUploaded=… />` inside `QueryProvider`, with ids (not slugs); pass `documentId` for a new version. A hand-written accessible `progress.tsx` was added instead of a shadcn dependency.
