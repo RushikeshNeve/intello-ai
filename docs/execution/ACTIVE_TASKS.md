@@ -44,7 +44,7 @@ A task is DONE only after the coordinator reruns its acceptance check on `main` 
 | M01.03.04 | Auditable security events | audit-agent | agent/m01-audit | foundation | DONE (unit 45, DB 15) |
 | M01.02.02 | Organization REST endpoints | tenancy-api-agent | agent/m01-tenancy-api | batch 2 | IN_PROGRESS (restarted 2026-11-18) |
 | M01.02.04 | Workspace schema and endpoints | tenancy-api-agent | agent/m01-tenancy-api | batch 2 | IN_PROGRESS (restarted 2026-11-18) |
-| M01.02.03 | Organization switcher | web-tenancy-agent | agent/m01-web-tenancy | 01.02 + contract §4 | IN_PROGRESS (resumed from WIP 0ee47aa, 2026-11-18) |
-| M01.02.05 | Workspace navigation | web-tenancy-agent | agent/m01-web-tenancy | 01.02 + contract §4 | IN_PROGRESS (resumed from WIP 0ee47aa, 2026-11-18) |
+| M01.02.03 | Organization switcher | web-tenancy-agent | agent/m01-web-tenancy | 01.02 + contract §4 | DONE (unit 95, e2e 6/6 + web_auth 12/12 on main) |
+| M01.02.05 | Workspace navigation | web-tenancy-agent | agent/m01-web-tenancy | 01.02 + contract §4 | DONE (deep link through login verified) |
 
 Parallel-safety: foundation owns `apps/api/**` except `authorization/policy.py`, plus `apps.yml` and `compose_support.py`. The policy agent owns only `policy.py` and its tests. The web agent owns `apps/web/**` auth paths and the web manifest, with isolated ports 23300/28380.
