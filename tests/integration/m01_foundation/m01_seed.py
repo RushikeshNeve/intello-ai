@@ -60,8 +60,12 @@ class Tenant:
     workspace_id: uuid.UUID
 
 
-def seed_tenant(engine: Engine) -> Tenant:
-    """A complete org: owner, workspace, workspace membership, grant and audit event."""
+def seed_tenant(engine: Engine, *, documents: bool = True) -> Tenant:
+    """A complete org: owner, workspace, workspace membership, grant and audit event.
+
+    ``documents=True`` also seeds one M02 source/document/version/upload session; M02 tests that
+    need an empty workspace pass ``documents=False``.
+    """
     with engine.begin() as conn:
         owner = insert_user(conn)
         org = insert_org(conn, created_by=owner)
@@ -89,6 +93,56 @@ def seed_tenant(engine: Engine) -> Tenant:
             ),
             {"id": uuid.uuid4(), "o": org, "u": owner, "t": str(org)},
         )
+        # M02 tables (migration 0003): one source/document/version/upload session per tenant, so
+        # "every org-scoped table has rows" holds for the whole schema.
+        if documents:
+            source, doc, version = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+            conn.execute(
+                text(
+                    "INSERT INTO sources (id, org_id, workspace_id, kind, name, created_by)"
+                    " VALUES (:s, :o, :w, 'upload', 'Uploads', :u)"
+                ),
+                {"s": source, "o": org, "w": ws, "u": owner},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO documents (id, org_id, workspace_id, source_id, title, created_by)"
+                    " VALUES (:d, :o, :w, :s, 'Seed document', :u)"
+                ),
+                {"d": doc, "o": org, "w": ws, "s": source, "u": owner},
+            )
+            key = f"org/{org}/doc/{doc}/{version}/original"
+            conn.execute(
+                text(
+                    "INSERT INTO document_versions (id, org_id, workspace_id, document_id,"
+                    " version_number, original_filename, content_type, size_bytes, sha256,"
+                    " object_key, created_by) VALUES (:v, :o, :w, :d, 1, 'seed.txt', 'text/plain',"
+                    " 4, :sha, :k, :u)"
+                ),
+                {"v": version, "o": org, "w": ws, "d": doc, "sha": "a" * 64, "k": key, "u": owner},
+            )
+            conn.execute(
+                text("UPDATE documents SET latest_version_id = :v WHERE id = :d"),
+                {"v": version, "d": doc},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO upload_sessions (id, org_id, workspace_id, document_id, version_id,"
+                    " created_by, filename, content_type, size_bytes, sha256, object_key, expires_at)"
+                    " VALUES (:i, :o, :w, :d, :v, :u, 'pending.txt', 'text/plain', 4, :sha, :k,"
+                    " now() + interval '1 hour')"
+                ),
+                {
+                    "i": uuid.uuid4(),
+                    "o": org,
+                    "w": ws,
+                    "d": uuid.uuid4(),
+                    "v": uuid.uuid4(),
+                    "u": owner,
+                    "sha": "a" * 64,
+                    "k": f"org/{org}/doc/pending/{uuid.uuid4()}/original",
+                },
+            )
     return Tenant(org_id=org, owner_id=owner, workspace_id=ws)
 
 

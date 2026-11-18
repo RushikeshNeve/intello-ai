@@ -38,6 +38,13 @@ class Settings(BaseSettings):
     API_CORS_ORIGINS: str = ""
     API_SECRET_KEY: SecretStr | None = None
 
+    # Uploads and quotas (contract docs/architecture/m02-contracts.md §3, §5).
+    UPLOAD_MAX_BYTES: int = Field(default=104_857_600, ge=1, le=5 * 1024**3)  # 100 MiB
+    ORG_STORAGE_QUOTA_BYTES: int = Field(default=5_368_709_120, ge=1, le=1024**5)  # 5 GiB
+    UPLOAD_SESSION_TTL_SECONDS: int = Field(default=3600, ge=1, le=7 * 86_400)
+    UPLOAD_MAX_PENDING_PER_USER: int = Field(default=20, ge=1, le=1000)
+    DOCUMENT_PURGE_GRACE_DAYS: int = Field(default=7, ge=1, le=3650)
+
     # Per-dependency timeout for /health/ready, seconds.
     HEALTH_CHECK_TIMEOUT_SECONDS: float = Field(default=2.0, gt=0, le=30)
 

@@ -34,6 +34,10 @@ CONTRACT_EVENT_TYPES = {
     "grant.revoked",
     "authz.denied",
     "user.provisioned",
+    "document.created",
+    "document.version.created",
+    "document.updated",
+    "document.deleted",
 }
 
 

@@ -14,10 +14,12 @@ from datetime import datetime
 from typing import Any, Final
 
 from sqlalchemy import (
+    BigInteger,
     CheckConstraint,
     ForeignKey,
     ForeignKeyConstraint,
     Index,
+    Integer,
     MetaData,
     PrimaryKeyConstraint,
     Text,
@@ -35,6 +37,32 @@ GRANT_RESOURCE_TYPES: Final = ("document",)
 GRANTEE_TYPES: Final = ("user", "workspace_role")
 AUDIT_OUTCOMES: Final = ("success", "denied", "error")
 
+# M02 (docs/architecture/m02-contracts.md §3, §6).
+SOURCE_KINDS: Final = ("upload", "url", "connector")
+SOURCE_KIND_UPLOAD: Final = "upload"
+UPLOAD_STATES: Final = ("pending", "finalized", "failed", "expired")
+UPLOAD_STATE_PENDING: Final = "pending"
+UPLOAD_STATE_FINALIZED: Final = "finalized"
+UPLOAD_STATE_FAILED: Final = "failed"
+UPLOAD_STATE_EXPIRED: Final = "expired"
+TITLE_MAX_LENGTH: Final = 255
+FILENAME_MAX_LENGTH: Final = 255
+CONTENT_TYPE_MAX_LENGTH: Final = 255
+SHA256_PATTERN: Final = "^[0-9a-f]{64}$"
+# Only these types may be served with ``Content-Disposition: inline``; everything else
+# (text/html, image/svg+xml, scripts, unknown types) is always an attachment (contract §6).
+INLINE_CONTENT_TYPES: Final = frozenset(
+    {
+        "application/pdf",
+        "text/plain",
+        "text/markdown",
+        "image/png",
+        "image/jpeg",
+        "image/gif",
+        "image/webp",
+    }
+)
+
 SLUG_PATTERN: Final = "^[a-z0-9][a-z0-9-]{1,62}$"
 UUID_TEXT_PATTERN: Final = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
 
@@ -43,6 +71,14 @@ ORG_SLUG_UNIQUE: Final = "uq_organizations_slug"
 WORKSPACE_SLUG_UNIQUE: Final = "uq_workspaces_org_id_slug"
 ORG_OWNER_CONSTRAINT: Final = "organization_has_owner"  # raised by the deferred trigger
 WORKSPACE_MEMBER_ORG_FK: Final = "fk_workspace_memberships_org_member"
+UPLOAD_SOURCE_UNIQUE: Final = "uq_sources_workspace_id_upload"
+DOCUMENT_VERSION_NUMBER_UNIQUE: Final = "uq_document_versions_document_id_version_number"
+DOCUMENT_VERSION_OBJECT_KEY_UNIQUE: Final = "uq_document_versions_object_key"
+UPLOAD_SESSION_VERSION_UNIQUE: Final = "uq_upload_sessions_version_id"
+ACTIVE_GRANT_UNIQUE: Final = "uq_resource_grants_active"
+# Raised by triggers (not expressible as ORM metadata).
+VERSION_IMMUTABLE_CONSTRAINT: Final = "document_versions_immutable"  # SQLSTATE 42501
+UPLOAD_STATE_FORWARD_CONSTRAINT: Final = "upload_sessions_state_forward_only"  # SQLSTATE 23514
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -193,6 +229,17 @@ class ResourceGrant(Base):
             ondelete="CASCADE",
         ),
         Index("ix_resource_grants_resource", "org_id", "resource_type", "resource_id"),
+        # One ACTIVE grant per (resource, grantee, permission); revoking frees the slot.
+        Index(
+            ACTIVE_GRANT_UNIQUE,
+            "resource_type",
+            "resource_id",
+            "grantee_type",
+            "grantee_id",
+            "permission",
+            unique=True,
+            postgresql_where=text("revoked_at IS NULL"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
@@ -244,6 +291,207 @@ class AuditEvent(Base):
     )
 
 
+class Source(Base):
+    __tablename__ = "sources"
+    __table_args__ = (
+        UniqueConstraint("id", "workspace_id", name="uq_sources_id_workspace_id"),
+        CheckConstraint(_in("kind", SOURCE_KINDS), name="ck_sources_kind"),
+        CheckConstraint("length(name) BETWEEN 1 AND 255", name="ck_sources_name_length"),
+        ForeignKeyConstraint(
+            ["workspace_id", "org_id"],
+            ["workspaces.id", "workspaces.org_id"],
+            name="fk_sources_workspace",
+            ondelete="CASCADE",
+        ),
+        # Created lazily by the first upload; at most one per workspace.
+        Index(
+            UPLOAD_SOURCE_UNIQUE,
+            "workspace_id",
+            unique=True,
+            postgresql_where=text("kind = 'upload'"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", name="fk_sources_org_id", ondelete="CASCADE"),
+    )
+    workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    kind: Mapped[str] = mapped_column(Text)
+    name: Mapped[str] = mapped_column(Text)
+    config: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    created_by: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", name="fk_sources_created_by")
+    )
+    created_at: Mapped[datetime] = mapped_column(_tstz(), server_default=func.now())
+
+
+class Document(Base):
+    __tablename__ = "documents"
+    __table_args__ = (
+        UniqueConstraint("id", "workspace_id", name="uq_documents_id_workspace_id"),
+        CheckConstraint(
+            "length(title) BETWEEN 1 AND 255 AND title !~ '^[[:space:]]|[[:space:]]$'",
+            name="ck_documents_title",
+        ),
+        CheckConstraint("(deleted_at IS NULL) = (deleted_by IS NULL)", name="ck_documents_deleted"),
+        ForeignKeyConstraint(
+            ["workspace_id", "org_id"],
+            ["workspaces.id", "workspaces.org_id"],
+            name="fk_documents_workspace",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["source_id", "workspace_id"],
+            ["sources.id", "sources.workspace_id"],
+            name="fk_documents_source",
+        ),
+        # The latest version must belong to this very document. Deferred so the document and its
+        # first version can be inserted in either order inside one transaction.
+        ForeignKeyConstraint(
+            ["latest_version_id", "id"],
+            ["document_versions.id", "document_versions.document_id"],
+            name="fk_documents_latest_version",
+            deferrable=True,
+            initially="DEFERRED",
+            use_alter=True,
+        ),
+        Index("ix_documents_workspace_id_updated_at", "workspace_id", "updated_at", "id"),
+        Index("ix_documents_workspace_id_created_at", "workspace_id", "created_at", "id"),
+        Index("ix_documents_workspace_id_title", "workspace_id", "title", "id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", name="fk_documents_org_id", ondelete="CASCADE"),
+    )
+    workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    source_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    title: Mapped[str] = mapped_column(Text)
+    latest_version_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    created_by: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", name="fk_documents_created_by")
+    )
+    created_at: Mapped[datetime] = mapped_column(_tstz(), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(_tstz(), server_default=func.now())
+    deleted_at: Mapped[datetime | None] = mapped_column(_tstz())
+    deleted_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", name="fk_documents_deleted_by")
+    )
+
+
+class DocumentVersion(Base):
+    """Immutable (trigger): only ``purged_at`` may go NULL -> a timestamp."""
+
+    __tablename__ = "document_versions"
+    __table_args__ = (
+        UniqueConstraint("document_id", "version_number", name=DOCUMENT_VERSION_NUMBER_UNIQUE),
+        UniqueConstraint("id", "document_id", name="uq_document_versions_id_document_id"),
+        UniqueConstraint("object_key", name=DOCUMENT_VERSION_OBJECT_KEY_UNIQUE),
+        CheckConstraint("version_number >= 1", name="ck_document_versions_version_number"),
+        CheckConstraint(
+            "length(original_filename) BETWEEN 1 AND 255",
+            name="ck_document_versions_original_filename",
+        ),
+        CheckConstraint(
+            "length(content_type) BETWEEN 1 AND 255", name="ck_document_versions_content_type"
+        ),
+        CheckConstraint("size_bytes >= 0", name="ck_document_versions_size_bytes"),
+        CheckConstraint(f"sha256 ~ '{SHA256_PATTERN}'", name="ck_document_versions_sha256"),
+        CheckConstraint("length(object_key) > 0", name="ck_document_versions_object_key"),
+        ForeignKeyConstraint(
+            ["workspace_id", "org_id"],
+            ["workspaces.id", "workspaces.org_id"],
+            name="fk_document_versions_workspace",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["document_id", "workspace_id"],
+            ["documents.id", "documents.workspace_id"],
+            name="fk_document_versions_document",
+        ),
+        Index("ix_document_versions_org_id", "org_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", name="fk_document_versions_org_id", ondelete="CASCADE"),
+    )
+    workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    document_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    version_number: Mapped[int] = mapped_column(Integer)
+    original_filename: Mapped[str] = mapped_column(Text)
+    content_type: Mapped[str] = mapped_column(Text)
+    size_bytes: Mapped[int] = mapped_column(BigInteger)
+    sha256: Mapped[str] = mapped_column(Text)
+    object_key: Mapped[str] = mapped_column(Text)
+    created_by: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", name="fk_document_versions_created_by")
+    )
+    created_at: Mapped[datetime] = mapped_column(_tstz(), server_default=func.now())
+    purged_at: Mapped[datetime | None] = mapped_column(_tstz())
+
+
+class UploadSession(Base):
+    """``state`` moves forward only (trigger): ``pending`` -> finalized | failed | expired."""
+
+    __tablename__ = "upload_sessions"
+    __table_args__ = (
+        UniqueConstraint("version_id", name=UPLOAD_SESSION_VERSION_UNIQUE),
+        CheckConstraint(_in("state", UPLOAD_STATES), name="ck_upload_sessions_state"),
+        CheckConstraint("length(filename) BETWEEN 1 AND 255", name="ck_upload_sessions_filename"),
+        CheckConstraint(
+            "length(content_type) BETWEEN 1 AND 255", name="ck_upload_sessions_content_type"
+        ),
+        CheckConstraint("size_bytes >= 1", name="ck_upload_sessions_size_bytes"),
+        CheckConstraint(f"sha256 ~ '{SHA256_PATTERN}'", name="ck_upload_sessions_sha256"),
+        CheckConstraint("length(object_key) > 0", name="ck_upload_sessions_object_key"),
+        CheckConstraint("expires_at > created_at", name="ck_upload_sessions_expires_after_created"),
+        CheckConstraint(
+            "(state = 'failed') = (failure_code IS NOT NULL)",
+            name="ck_upload_sessions_failure_code",
+        ),
+        CheckConstraint(
+            "(state = 'finalized') = (finalized_at IS NOT NULL)",
+            name="ck_upload_sessions_finalized_at",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "org_id"],
+            ["workspaces.id", "workspaces.org_id"],
+            name="fk_upload_sessions_workspace",
+            ondelete="CASCADE",
+        ),
+        Index("ix_upload_sessions_org_id_state", "org_id", "state"),
+        Index("ix_upload_sessions_org_id_created_by_state", "org_id", "created_by", "state"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", name="fk_upload_sessions_org_id", ondelete="CASCADE"),
+    )
+    workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    # Reserved ids: the document may not exist yet (it is created at finalize), so no FK.
+    document_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    version_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    created_by: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", name="fk_upload_sessions_created_by")
+    )
+    filename: Mapped[str] = mapped_column(Text)
+    content_type: Mapped[str] = mapped_column(Text)
+    size_bytes: Mapped[int] = mapped_column(BigInteger)
+    sha256: Mapped[str] = mapped_column(Text)
+    object_key: Mapped[str] = mapped_column(Text)
+    state: Mapped[str] = mapped_column(Text, server_default=UPLOAD_STATE_PENDING)
+    failure_code: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(_tstz(), server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(_tstz())
+    finalized_at: Mapped[datetime | None] = mapped_column(_tstz())
+
+
 ORG_SCOPED_TABLES: Final = (
     "organizations",
     "organization_memberships",
@@ -251,5 +499,9 @@ ORG_SCOPED_TABLES: Final = (
     "workspace_memberships",
     "resource_grants",
     "audit_events",
+    "sources",
+    "documents",
+    "document_versions",
+    "upload_sessions",
 )
 RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)

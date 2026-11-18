@@ -35,7 +35,7 @@ MAX_LIMIT: Final = 200
 
 
 class AuditEventType(StrEnum):
-    """The closed set of M01 event types. Unknown types are rejected."""
+    """The closed set of event types (M01 + M02). Unknown types are rejected."""
 
     ORG_CREATED = "org.created"
     ORG_UPDATED = "org.updated"
@@ -53,6 +53,10 @@ class AuditEventType(StrEnum):
     GRANT_REVOKED = "grant.revoked"
     AUTHZ_DENIED = "authz.denied"
     USER_PROVISIONED = "user.provisioned"
+    DOCUMENT_CREATED = "document.created"
+    DOCUMENT_VERSION_CREATED = "document.version.created"
+    DOCUMENT_UPDATED = "document.updated"
+    DOCUMENT_DELETED = "document.deleted"
 
 
 class SessionOpener(Protocol):

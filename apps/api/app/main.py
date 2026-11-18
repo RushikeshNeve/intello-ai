@@ -26,6 +26,7 @@ from app.core.security import (
     get_token_verifier,
     get_user_provisioner,
 )
+from app.modules.documents import router as documents_router
 from app.modules.identity.oidc import OidcTokenVerifier
 from app.modules.identity.provisioning import DbUserProvisioner
 from app.modules.organizations.router import router as organizations_router
@@ -93,4 +94,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(me.router)
     app.include_router(organizations_router)
     app.include_router(workspaces_router)
+    app.include_router(documents_router)
     return app

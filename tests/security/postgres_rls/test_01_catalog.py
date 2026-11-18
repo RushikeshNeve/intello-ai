@@ -15,6 +15,12 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     "workspace_memberships": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "resource_grants": {"SELECT", "INSERT", "UPDATE"},
     "audit_events": {"SELECT", "INSERT"},
+    # M02 (migration 0003): INSERT table-wide, UPDATE only on named columns (column-level grants
+    # do not show up in has_table_privilege), never DELETE. Deep coverage is a later task.
+    "sources": {"SELECT", "INSERT"},
+    "documents": {"SELECT", "INSERT"},
+    "document_versions": {"SELECT", "INSERT"},
+    "upload_sessions": {"SELECT", "INSERT"},
 }
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 TRIVIAL = {"true", "(true)", "1 = 1", "(1 = 1)"}
