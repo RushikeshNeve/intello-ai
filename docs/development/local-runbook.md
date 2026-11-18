@@ -39,13 +39,16 @@ Keep `DATABASE_URL`, `DATABASE_MIGRATION_URL`, `REDIS_URL` and `CELERY_BROKER_UR
 ## 3. Start the stack
 
 ```bash
-docker compose up -d --wait
-docker compose run --rm objectstore-init  # idempotent bucket/CORS bootstrap; must print "objectstore-init: done"
+docker compose up -d --wait        # exits 0 when every service is healthy and both one-shots succeeded
 ```
 
-`up --wait` doesn't reliably report the result of the one-shot `objectstore-init`. Running it explicitly is
-idempotent and returns its exit code. (`docker compose wait objectstore-init` is **not** reliable: it errors with "no
-containers" once the one-shot has already exited.)
+Two one-shot jobs run during start-up: `api-migrate` (database migrations) and `objectstore-init` (creates the
+buckets and CORS). The `api` waits for both. The root `compose.override.yaml`, which Docker loads automatically,
+makes the API depend on `objectstore-init`; without a dependent, Compose treats a finished one-shot as a failed
+`--wait` (exit code 1, even though everything is healthy). A cold start from nothing takes about 30 s once the images
+are built. To re-run the bucket setup by hand: `docker compose run --rm objectstore-init` (idempotent).
+
+For hands-on testing in the browser, see [manual-test-guide.md](manual-test-guide.md).
 
 ### Services and ports (all bound to 127.0.0.1)
 

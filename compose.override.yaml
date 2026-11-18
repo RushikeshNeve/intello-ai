@@ -1,0 +1,9 @@
+# Auto-loaded by `docker compose` for the root stack only (the per-file stacks used by tests do not read it).
+# Makes the API wait for the one-shot bucket setup (M02 uploads need the buckets), and lets
+# `docker compose up -d --wait` exit 0: Compose treats a one-shot that exits as a failure unless
+# another service depends on it completing.
+services:
+  api:
+    depends_on:
+      objectstore-init:
+        condition: service_completed_successfully
