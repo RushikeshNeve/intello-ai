@@ -1,0 +1,8 @@
+# Used only by tests/e2e/fullstack_m02/run.sh (explicit -f list, so the root compose.override.yaml is not loaded).
+# Same purpose as the root override: the API waits for the bucket/CORS one-shot, which also lets
+# `docker compose up --wait` exit 0 (a finished one-shot with no dependent counts as a failure).
+services:
+  api:
+    depends_on:
+      objectstore-init:
+        condition: service_completed_successfully
