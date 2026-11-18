@@ -33,6 +33,10 @@ else
   ROOT_WIN="$ROOT"; ROOT_VM="$ROOT"                      # Linux/macOS: same path
 fi
 IMAGE="ukos-linux-runner:local"
+# One venv volume PER checkout (hash of its path): parallel worktrees can have different lock files, and
+# a shared venv would make concurrent `uv sync` runs uninstall each other's packages.
+# Remove a checkout's volume with: docker volume rm ukos-runner-venv-<hash>   (list: docker volume ls | grep runner)
+VENV_VOL="ukos-runner-venv-$(printf '%s' "$ROOT_WIN" | md5sum | cut -c1-10)"
 export MSYS_NO_PATHCONV=1
 
 if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
@@ -49,7 +53,7 @@ done < <(env)
 exec docker run --rm --network host \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$ROOT_WIN:$ROOT_VM" \
-  -v ukos-runner-venv:/venv \
+  -v "$VENV_VOL:/venv" \
   -v ukos-runner-uvcache:/root/.cache/uv \
   -e UV_PROJECT_ENVIRONMENT=/venv -e UV_LINK_MODE=copy \
   "${ENV_ARGS[@]}" \
