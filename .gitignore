@@ -35,3 +35,6 @@ tmp/
 Thumbs.db
 .idea/
 .vscode/
+
+# Local sample corpus for evaluation (user-provided, not committed)
+sample-corpus/
