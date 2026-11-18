@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import { FolderIcon } from "lucide-react";
+import { FileTextIcon, FolderIcon } from "lucide-react";
 import { queryKeys } from "@/lib/query/keys";
 import { useApiFetcher } from "@/lib/query/provider";
 import { canManageWorkspaces } from "@/features/organizations/api/orgs";
@@ -36,7 +36,7 @@ export function WorkspaceOverview({ initialWorkspaces }: { initialWorkspaces: Wo
         ) : (
           <ul className="grid gap-2 sm:grid-cols-2" data-testid="workspace-list">
             {workspaces.map((w) => (
-              <li key={w.id}>
+              <li key={w.id} className="grid gap-1">
                 <Link
                   href={`${base}/w/${encodeURIComponent(w.slug)}`}
                   className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 text-card-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 motion-safe:transition-colors"
@@ -46,6 +46,13 @@ export function WorkspaceOverview({ initialWorkspaces }: { initialWorkspaces: Wo
                     <span className="block truncate font-medium">{w.name}</span>
                     <span className="block text-xs text-muted-foreground">{w.slug}</span>
                   </span>
+                </Link>
+                <Link
+                  href={`${base}/w/${encodeURIComponent(w.slug)}/documents`}
+                  className="flex items-center gap-2 rounded-md px-4 py-1 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+                >
+                  <FileTextIcon aria-hidden="true" className="size-3.5" />
+                  Documents<span className="sr-only"> of workspace {w.slug}</span>
                 </Link>
               </li>
             ))}
