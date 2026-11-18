@@ -11,11 +11,13 @@ from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import Engine
 
 from app.api import health, me
+from app.api.deps import validation_error_handler
 from app.core.config import Settings, get_settings
 from app.core.db import dispose_engines, get_engine
 from app.core.security import (
@@ -26,6 +28,8 @@ from app.core.security import (
 )
 from app.modules.identity.oidc import OidcTokenVerifier
 from app.modules.identity.provisioning import DbUserProvisioner
+from app.modules.organizations.router import router as organizations_router
+from app.modules.workspaces.router import router as workspaces_router
 
 logger = logging.getLogger("ukos.app")
 
@@ -64,6 +68,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=_lifespan,
     )
     app.add_exception_handler(NotConfiguredError, _not_configured_handler)
+    # Tenancy routes (M01.02.02/04): 422 bodies keep the {"detail": "<code>"} error shape.
+    app.add_exception_handler(RequestValidationError, validation_error_handler)
     app.dependency_overrides[get_settings] = lambda: settings
 
     # Identity (M01.01.01 / M01.01.03): one verifier per app (shared JWKS cache; no network until
@@ -85,4 +91,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(me.router)
+    app.include_router(organizations_router)
+    app.include_router(workspaces_router)
     return app
