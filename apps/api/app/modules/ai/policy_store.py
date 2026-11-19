@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Final
 
@@ -18,6 +18,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
+from app.modules.ai.models.policy import ModelPolicy as ModelPolicy  # one canonical class
 from app.modules.ai.models_db import AI_PROVIDERS, PROVIDER_LOCAL, AiPolicy
 
 DEFAULT_PROVIDERS: Final = frozenset({PROVIDER_LOCAL})
@@ -25,12 +26,6 @@ DEFAULT_PROVIDERS: Final = frozenset({PROVIDER_LOCAL})
 
 class InvalidPolicy(ValueError):
     """The requested policy is not storable (unknown provider, empty list, external not allowed)."""
-
-
-@dataclass(frozen=True, slots=True)
-class ModelPolicy:
-    allow_external: bool = False
-    allowed_providers: frozenset[str] = field(default=DEFAULT_PROVIDERS)
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,6 +39,7 @@ class StoredPolicy:
         return self.updated_at is None
 
 
+# ONE canonical ModelPolicy (the gateway's, ``ai.models.policy``): re-exported here for the store.
 DEFAULT_POLICY: Final = ModelPolicy()
 
 

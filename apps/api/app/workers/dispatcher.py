@@ -33,6 +33,7 @@ from typing import Any, Final
 
 from sqlalchemy import Engine, text
 
+from app.modules.ai import chat_repo
 from app.modules.ingestion.models import (
     EVENT_CHAT_RUN_QUEUED,
     EVENT_DOCUMENT_DELETED,
@@ -56,6 +57,8 @@ from app.workers.worker_db import get_worker_engine, system_connection
 log = logging.getLogger("ukos.dispatcher")
 
 TRANSIENT_BACKOFF_CAP: Final = 300
+# A chat run is started at most this many times (a dead worker's run is requeued once).
+CHAT_REAP_MAX_ATTEMPTS: Final = 2
 
 
 class BrokerUnavailable(Exception):
@@ -232,6 +235,12 @@ class Dispatcher:
     def reap(self) -> int:
         return reap_expired_leases(self.engine, self.settings.INGEST_RETRY_BASE_SECONDS)
 
+    def reap_chat(self) -> int:
+        """Chat runs whose worker died: requeued once when no token was streamed yet (a new outbox
+        row is written by the function), else ``failed lease_expired``."""
+        with system_connection(self.engine) as conn:
+            return len(chat_repo.reap_expired_runs(conn, CHAT_REAP_MAX_ATTEMPTS))
+
     def reconcile_sweep(self) -> int:
         """Hand documents whose publication is due for a check to the maintenance queue; the
         function marks them (``reconciled_at``) in the same transaction, so a failed publish rolls
@@ -298,6 +307,13 @@ class Dispatcher:
             reaped = self.reap()
             if reaped:
                 log.info("reaped %s expired lease(s)", reaped)
+            try:
+                chat_reaped = self.reap_chat()
+            except Exception as exc:  # noqa: BLE001 - never let the chat sweep stop the others
+                log.error("chat reap failed (%s)", type(exc).__name__)
+            else:
+                if chat_reaped:
+                    log.info("reaped %s expired chat run(s)", chat_reaped)
         if now >= self._next_reconcile:
             self._next_reconcile = now + self.settings.INGEST_RECONCILE_INTERVAL_SECONDS
             queued = self.reconcile_sweep()

@@ -15,6 +15,7 @@ from app.core.config import Settings
 DEFAULT_PIPELINE_RUNNER = "app.modules.ingestion.pipeline:build_pipeline_runner"
 DEFAULT_DELETE_HANDLER = "app.modules.knowledge.deletion:build_document_deleted_handler"
 DEFAULT_RECONCILE_HANDLER = "app.modules.knowledge.publication:build_reconcile_handler"
+DEFAULT_CHAT_RUNTIME = "app.workers.chat_tasks:build_default_chat_deps"
 
 
 class WorkerSettings(Settings):
@@ -39,6 +40,23 @@ class WorkerSettings(Settings):
     INGEST_TASK_HARD_LIMIT_MARGIN_SECONDS: int = Field(default=60, ge=1, le=3600)
     MAINTENANCE_TASK_SOFT_LIMIT_SECONDS: int = Field(default=300, ge=5, le=86_400)
 
+    # Chat runs (M04.02.04): the task limits sit above the run's own budget
+    # (``CHAT_RUN_TIMEOUT_SECONDS``), so the run times itself out first and ends with a clean
+    # ``failed timeout``; the limits only catch a stuck task.
+    CHAT_TASK_SOFT_LIMIT_MARGIN_SECONDS: int = Field(default=30, ge=1, le=3600)
+    CHAT_TASK_HARD_LIMIT_MARGIN_SECONDS: int = Field(default=60, ge=1, le=3600)
+    # Dotted ``module:factory`` building the chat dependencies (index, embedder, settings, model
+    # factory) as ``factory(settings) -> ChatDeps``; tests substitute fakes through it.
+    CHAT_RUNTIME_FACTORY: str = DEFAULT_CHAT_RUNTIME
+
+    @property
+    def chat_soft_limit_seconds(self) -> int:
+        return self.CHAT_RUN_TIMEOUT_SECONDS + self.CHAT_TASK_SOFT_LIMIT_MARGIN_SECONDS
+
+    @property
+    def chat_hard_limit_seconds(self) -> int:
+        return self.chat_soft_limit_seconds + self.CHAT_TASK_HARD_LIMIT_MARGIN_SECONDS
+
     @property
     def ingest_hard_limit_seconds(self) -> int:
         return self.INGEST_TASK_SOFT_LIMIT_SECONDS + self.INGEST_TASK_HARD_LIMIT_MARGIN_SECONDS
@@ -46,7 +64,11 @@ class WorkerSettings(Settings):
     @property
     def visibility_timeout_seconds(self) -> int:
         """Redis redelivers an unacked message after this long: it must outlast any task."""
-        longest = max(self.ingest_hard_limit_seconds, self.MAINTENANCE_TASK_SOFT_LIMIT_SECONDS + 60)
+        longest = max(
+            self.ingest_hard_limit_seconds,
+            self.MAINTENANCE_TASK_SOFT_LIMIT_SECONDS + 60,
+            self.chat_hard_limit_seconds,
+        )
         return longest + 600
 
 

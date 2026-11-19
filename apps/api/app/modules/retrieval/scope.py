@@ -97,3 +97,25 @@ def resolve_scope(
     if not allowed:
         raise EmptyScope
     return RetrievalScope(org_id, user_id, frozenset(allowed), org, _mint=_MINT)
+
+
+def scope_for_workspaces(
+    session: Session,
+    *,
+    org_id: uuid.UUID,
+    user_id: uuid.UUID,
+    workspace_ids: Iterable[uuid.UUID],
+) -> RetrievalScope:
+    """Mint a scope from workspace ids the caller has ALREADY derived server-side.
+
+    For the chat worker only: it cannot read membership roles, so it re-derives the user's readable
+    workspaces through the ``chat_readable_workspaces`` definer function, intersects them with the
+    run's creation snapshot and passes the result here. The org is still proven live through
+    ``session``. Never call this with ids that came from a request. Raises ``UnknownOrganization``
+    or :class:`EmptyScope`.
+    """
+    org = validated_org_scope(session, org_id)
+    allowed = frozenset(workspace_ids)
+    if not allowed:
+        raise EmptyScope
+    return RetrievalScope(org_id, user_id, allowed, org, _mint=_MINT)

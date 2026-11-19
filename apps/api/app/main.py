@@ -26,6 +26,7 @@ from app.core.security import (
     get_token_verifier,
     get_user_provisioner,
 )
+from app.modules.ai.chat_router import router as chat_router
 from app.modules.ai.policy_router import router as ai_policy_router
 from app.modules.documents import router as documents_router
 from app.modules.identity.oidc import OidcTokenVerifier
@@ -101,4 +102,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(ingestion_router)
     app.include_router(retrieval_router)
     app.include_router(ai_policy_router)
+    app.include_router(chat_router)
     return app
