@@ -24,8 +24,22 @@ def _definers(admin: Engine) -> list[tuple[str, list[str] | None, str]]:
         ]
 
 
+# M03 (migration 0005, contract §4): the worker's only way to look across orgs. Executable by the
+# worker role alone (see tests/integration/m03_foundation/test_m03_grants.py for their depth).
+M03_DEFINERS = [
+    "ingest_claim_job",
+    "ingest_reap_expired_leases",
+    "knowledge_next_reconcile_batch",
+    "outbox_fetch_batch",
+    "outbox_mark_dispatched",
+    "outbox_mark_failed",
+]
+
+
 def test_expected_definer_inventory(admin_engine: Engine, migrated: None) -> None:
-    assert sorted(name for name, _, _ in _definers(admin_engine)) == ["ukos_assert_org_has_owner"]
+    assert sorted(name for name, _, _ in _definers(admin_engine)) == sorted(
+        ["ukos_assert_org_has_owner", *M03_DEFINERS]
+    )
 
 
 def test_definers_pin_search_path(admin_engine: Engine, migrated: None) -> None:
@@ -42,22 +56,20 @@ def test_definers_not_executable_by_app_role_or_public(
 ) -> None:
     with admin_engine.connect() as conn:
         for name, _, _ in _definers(admin_engine):
-            sig = f"public.{name}()"
-            assert (
-                conn.execute(
-                    text("SELECT has_function_privilege(:r, :f, 'EXECUTE')"),
-                    {"r": app_role, "f": sig},
-                ).scalar_one()
-                is False
-            ), name
-            acl = conn.execute(
-                text("SELECT proacl::text FROM pg_proc WHERE oid = CAST(:f AS regprocedure)"),
-                {"f": sig},
-            ).scalar_one()
-            # NULL acl = default = PUBLIC may EXECUTE; a PUBLIC entry is an item "=X/<grantor>".
-            assert acl is not None, f"{name}: default ACL grants PUBLIC EXECUTE"
-            items = acl.strip("{}").split(",")
-            assert not any(i.startswith("=") for i in items), f"{name}: PUBLIC entry in {acl}"
+            # Overload-agnostic: every SECURITY DEFINER function of that name, by oid.
+            for _oid, can_execute, acl in conn.execute(
+                text(
+                    "SELECT p.oid, has_function_privilege(:r, p.oid, 'EXECUTE'), p.proacl::text"
+                    " FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace"
+                    " WHERE p.prosecdef AND n.nspname = 'public' AND p.proname = :n"
+                ),
+                {"r": app_role, "n": name},
+            ):
+                assert can_execute is False, name
+                # NULL acl = default = PUBLIC may EXECUTE; a PUBLIC entry is "=X/<grantor>".
+                assert acl is not None, f"{name}: default ACL grants PUBLIC EXECUTE"
+                items = acl.strip("{}").split(",")
+                assert not any(i.startswith("=") for i in items), f"{name}: PUBLIC entry in {acl}"
 
 
 def test_app_role_cannot_call_definer_directly(app_engine: Engine, world: World) -> None:

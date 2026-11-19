@@ -85,11 +85,16 @@ def app_engine(stack: ComposeProject, migrated: None) -> Iterator[Engine]:
 @pytest.fixture(scope="session")
 def alembic_config(stack: ComposeProject) -> Iterator[Config]:
     cfg = Config(str(API_DIR / "alembic.ini"))
-    previous = {k: os.environ.get(k) for k in ("DATABASE_MIGRATION_URL", "POSTGRES_APP_USER")}
+    previous = {
+        k: os.environ.get(k)
+        for k in ("DATABASE_MIGRATION_URL", "POSTGRES_APP_USER", "POSTGRES_WORKER_PASSWORD")
+    }
     os.environ["DATABASE_MIGRATION_URL"] = _url(stack, app=False).render_as_string(
         hide_password=False
     )
     os.environ["POSTGRES_APP_USER"] = stack.env["POSTGRES_APP_USER"]
+    # Migration 0005 creates the worker role from this password (M03 contract §4).
+    os.environ["POSTGRES_WORKER_PASSWORD"] = stack.env["POSTGRES_WORKER_PASSWORD"]
     try:
         yield cfg
     finally:

@@ -14,7 +14,6 @@ from app.core.models import RLS_TABLES, Base
 
 M02_TABLES = ("sources", "documents", "document_versions", "upload_sessions")
 M02_FUNCTIONS = ("ukos_document_versions_immutable", "ukos_upload_sessions_forward_only")
-HEAD = "0004_upload_session_title"
 PREVIOUS = "0002_rls_hardening"
 
 
@@ -47,8 +46,9 @@ def _index_exists(engine: Engine, name: str) -> bool:
         )
 
 
-def test_head_is_0003(alembic_config: Config) -> None:
-    assert ScriptDirectory.from_config(alembic_config).get_current_head() == HEAD
+def test_head_is_a_single_revision(alembic_config: Config) -> None:
+    heads = ScriptDirectory.from_config(alembic_config).get_heads()
+    assert len(heads) == 1
 
 
 def test_upgrade_downgrade_upgrade(
@@ -73,8 +73,9 @@ def test_upgrade_downgrade_upgrade(
     command.upgrade(alembic_config, "head")
     assert set(RLS_TABLES) <= _tables(admin_engine)
     assert _functions(admin_engine) == set(M02_FUNCTIONS)
+    head = ScriptDirectory.from_config(alembic_config).get_current_head()
     with admin_engine.connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == HEAD
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == head
 
 
 def test_downgrade_leaves_no_m02_catalog_objects(

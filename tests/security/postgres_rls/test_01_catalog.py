@@ -21,6 +21,14 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     "documents": {"SELECT", "INSERT"},
     "document_versions": {"SELECT", "INSERT"},
     "upload_sessions": {"SELECT", "INSERT"},
+    # M03 (migration 0005): the API enqueues work (INSERT) and reads status; only the worker role
+    # (and the definer functions) update. Deep coverage: tests/integration/m03_foundation.
+    "ingestion_jobs": {"SELECT", "INSERT"},
+    "ingestion_job_events": {"SELECT", "INSERT"},
+    "outbox_events": {"SELECT", "INSERT"},
+    "ingestion_checkpoints": {"SELECT"},
+    "knowledge_revisions": {"SELECT"},
+    "document_publications": {"SELECT"},
 }
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 TRIVIAL = {"true", "(true)", "1 = 1", "(1 = 1)"}

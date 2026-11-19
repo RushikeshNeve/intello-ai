@@ -19,6 +19,7 @@ from app.modules.audit import AuditEventType
 from app.modules.authorization.policy import Action
 from app.modules.documents import catalog_service as svc
 from app.modules.documents.schemas import DeletionAccepted
+from app.modules.ingestion.jobs import enqueue_document_deleted
 
 router = APIRouter(prefix="/v1/orgs/{org_id}/workspaces/{workspace_id}", tags=["documents"])
 
@@ -41,6 +42,11 @@ def delete_document(
         deleted_at = svc.soft_delete_document(session, ctx, document_id, tenant.user_id)
         if deleted_at is None:  # a concurrent DELETE won
             raise not_found()
+        # M03 contract §9: the knowledge-index purge is requested in the same transaction as the
+        # logical deletion (a rollback emits nothing).
+        enqueue_document_deleted(
+            session, org_id=org_id, workspace_id=workspace_id, document_id=document_id
+        )
         purge_after = deleted_at + timedelta(days=settings.DOCUMENT_PURGE_GRACE_DAYS)
         svc.audit(
             tenant,

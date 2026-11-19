@@ -24,6 +24,7 @@ from fastapi import APIRouter, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import Tenant, TenantRequest, not_found
+from app.core.config import get_settings
 from app.core.models import (
     UPLOAD_STATE_EXPIRED,
     UPLOAD_STATE_FAILED,
@@ -34,6 +35,7 @@ from app.modules.audit import AuditEventType, record_denied, record_event
 from app.modules.authorization.policy import Action
 from app.modules.documents import errors, upload_service
 from app.modules.documents.schemas import FinalizeResult, default_title, sha256_hex_to_b64
+from app.modules.ingestion.jobs import enqueue_ingestion
 from app.modules.storage.deps import ObjectStoreDep
 from app.modules.storage.ports import StorageError
 
@@ -187,6 +189,17 @@ def _create_version(
         event = AuditEventType.DOCUMENT_VERSION_CREATED
         version_number = upload_service.next_version_number(session, sess.document_id)
     upload_service.create_version(session, sess, version_number)
+    # M03 contract §2: the ingestion job + its queued event + the outbox row are written in THIS
+    # transaction, so a rollback leaves none of them (transactional outbox). Only this branch runs
+    # for a new version: an idempotent repeat of a finalized session never reaches it.
+    enqueue_ingestion(
+        session,
+        org_id=org_id,
+        workspace_id=workspace_id,
+        document_id=sess.document_id,
+        version_id=sess.version_id,
+        embedding_space_id=get_settings().embedding_space_id,
+    )
     upload_service.mark_session(session, sess.id, UPLOAD_STATE_FINALIZED, None)
     record_event(
         session,
