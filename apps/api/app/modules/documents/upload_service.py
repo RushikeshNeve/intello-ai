@@ -62,6 +62,7 @@ from app.modules.documents.schemas import (
 from app.modules.documents.schemas import (
     Version as VersionOut,
 )
+from app.modules.ingestion.status_service import latest_job, summarize
 from app.modules.organizations.service import OrgAccess, load_org_access
 from app.modules.storage.ports import StorageError
 from app.modules.workspaces import service as workspace_service
@@ -525,6 +526,11 @@ def build_result(session: Session, sess: SessionRow, subject: SubjectContext) ->
             permissions=DocumentPermissions(
                 write=decide(subject, Action.DOCUMENT_WRITE).allowed,
                 manage=decide(subject, Action.DOCUMENT_MANAGE).allowed,
+            ),
+            # The job was enqueued in this same transaction: report it (M03.03.04).
+            ingestion=summarize(
+                latest_job(session, sess.org_id, sess.workspace_id, doc.id),
+                can_write=decide(subject, Action.DOCUMENT_WRITE).allowed,
             ),
         ),
         version=version(sess.version_id),

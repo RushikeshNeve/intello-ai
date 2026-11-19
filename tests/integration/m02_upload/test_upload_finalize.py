@@ -80,8 +80,9 @@ def test_finalize_creates_document_version_source_and_audit(api: UploadApi, scen
     assert document["permissions"] == {"write": True, "manage": False}
     assert set(document) == {
         "id", "org_id", "workspace_id", "title", "created_by", "created_at", "updated_at",
-        "version_count", "latest_version", "permissions",
+        "version_count", "latest_version", "permissions", "ingestion",
     }  # fmt: skip
+    assert document["ingestion"]["state"] == "queued"  # M03: the job was enqueued by finalize
     assert version == {
         "id": session["version_id"],
         "document_id": session["document_id"],

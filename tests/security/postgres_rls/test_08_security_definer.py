@@ -34,11 +34,14 @@ M03_DEFINERS = [
     "outbox_mark_dispatched",
     "outbox_mark_failed",
 ]
+# M03.03.04 (migration 0006): the one definer the APP role may call (a user's "retry"); it only
+# acts on the caller's own org (app.current_org_id) and PUBLIC still may not execute it.
+APP_DEFINERS = ["ingest_requeue_job"]
 
 
 def test_expected_definer_inventory(admin_engine: Engine, migrated: None) -> None:
     assert sorted(name for name, _, _ in _definers(admin_engine)) == sorted(
-        ["ukos_assert_org_has_owner", *M03_DEFINERS]
+        ["ukos_assert_org_has_owner", *M03_DEFINERS, *APP_DEFINERS]
     )
 
 
@@ -56,6 +59,8 @@ def test_definers_not_executable_by_app_role_or_public(
 ) -> None:
     with admin_engine.connect() as conn:
         for name, _, _ in _definers(admin_engine):
+            if name in APP_DEFINERS:
+                continue  # executable by the app role by design; see the next test
             # Overload-agnostic: every SECURITY DEFINER function of that name, by oid.
             for _oid, can_execute, acl in conn.execute(
                 text(
@@ -70,6 +75,26 @@ def test_definers_not_executable_by_app_role_or_public(
                 assert acl is not None, f"{name}: default ACL grants PUBLIC EXECUTE"
                 items = acl.strip("{}").split(",")
                 assert not any(i.startswith("=") for i in items), f"{name}: PUBLIC entry in {acl}"
+
+
+def test_app_definer_is_app_only_and_not_public(
+    admin_engine: Engine, migrated: None, app_role: str
+) -> None:
+    with admin_engine.connect() as conn:
+        for name in APP_DEFINERS:
+            rows = conn.execute(
+                text(
+                    "SELECT has_function_privilege(:r, p.oid, 'EXECUTE'), p.proacl::text"
+                    " FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace"
+                    " WHERE p.prosecdef AND n.nspname = 'public' AND p.proname = :n"
+                ),
+                {"r": app_role, "n": name},
+            ).all()
+            assert rows, name
+            for can_execute, acl in rows:
+                assert can_execute is True, name
+                assert acl is not None
+                assert not any(i.startswith("=") for i in acl.strip("{}").split(",")), acl
 
 
 def test_app_role_cannot_call_definer_directly(app_engine: Engine, world: World) -> None:

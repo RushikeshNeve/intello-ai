@@ -58,6 +58,7 @@ from app.modules.documents.schemas import (
 from app.modules.documents.schemas import (
     Version as VersionOut,
 )
+from app.modules.ingestion.status_service import JobInfo, latest_jobs, summarize
 from app.modules.organizations.service import OrgAccess, load_org_access
 from app.modules.workspaces.service import WorkspaceRow, load_workspace
 
@@ -425,9 +426,20 @@ def authorize_document(
     return row, grants
 
 
+def ingestion_by_document(
+    session: Session, ctx: WorkspaceCtx, document_ids: Sequence[uuid.UUID]
+) -> dict[uuid.UUID, JobInfo]:
+    """Latest-version ingestion state of a page of documents: one query, never one per document."""
+    return latest_jobs(session, ctx.org_id, ctx.workspace_id, document_ids)
+
+
 def document_out(
-    ctx: WorkspaceCtx, row: DocumentRow, grants: frozenset[GrantPermission]
+    ctx: WorkspaceCtx,
+    row: DocumentRow,
+    grants: frozenset[GrantPermission],
+    ingestion: JobInfo | None = None,
 ) -> DocumentOut:
+    can_write = ctx.allowed(Action.DOCUMENT_WRITE, grants)
     return DocumentOut(
         id=row.id,
         org_id=row.org_id,
@@ -439,9 +451,10 @@ def document_out(
         version_count=row.version_count,
         latest_version=row.latest_version,
         permissions=DocumentPermissions(
-            write=ctx.allowed(Action.DOCUMENT_WRITE, grants),
+            write=can_write,
             manage=ctx.allowed(Action.DOCUMENT_MANAGE, grants),
         ),
+        ingestion=summarize(ingestion, can_write=can_write),
     )
 
 

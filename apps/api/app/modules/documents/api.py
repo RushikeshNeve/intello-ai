@@ -71,7 +71,10 @@ def list_documents(
             )
         rows, next_cursor = svc.list_documents(session, ctx, filters)
         grants = svc.grants_by_document(session, ctx, [r.id for r in rows])
-        items = [svc.document_out(ctx, r, grants.get(r.id, frozenset())) for r in rows]
+        jobs = svc.ingestion_by_document(session, ctx, [r.id for r in rows])
+        items = [
+            svc.document_out(ctx, r, grants.get(r.id, frozenset()), jobs.get(r.id)) for r in rows
+        ]
         can_upload = ctx.allowed(Action.DOCUMENT_WRITE)
     return DocumentList(items=items, next_cursor=next_cursor, can_upload=can_upload)
 
@@ -83,7 +86,8 @@ def get_document(
     with tenant.transaction(org_id) as session:
         ctx = svc.resolve_workspace(tenant, session, org_id, workspace_id, Action.DOCUMENT_READ)
         row, grants = svc.authorize_document(session, ctx, document_id, Action.DOCUMENT_READ)
-        return svc.document_out(ctx, row, grants)
+        job = svc.ingestion_by_document(session, ctx, [document_id]).get(document_id)
+        return svc.document_out(ctx, row, grants, job)
 
 
 @router.patch("/documents/{document_id}", response_model=Document)
@@ -115,4 +119,5 @@ def update_document(
             if reloaded is None:
                 raise not_found()
             row = reloaded
-        return svc.document_out(ctx, row, grants)
+        job = svc.ingestion_by_document(session, ctx, [document_id]).get(document_id)
+        return svc.document_out(ctx, row, grants, job)

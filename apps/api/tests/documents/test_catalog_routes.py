@@ -25,6 +25,10 @@ EXPECTED_DOCUMENT_ROUTES = {
     (f"{DOCS}/{{document_id}}/versions", "GET"),
     (f"{DOCS}/{{document_id}}/versions/{{version_id}}", "GET"),
     (f"{DOCS}/{{document_id}}/versions/{{version_id}}/content-url", "GET"),
+    # M03.03.04 (m03-contracts.md §11): processing status of the latest version.
+    (f"{DOCS}/{{document_id}}/ingestion", "GET"),
+    (f"{DOCS}/{{document_id}}/ingestion/retry", "POST"),
+    (f"{DOCS}/{{document_id}}/ingestion/events", "GET"),
 }
 HTTP_METHODS = {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
 

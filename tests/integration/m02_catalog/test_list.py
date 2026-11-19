@@ -27,6 +27,7 @@ DOCUMENT_KEYS = {
     "version_count",
     "latest_version",
     "permissions",
+    "ingestion",  # M03.03.04, additive (m03-contracts.md §11)
 }
 VERSION_KEYS = {
     "id",
