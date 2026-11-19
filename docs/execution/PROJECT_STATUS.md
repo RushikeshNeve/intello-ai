@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-11-18 · **Current milestone:** M01 complete, gate PASSED → M02 (Document Library & Object Storage) next
+**Updated:** 2026-11-19 · **Current milestone:** M02 complete, gate PASSED → M03 (Reliable Knowledge Ingestion) next
 **Source of truth:** this Git repository. Notion mirror: **not synchronized** (no Notion integration in this session).
 
 ## Summary
@@ -9,14 +9,14 @@
 |---|---|---|---|---|
 | M00 Architecture & local infra | 13 | **13** | 0 | **PASSED (conditional)**, 2026-11-16 |
 | M01 Identity, orgs, workspaces | 12 | **12** | 0 | **PASSED**, 2026-11-18 |
-| M02 Documents & object storage | 11 | 4 | 7 | batch B running (upload API, catalog API, library UI) |
-| M03 Reliable ingestion | 14 | 0 | 0 | blocked on M02 gate |
+| M02 Documents & object storage | 11 | **11** | 0 | **PASSED**, 2026-11-19 |
+| M03 Reliable ingestion | 14 | 0 | 0 | ready to start |
 | M04 Search & grounded chat | 13 | 0 | 0 | blocked on M03 gate |
 | M05 Graph & GraphRAG | 11 | 0 | 0 | blocked on M04 gate |
 | M06 Connectors & formats | 11 | 0 | 0 | blocked on M05 gate |
 | M07 Memory, research, UX | 11 | 0 | 0 | blocked on M06 gate |
 | M08 Security, eval, release | 12 | 0 | 0 | blocked on M07 gate |
-| **Total** | **108** | **29** | **0** | |
+| **Total** | **108** | **36** | **0** | |
 
 ## M00 exit gate (definition in `DEPENDENCY_GRAPH.md`, DC-007)
 
@@ -48,6 +48,22 @@ Final suite on `main` (each isolated; nothing left behind): API unit 856; DB 46 
 1. All database tests and mypy run through `scripts/dev/linux-runner/run.sh` on this machine (DC-018).
 2. Web sessions are in-memory (one web process); a shared store is needed before scaling out (DC-017).
 3. M08: org-membership checks in RLS policies, the `user_not_found` existence probe (replace with invitations), a database-level last-owner guarantee, repo-level ruff config for `tests/`.
+
+## M02 exit gate (2026-11-19)
+
+| Gate condition | Result | Evidence |
+|---|---|---|
+| All 11 M02 tasks DONE, acceptance rerun by the coordinator on `main` | ✅ | `AGENT_HANDOFFS.md` |
+| Full-stack e2e on the real stack incl. RustFS (`tests/e2e/fullstack_m02`) | ✅ **13/13** | browser-style direct upload with the signed headers, bucket CORS (web origin allowed, unknown origin not), finalize + idempotent repeat, exact-byte download, html forced to attachment, version 2 never overwrites or renames, a tampered upload rejected by the store then a correct retry, oversize 413, viewer 403 / outsider 404, the org quota counting pending sessions, library and viewer pages, deletion denying access immediately for everyone, audit rows without file names, and no token, secret or presigned URL in the browser responses or container logs |
+| Immutability and isolation | ✅ | 145 DB tests (a version can't be edited after creation), 396 row-level-security attack tests |
+| Regression | ✅ | API unit 1,062; M01 DB suites 46/21/15/17/45; storage 47 on real RustFS; upload 105; catalog 97; web unit 274; web e2e 14 + 6 + 12; strict mypy 83 files; ruff clean |
+
+**Conditions carried forward:**
+1. **Not yet verified in a real browser:** PDF in a sandboxed iframe, inline image, and the plain-text preview's cross-origin fetch (needs the bucket CORS GET rule). Everything else is covered over HTTP. Check during manual testing; download is the fallback.
+2. **Adversarial RLS tests for the four new tables** (the foundation agent added per-table isolation and smoke tests; the deep suite like M01's is still to write). First test-only task of the next batch, and part of M08.01.01.
+3. Physical purge of deleted documents (the object delete, `purged_at`) is a later job (M03/M08); presigned URLs issued before a deletion stay valid until they expire (at most 5 minutes).
+4. The type filter can express one exact type or one prefix only ("Unknown type" = application/octet-stream, "Excel (.xlsx)" only); a proper multi-type filter needs an API change.
+5. Older maintained test folders still carry 56 style findings (M08.03.01).
 
 ## What exists now
 - One-command local stack (`compose.yaml`): PostgreSQL 17, Redis 7.4, RushDB 3.0.10 (multitenant), RustFS 1.0.5 with bucket bootstrap, FastAPI API and Next.js 16 web, all loopback-only on the UKOS port block. Local AI is served by LM Studio on the host.

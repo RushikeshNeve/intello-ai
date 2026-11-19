@@ -261,7 +261,8 @@ test("limits and authorization on uploads", async () => {
 test("org storage quota: pending sessions count, so it can't be bypassed without uploading", async () => {
   const org2 = await web("/api/v1/orgs", { session: state.alice, method: "POST", json: { slug: `quota-${suffix}`, name: `Quota ${suffix}` } });
   assert.equal(org2.status, 201, org2.text);
-  const ws2 = await web(`/api/v1/orgs/${org2.body.id}/workspaces`, { session: state.alice, method: "POST", json: { slug: "q", name: "Q" } });
+  const ws2 = await web(`/api/v1/orgs/${org2.body.id}/workspaces`, { session: state.alice, method: "POST", json: { slug: "quota-ws", name: "Quota workspace" } });
+  assert.equal(ws2.status, 201, `second workspace: ${ws2.text}`);
   const path2 = `/api/v1/orgs/${org2.body.id}/workspaces/${ws2.body.id}`;
   const statuses = [];
   for (let i = 0; i < 6; i++) {

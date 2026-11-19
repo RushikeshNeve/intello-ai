@@ -253,3 +253,22 @@ Merged to `main`: `agent/m02-storage` (8e5c5d5, merge 2b0dfb2), `agent/m02-found
 - A genuine `Any`-return type error in `m02_foundation/test_m02_constraints.py`; the lambda-default type error in `compose_support.wait_healthy` (now a typed nested function); a long line and now-redundant `noqa` comments.
 - New `tests/ruff.toml`: lints the repo-level `tests/` tree with the API's rules, minus checks that don't suit test code (S101/S105/S106/S608/PT012/E402). The frozen `spikes/` are excluded. **Follow-up for M08.03.01 (CI):** 56 style findings remain across the older maintained test folders (28 auto-fixable).
 - My combined mypy command failed only because two `conftest.py` files collide when checked in one run; run integration folders one at a time (with `MYPYPATH=../../tests/integration/m01_foundation:../../tests/infrastructure` for the runtime-loaded helpers).
+
+---
+
+## M02 batch B — upload API, catalog API, library UI (2026-11-19)
+Merged to `main`: `agent/m02-catalog-api` (00c94ea → 1ff3a49), `agent/m02-web-library` (ffb5cd9 → 63598dd), `agent/m02-upload-api` (d6c7923 → a6242c2).
+
+### M02.01.03 + M02.01.04 — Upload sessions with quotas, finalize with checksum verification
+- Authorization (`document.write`) first, then validation, then quotas in order 413 → 429 → 409, race-safe with an advisory lock per org; presigned PUT with the signed headers returned verbatim. Finalize locks the session, is idempotent, and rejects a missing object (409, retryable), a size or checksum mismatch (409, the object is deleted and the session `failed`), and an expired session (410); the document, version, version number, `latest_version_id`, session state and audit row are written in one transaction. 105 DB/integration tests incl. 3 against real RustFS and concurrency tests (6 simultaneous finalizes → one version; 6 new-version finalizes → distinct numbers).
+- **Coordinator fix (DC-022):** the agent found that the optional `title` of `POST uploads` had no column to live in and was dropped. Added migration `0004_upload_session_title` (nullable `upload_sessions.title`, same shape rule as `documents.title`), so a custom title now becomes the new document's title; ignored for a new version (an upload never renames).
+
+### M02.02.02 + M02.02.03 + M02.02.04 — Catalog CRUD, versions + content URL, deletion
+- List with `q` (LIKE wildcards escaped), content-type exact/prefix, three sorts × two orders, keyset cursors bound to their sort (no duplicates or gaps over ≥ 3 pages incl. ties), visibility by role or active grant; `GET/PATCH` document; version timeline and `content-url` (inline only for the allow-list, everything else forced to attachment); `DELETE` → 202 with immediate 404 everywhere. 97 tests; `EXPLAIN` shows the default listing of a 5,000-document workspace uses the existing indexes with no sort step, so no migration was needed. A route audit proves no endpoint can modify a version.
+
+### M02.03.02 + M02.03.03 — Library table and versioned viewer
+- The table keeps `q`, `type`, `sort`, `order` and the cursor stack in the URL (view state derived on every render); accessible dialogs, states, `aria-sort`; the viewer previews PDF (iframe), images, text as plain text only (never HTML, capped at 1 MiB), everything else as a download card, with a version picker and calm not-available states. 84 new web tests; the agent's own mutation check caught and fixed an endless URL-renewal bug.
+- **Coordinator fixes:** filter labels now say what they match ("Excel (.xlsx)", "Unknown type" instead of "Other"); the workspace home page links to the Documents library (it still said "Nothing here yet").
+
+### Coordinator verification (on `main`, each suite isolated)
+See the M02 exit gate section of `PROJECT_STATUS.md` for the full table. The M02 gate harness is `tests/e2e/fullstack_m02` (13/13); two mistakes of mine in that test (an unrealistic audit-keyword check, a 1-character workspace slug) were fixed before it passed, and neither was a product defect.
