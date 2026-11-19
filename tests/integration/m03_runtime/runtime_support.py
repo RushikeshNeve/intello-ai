@@ -101,7 +101,13 @@ class Proc:
 _counter = 0
 
 
-def start_worker(env: dict[str, str], fake_dir: Path, *, concurrency: int = 1) -> Proc:
+def start_worker(
+    env: dict[str, str],
+    fake_dir: Path,
+    *,
+    concurrency: int = 1,
+    queues: str = "ingest,maintenance,chat",
+) -> Proc:
     global _counter
     _counter += 1
     name = f"w{_counter}"
@@ -114,7 +120,7 @@ def start_worker(env: dict[str, str], fake_dir: Path, *, concurrency: int = 1) -
             "app.workers.celery_app",
             "worker",
             "-Q",
-            "ingest,maintenance",
+            queues,
             f"--concurrency={concurrency}",
             "-l",
             "info",

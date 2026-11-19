@@ -215,3 +215,106 @@ Send: Enter sends, Shift+Enter newline (IME-safe), disabled while a run is activ
 **BFF.** `proxyToApi` already forwards `Last-Event-ID` and gives `Accept: text/event-stream` requests the 330 s stream timeout; `isStreamRequest` additionally matches `…/chat/runs/{id}/events` by path.
 
 **Not covered (honest gaps).** No real browser was used: hydration, focus order, `scrollIntoView`, `#page=` handling inside a real PDF viewer and streaming rendering were verified only in jsdom and over HTTP. `Retry-After` is not parsed (generic copy). Thread rename has an API client but no UI.
+## 14. Chat API (as built) — M04.02.04
+
+Additive to §8; where the two differ, this section is what the code does. All routes live under `/v1/orgs/{o}/chat`, need a bearer
+token, and answer **404 `not_found`** (concealed; audited as `authz.denied` for non-members) for anything that is not the caller's:
+another member's thread or run, a thread in another org, an unknown id. Errors are `{"detail": "<code>"}`; 422 bodies add `errors`.
+
+### Threads
+
+| Route | Body / query | Answer |
+| --- | --- | --- |
+| `POST /threads` | `{workspace_id?: uuid or null, title?: str<=200}` (title stripped) | `201 {id, workspace_id, title, created_at, updated_at}`; a `workspace_id` the caller cannot read is a 404 |
+| `GET /threads` | `?limit=1..100` (default 50) `&after=<cursor>` | `200 {items: [thread], next_cursor: str or null}`; own live threads, newest first (`created_at`, `id` keyset); bad cursor 422 `invalid_cursor` |
+| `GET /threads/{t}` | | `200 {thread, messages: [Message], active_run: {run_id, state} or null}`; messages oldest first (max 500) |
+| `PATCH /threads/{t}` | `{title: str<=200}` | `200 thread` |
+| `DELETE /threads/{t}` | | `204`; soft delete, cancels the thread's active runs; audited `chat.thread.deleted` |
+
+`Message` = `{id, role: "user"|"assistant", content, citations: [Citation], verification: {status: "grounded"|"partial"|"abstained",
+withheld_count, flagged_count} or null, run_id or null, created_at}`. A user message has `citations: []`, `verification: null` and the
+`run_id` of the run it started. An assistant message holds the **kept text only** (withheld claims are not in it) and the `run_id` of
+its run. `active_run` is the thread's queued/running run, if any.
+
+`Citation` = `{marker: "[n]", chunk_id, document_id, version_id, workspace_id, title, version_number, page_start or null,
+page_end or null, excerpt}`; `excerpt` is at most 240 characters of the cited chunk (the evidence text at answer time).
+**Stored citations are re-resolved on every read** (`resolve_citation` with the reader's current scope): a document that was deleted,
+or a workspace the reader lost, drops out of `citations` (the `[n]` marker then stays in `content` without a chip), and `title` /
+`version_number` are the current ones. A citation always points at the exact cited version.
+
+### Runs
+
+`POST /threads/{t}/runs` body `{content: 1..4000 chars (stripped), idempotency_key: 8..128 chars, workspace_ids?: [uuid]}`:
+
+* **202** `{run_id, message_id, state: "queued"}` for a new run; **200** with the same ids (state as of now) when `(thread,
+  idempotency_key)` already has a run, also under concurrency (exactly one run, one user message, one outbox row, one audit row).
+  A replay is answered before the limits and the active-run rule; the same key in another thread, or by another user, is another run.
+* 404 no such thread (or not the caller's); 422 validation (unknown fields are rejected).
+* **409 `run_in_progress`**: the thread already has a queued/running run (one answer at a time per thread).
+* **409 `too_many_runs`**: the caller already has `CHAT_MAX_CONCURRENT_RUNS` active runs (default 2).
+* **429 `rate_limited`** with `Retry-After` (seconds): more than `CHAT_MAX_RUNS_PER_MIN` runs in the last minute (default 10).
+* `workspace_ids` and the thread's own `workspace_id` only **narrow**: the scope is `resolve_scope(...)` of the caller intersected with
+  them, snapshotted in the run (`scope_snapshot.workspace_ids`). Foreign or forged ids vanish silently. An empty scope is accepted: the
+  run ends with the abstention answer (the model is never called).
+* Audit `chat.run.created` (ids and counts only: `thread_id`, `workspace_count`, `narrowed`, `question_chars`); never the text.
+
+`GET /runs/{r}` → `200 {run_id, thread_id, state: "queued"|"running"|"completed"|"failed"|"cancelled", error_code or null,
+message: Message or null, created_at, finished_at or null}`; `message` is the assistant message once `completed`.
+`POST /runs/{r}/cancel` → `202 {state}` (`"cancelled"`, or the unchanged final state when the run had already finished: idempotent).
+Cancelling writes exactly one `cancelled` event; the worker notices at its next fenced write and stops without writing anything more.
+
+### Events (SSE)
+
+`GET /runs/{r}/events` → `text/event-stream`, `Cache-Control: no-store`, `X-Accel-Buffering: no`. Frames: `retry: 3000`, then every
+stored event as `id: <seq>` / `event: <type>` / `data: <json>`, `: keep-alive` after 15 s of silence, and a final synthetic
+`event: end` with `data: {"reason": "terminal"|"timeout"|"unavailable"}` (no `id`); the server then closes.
+
+| event | data |
+| --- | --- |
+| `started` | `{}` |
+| `retrieval` | `{evidence_count, dropped, degraded: [str]}` |
+| `delta` | `{text}` (coalesced: at most one per 80 ms, or when 40 characters are pending; the first one at once) |
+| `citations` | `{citations: [Citation]}` (only citations that resolved after generation) |
+| `verification` | `{status, withheld_count, flagged_count}` |
+| `completed` | `{message_id, answer_text}`: `answer_text` is the kept text; the UI replaces the streamed text with it |
+| `failed` | `{error_code, message}` (safe message; the reaper's event has no message in the log, the stream adds it) |
+| `cancelled` | `{reason: "user"}` |
+
+* **`id` is the global, strictly increasing `seq` of the event log**, not a per-run counter: the ids of one run are ordered but have
+  gaps. Resume with `Last-Event-ID` (header) or `?last_event_id=` (the header wins): the server replays events with `seq` greater than
+  it. A first connect (no id, `0`, or an unparsable value) replays from the start of the run. **Replaying never regenerates and never
+  repeats an event**; clients dedupe by `seq` anyway.
+* The first read happens before the 200: someone else's run is a real 404. Afterwards every poll (every 0.4 s, its own short
+  transaction) re-checks org membership and ownership; losing access ends the stream with `end: unavailable` and no further data.
+* A connection lasts at most about 5 minutes (`end: timeout`): reconnect with the last `id`. `end: terminal` means the run is over (a
+  terminal event was delivered): the client must not reconnect.
+
+### Error codes
+
+`model_unavailable`, `policy_denied`, `search_unavailable`, `timeout`, `internal_error`, `lease_expired` (each with a fixed safe message).
+No evidence is **not** an error: the run is `completed` with the fixed abstention answer and status `abstained`, and the model is never
+called. A failed run has no assistant message: clients show `failed.message` (or the `error_code` of `GET run`).
+
+### Worker flow (`chat.run(run_id)`, queue `chat`, `acks_late`)
+
+1. `chat_claim_run` (queued to running, lease `CHAT_LEASE_SECONDS`, epoch + 1). A duplicate delivery claims nothing and is
+   acknowledged. A heartbeat thread renews the lease every `CHAT_HEARTBEAT_SECONDS`; every write is fenced on `(owner, epoch, state =
+   running)` (`RunFenceLost` means: stop quietly: cancelled, lease lost or re-claimed).
+2. `started`, then the scope is re-resolved as `chat_readable_workspaces(org, creator)` intersected with the creation snapshot (a
+   revoked workspace stops contributing), then `retrieval` (`gather` within `CHAT_RETRIEVAL_TIMEOUT_SECONDS`, then `finish` =
+   PostgreSQL revalidation, top `CHAT_EVIDENCE_TOP_K`). No evidence (or no budget): abstention, no model call.
+3. `build_prompt` (history = prior turns of the thread, kept answer text only), `get_chat_model` with the DB-backed policy source
+   (`PolicyDenied` ends `failed policy_denied`), streamed `delta` events, `verify` on the full text.
+4. Every context passage is resolved again against PostgreSQL (`resolve_citation` with a freshly derived scope) before verification: a
+   document deleted, or a workspace revoked, meanwhile is not cited, and claims that relied on it are withheld.
+5. `citations`, `verification`, the assistant message, `completed` and the run state are written in **one transaction**.
+
+Failure rules: a model error (the gateway already retried transient ones before the first token) ends the run `failed
+model_unavailable`; text streamed before the failure stays in the log. A retrieval, generation or whole-run budget overrun ends it
+`failed timeout`. A worker that dies is recovered by the dispatcher's sweep (`chat_reap_expired_runs`, every
+`INGEST_REAP_INTERVAL_SECONDS`): **no `delta` written yet and fewer than 2 attempts: requeued once** (events already written,
+`started` and `retrieval`, are not written again); otherwise `failed lease_expired`. Nothing is regenerated once tokens went out.
+
+Settings added: `CHAT_LEASE_SECONDS=60`, `CHAT_HEARTBEAT_SECONDS=15` (at most half the lease), `CHAT_RETRIEVAL_TIMEOUT_SECONDS=10`,
+`CHAT_EVIDENCE_TOP_K=8`; worker only: `CHAT_RUNTIME_FACTORY` (`module:factory(settings) -> ChatDeps`; tests substitute fakes),
+`CHAT_TASK_SOFT_LIMIT_MARGIN_SECONDS=30`, `CHAT_TASK_HARD_LIMIT_MARGIN_SECONDS=60`.

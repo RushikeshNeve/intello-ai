@@ -25,6 +25,7 @@ from typing import Any
 from celery.signals import worker_init
 from sqlalchemy import Engine
 
+from app.workers import chat_tasks  # noqa: F401 - registers the ``chat.run`` task
 from app.workers.celery_app import (
     TASK_DELETE_DOCUMENT,
     TASK_RECONCILE,
@@ -69,6 +70,7 @@ def validate_runtime(settings: WorkerSettings) -> None:
     resolve_factory(settings.INGEST_PIPELINE_RUNNER, setting="INGEST_PIPELINE_RUNNER")
     resolve_factory(settings.INGEST_DELETE_HANDLER, setting="INGEST_DELETE_HANDLER")
     resolve_factory(settings.INGEST_RECONCILE_HANDLER, setting="INGEST_RECONCILE_HANDLER")
+    resolve_factory(settings.CHAT_RUNTIME_FACTORY, setting="CHAT_RUNTIME_FACTORY")
 
 
 def build_runtime(settings: WorkerSettings) -> Runtime:

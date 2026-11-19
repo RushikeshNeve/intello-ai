@@ -91,6 +91,12 @@ class Settings(BaseSettings):
     CHAT_RUN_TIMEOUT_SECONDS: int = Field(default=180, ge=10, le=3600)
     CHAT_MAX_RUNS_PER_MIN: int = Field(default=10, ge=1, le=10_000)
     CHAT_MAX_CONCURRENT_RUNS: int = Field(default=2, ge=1, le=100)
+    # Chat runtime (M04.02.04): run lease/heartbeat like ingestion (a dead worker's run is reaped
+    # when the lease lapses), retrieval timeout (contract §8: 10 s) and evidence per answer.
+    CHAT_LEASE_SECONDS: int = Field(default=60, ge=5, le=3600)
+    CHAT_HEARTBEAT_SECONDS: int = Field(default=15, ge=1, le=1800)
+    CHAT_RETRIEVAL_TIMEOUT_SECONDS: float = Field(default=10.0, gt=0, le=300)
+    CHAT_EVIDENCE_TOP_K: int = Field(default=8, ge=1, le=20)
     VERIFY_MODE: Literal["strict", "flag"] = "strict"
     VERIFY_LEXICAL_MIN: float = Field(default=0.35, ge=0.0, le=1.0)
     VERIFY_EMBED_MIN: float = Field(default=0.55, ge=0.0, le=1.0)
@@ -118,6 +124,11 @@ class Settings(BaseSettings):
             )
         if self.SEARCH_DEFAULT_LIMIT > self.SEARCH_CANDIDATES:
             raise ValueError("SEARCH_DEFAULT_LIMIT must not exceed SEARCH_CANDIDATES")
+        if self.CHAT_HEARTBEAT_SECONDS * 2 > self.CHAT_LEASE_SECONDS:
+            raise ValueError(
+                "CHAT_HEARTBEAT_SECONDS must be at most half of CHAT_LEASE_SECONDS "
+                "(a lease must survive one missed heartbeat)"
+            )
         return self
 
     @model_validator(mode="after")
