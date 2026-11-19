@@ -1,24 +1,24 @@
-# Session Handoff — M03 complete, 2026-11-19 · next: M04
+# Session Handoff — M05 complete, M06 in progress (2026-11-20)
 
 ## State
-- **M00 13/13, M01 12/12, M02 11/11, M03 14/14 done; 50 of 108 tasks.** Exit gates passed for all four (`PROJECT_STATUS.md`). `main` is the source of truth; no agents running.
-- **GitHub:** public repo `RushikeshNeve/intello-ai`; the user said "Yes, push" for M02 only. M03 commits are local until the user asks. Ask whether to push after each milestone.
-- Product: Intello AI (internal prefix `ukos`).
-- Works end to end: sign-in → orgs/workspaces → upload → **background ingestion (extract, chunk, embed, index, publish) with live status in the UI, retry, crash recovery, deletion purge**. No search or chat yet (M04).
+- **74 of 108 tasks done; gates passed M00–M05** (`PROJECT_STATUS.md`). `main` pushed to GitHub (b70a5c5) at M05 close. Push policy: automatic after each milestone gate (memory `push-after-each-milestone`).
+- Working mode: **lean** (memory `token-budget`): agent briefs = short task + `docs/development/agent-rules.md`; sanity tests only; log skipped testing in `docs/execution/TEST_DEBT.md`; verify with `bash scripts/dev/verify.sh`. **UI polish is deferred to milestone M09** using `docs/ui-spec/*` (memory `ui-revamp-m09`). Plan: `docs/execution/REMAINING_PLAN.md`.
+- Dev stack (compose project `ukos`) runs the latest main incl. `GRAPH_ENABLED=true` in the user's `.env`. Live smoke: `GRAPH=1 node tests/e2e/smoke_dev/smoke.mjs` (needs LM Studio serving google/gemma-3-4b + embedding-gemma-300m).
 
-## Dev stack (user's, compose project `ukos`)
-Needs `docker compose up -d --build` (migrations 0005/0006 create the `ukos_worker` role from `POSTGRES_WORKER_*` in `.env`, which the user has set; new `worker` + `dispatcher` services; the M02 first-upload ON CONFLICT fix). LM Studio must serve `google/embedding-gemma-300m` at 127.0.0.1:1234 for real embeddings. Manual steps: `docs/development/manual-test-guide.md` §5c.
+## In flight (check first)
+- **M06 connectors merge agent** (`agent/m06-connectors-merged`, started 2026-11-19 night): reconciling `agent/m06-connectors` (29c990c: GitHub connector, sync, webhook, revoke, migration 0009) with main (13 conflicts; re-chain 0009 after 0008_graph; dedupe `documents/remote_ingest.ingest_bytes` vs `connectors/url_capture.create_document_from_bytes`). When it reports: fast-forward/merge into main, `bash scripts/dev/verify.sh`, RLS + m06_connectors suites, then rebuild dev stack and run a lean M06 smoke (fake GitHub server: new/changed/deleted files, webhook, revoke → docs 404, URL capture on a public fixture), tell the user to set a real `CONNECTOR_ENCRYPTION_KEY` (random 32 bytes base64) in `.env` for token connectors, update PROJECT_STATUS (M06 → 85/108), push.
+- M06 formats/URL capture is already on main (47 tests); not yet exercised end to end on the live stack.
 
-## Next: M04 — Search & grounded chat (13 tasks)
-Plan `docs/plan/M04_*.md`. Write `docs/architecture/m04-contracts.md` first (as for M01–M03). Retrieval must use `KnowledgeRepository.search_*` with `SearchFilters` and revalidate each hit with `is_revision_published(...)`. OpenAI is optional (DC-020; key in `.env` as `OPENAI_API_KEY`, set by the user; never print it); local LM Studio default. The golden evaluation set needs the user's sample corpus (`docs/development/sample-corpus-prompt.md`): ask for it.
+## Next
+1. Finish M06 (above). 2. **M07** (memory/research/UX functionality; slim contract + 3 agents per `REMAINING_PLAN.md`; functionality only). 3. **M08** (lean hardening: CI gates, backup/restore, tracing, runbooks, tag baseline). 4. **M09** UI/UX revamp from the user's specs.
+- Cleanup after M06 merges: `docker builder prune`, `docker container prune`, remove merged agent worktrees (22 listed); ask before `docker image prune -a`. Never prune volumes or touch project `ukos`.
 
 ## Open asks for the user
-- Push M03 (and onward)? Automatic after each milestone, or on request?
-- Feedback from manual tests (M02 §5b PDF/text preview; M03 §5c status UI).
-- Sample corpus before M04 evaluation work; connector choice (Notion / Google Drive / GitHub) + credentials by M06.
-- Product decision: hide Retry for `unsupported` files? (currently shown; useless until M06).
+- Feedback from manual tests (M02 §5b previews, M03 §5c status UI, M04 §5d search/chat, M05 explorer, real browser).
+- Sample corpus (`docs/development/sample-corpus-prompt.md`) for real-document evaluation (needs a small converter to the eval format).
+- Product decision: hide Retry for `unsupported` files? (shown today).
+- User must clear the Claude app's Cowork image (9.5 GB) in Settings → Storage themselves.
 
 ## Reminders (this machine)
-- psycopg tests and mypy only via `scripts/dev/linux-runner/run.sh` (runbook §6; set `MYPYPATH` INSIDE the quoted command); Node suites and `python -m ruff` on the host. Own `UKOS_TEST_COMPOSE_PROJECT` + ports per suite; never touch project `ukos`.
-- Dex pinned v2.45.1; Docker crash fix `scripts/windows/fix-docker-sockets.ps1 -Start`.
-- Known M08 items: RushDB vector stats don't drop after delete (DC-024(7)); PK-collision existence oracle; 24 ruff + 4 mypy pre-existing findings in old security tests; 56 older style findings.
+- psycopg tests and mypy only via `scripts/dev/linux-runner/run.sh` (set `MYPYPATH` INSIDE the quoted command); Node suites and `python -m ruff` on host. Own `UKOS_TEST_COMPOSE_PROJECT` + ports per suite; never touch project `ukos`.
+- Known gaps are in `TEST_DEBT.md` (real-browser passes, verification tuning, hostile-chunk detection, RushDB vector stats after delete, etc.).
