@@ -129,7 +129,7 @@ def test_update_policy_with_check_blocks_moving_rows_across_orgs(
     """Probe: grant ``UPDATE (org_id)`` (rolled back) and try to move A's own row into org B.
     The UPDATE policy's WITH CHECK (or, where there is no UPDATE policy, default deny) stops it."""
     a, b = docs.a, docs.b
-    has_update_policy = table not in ("sources", "ingestion_job_events", "outbox_events")
+    has_update_policy = table not in ("ingestion_job_events", "outbox_events")
     with admin_tx(admin_engine) as conn:
         conn.execute(text(f'GRANT UPDATE (org_id) ON "{table}" TO "{role_names[role]}"'))
         become(conn, role_names[role], org=a.org)
@@ -389,7 +389,6 @@ def test_worker_cannot_touch_upload_sessions_or_sources_at_all(
 ) -> None:
     for sql in (
         "SELECT 1 FROM upload_sessions",
-        "SELECT 1 FROM sources",
         "UPDATE upload_sessions SET state = 'failed'",
         "INSERT INTO sources (id, org_id, workspace_id, kind, name, created_by)"
         " VALUES (gen_random_uuid(), :o, :w, 'url', 'x', :u)",

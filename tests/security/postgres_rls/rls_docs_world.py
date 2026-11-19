@@ -65,7 +65,12 @@ def _g(select: bool = False, insert: bool = False, update: str = "") -> Grant:
 # Migration 0003 (app role) and 0005 (app + worker). No DELETE/TRUNCATE/REFERENCES/TRIGGER anywhere.
 GRANTS: dict[str, dict[str, Grant]] = {
     "app": {
-        "sources": _g(True, True),
+        "sources": _g(
+            True,
+            True,
+            "state revoked_at next_sync_at sync_interval_seconds webhook_secret_ciphertext"
+            " webhook_key_id",
+        ),
         "documents": _g(True, True, "title latest_version_id updated_at deleted_at deleted_by"),
         "document_versions": _g(True, True, "purged_at"),
         "upload_sessions": _g(True, True, "state failure_code finalized_at"),
@@ -77,9 +82,9 @@ GRANTS: dict[str, dict[str, Grant]] = {
         "outbox_events": _g(True, True),
     },
     "worker": {
-        "sources": _g(),
-        "documents": _g(True),
-        "document_versions": _g(True),
+        "sources": _g(True, False, "sync_cursor next_sync_at state"),
+        "documents": _g(True, True, "latest_version_id updated_at deleted_at deleted_by"),
+        "document_versions": _g(True, True),
         "upload_sessions": _g(),
         "ingestion_jobs": _g(
             True,

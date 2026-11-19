@@ -105,10 +105,24 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: SecretStr | None = None
     OPENAI_CHAT_MODEL: str = Field(default="gpt-4o-mini", min_length=1, max_length=200)
 
+    # Connectors (M06 contract section 5). The key is base64 of 32 bytes; it is needed only when a
+    # token or a webhook secret is stored. ``..._OLD_KEYS`` is ``key_id:base64,key_id:base64`` and
+    # only decrypts (rotation: new key active, old ids kept until rows are re-encrypted).
+    CONNECTOR_ENCRYPTION_KEY: SecretStr | None = None
+    CONNECTOR_ENCRYPTION_KEY_ID: str = Field(default="k1", min_length=1, max_length=32)
+    CONNECTOR_ENCRYPTION_OLD_KEYS: SecretStr | None = None
+    CONNECTOR_MAX_FILE_BYTES: int = Field(default=5_242_880, ge=1024, le=100_000_000)
+    CONNECTOR_SYNC_DEFAULT_INTERVAL_SECONDS: int = Field(default=3600, ge=300, le=2_592_000)
+    CONNECTOR_SYNC_MAX_FILES_PER_RUN: int = Field(default=500, ge=1, le=100_000)
+    CONNECTOR_SCHEDULER_INTERVAL_SECONDS: int = Field(default=30, ge=1, le=3600)
+    GITHUB_API_BASE_URL: str = Field(default="https://api.github.com", min_length=8)
+
     # Per-dependency timeout for /health/ready, seconds.
     HEALTH_CHECK_TIMEOUT_SECONDS: float = Field(default=2.0, gt=0, le=30)
 
-    @field_validator("OPENAI_API_KEY", mode="before")
+    @field_validator(
+        "OPENAI_API_KEY", "CONNECTOR_ENCRYPTION_KEY", "CONNECTOR_ENCRYPTION_OLD_KEYS", mode="before"
+    )
     @classmethod
     def _blank_openai_key_is_none(cls, value: object) -> object:
         if isinstance(value, str) and not value.strip():

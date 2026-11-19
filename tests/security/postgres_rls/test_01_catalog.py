@@ -37,6 +37,11 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     "chat_messages": {"SELECT", "INSERT"},
     "chat_runs": {"SELECT", "INSERT"},
     "chat_run_events": {"SELECT"},
+    # M06 (migration 0009): accounts/syncs are created by the API (column-limited UPDATE for
+    # revoke); items are written by the worker only. Deep coverage: test_18.
+    "connector_accounts": {"SELECT", "INSERT"},
+    "source_syncs": {"SELECT", "INSERT"},
+    "source_items": {"SELECT"},
 }
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 TRIVIAL = {"true", "(true)", "1 = 1", "(1 = 1)"}

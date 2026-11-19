@@ -140,6 +140,11 @@ def test_worker_reachable_relations_are_exactly_the_documented_set(
         "chat_messages",
         "chat_runs",
         "chat_run_events",
+        # M06 (migration 0009; exact grants: test_18_connector_tables.py)
+        "sources",
+        "connector_accounts",
+        "source_syncs",
+        "source_items",
     }
     with admin_engine.connect() as conn:
         reachable = set(
@@ -266,7 +271,12 @@ def _user(col: str) -> tuple[tuple[str, ...], str, tuple[str, ...]]:
 
 
 EXPECTED_FKS: dict[str, set[tuple[tuple[str, ...], str, tuple[str, ...]]]] = {
-    "sources": {_ORG, _WS, _user("created_by")},
+    "sources": {
+        _ORG,
+        _WS,
+        _user("created_by"),
+        (("connector_account_id", "org_id"), "connector_accounts", ("id", "org_id")),
+    },
     "documents": {
         _ORG,
         _WS,

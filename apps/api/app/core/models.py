@@ -20,6 +20,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    LargeBinary,
     MetaData,
     PrimaryKeyConstraint,
     Text,
@@ -295,6 +296,7 @@ class Source(Base):
     __tablename__ = "sources"
     __table_args__ = (
         UniqueConstraint("id", "workspace_id", name="uq_sources_id_workspace_id"),
+        UniqueConstraint("id", "org_id", name="uq_sources_id_org_id"),
         CheckConstraint(_in("kind", SOURCE_KINDS), name="ck_sources_kind"),
         CheckConstraint("length(name) BETWEEN 1 AND 255", name="ck_sources_name_length"),
         ForeignKeyConstraint(
@@ -302,6 +304,18 @@ class Source(Base):
             ["workspaces.id", "workspaces.org_id"],
             name="fk_sources_workspace",
             ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["connector_account_id", "org_id"],
+            ["connector_accounts.id", "connector_accounts.org_id"],
+            name="fk_sources_connector_account",
+        ),
+        Index(
+            "ix_sources_next_sync_at",
+            "next_sync_at",
+            postgresql_where=text(
+                "kind = 'connector' AND state = 'active' AND next_sync_at IS NOT NULL"
+            ),
         ),
         # Created lazily by the first upload; at most one per workspace.
         Index(
@@ -325,6 +339,15 @@ class Source(Base):
         UUID(as_uuid=True), ForeignKey("users.id", name="fk_sources_created_by")
     )
     created_at: Mapped[datetime] = mapped_column(_tstz(), server_default=func.now())
+    # M06 (migration 0009): connector sources. NULL/defaults for upload sources.
+    connector_account_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    sync_cursor: Mapped[str | None] = mapped_column(Text)
+    sync_interval_seconds: Mapped[int | None] = mapped_column(Integer)
+    next_sync_at: Mapped[datetime | None] = mapped_column(_tstz())
+    state: Mapped[str] = mapped_column(Text, server_default=text("'active'"))
+    revoked_at: Mapped[datetime | None] = mapped_column(_tstz())
+    webhook_secret_ciphertext: Mapped[bytes | None] = mapped_column(LargeBinary)
+    webhook_key_id: Mapped[str | None] = mapped_column(Text)
 
 
 class Document(Base):
@@ -523,6 +546,10 @@ ORG_SCOPED_TABLES: Final = (
     "chat_messages",
     "chat_runs",
     "chat_run_events",
+    # M06 (migration 0009, docs/architecture/m06-contracts.md section 2).
+    "connector_accounts",
+    "source_syncs",
+    "source_items",
 )
 RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
 
@@ -530,4 +557,5 @@ RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
 # because they import ``Base`` from here). Keeps ``Base.metadata.tables == RLS_TABLES`` true for
 # every importer of this module.
 from app.modules.ai import models_db as _ai_models  # noqa: E402, F401
+from app.modules.connectors import models as _connector_models  # noqa: E402, F401
 from app.modules.ingestion import models as _ingestion_models  # noqa: E402, F401

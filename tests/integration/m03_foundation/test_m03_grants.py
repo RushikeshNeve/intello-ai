@@ -14,6 +14,8 @@ from app.core.models import RLS_TABLES
 from app.modules.ingestion.models import INGESTION_TABLES
 
 M04_CHAT_TABLES = {"ai_policies", "chat_threads", "chat_messages", "chat_runs", "chat_run_events"}
+# M06 (migration 0009): the sync task runs as the worker; exact grants: rls test_18.
+M06_TABLES = {"sources", "connector_accounts", "source_syncs", "source_items"}
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 SEARCH_PATH = ["search_path=pg_catalog, public, pg_temp"]
 DEFINER_FUNCTIONS = {
@@ -40,13 +42,14 @@ WORKER_PRIVILEGES = {
     "ingestion_checkpoints": {"SELECT", "INSERT"},
     "knowledge_revisions": {"SELECT", "INSERT"},
     "document_publications": {"SELECT", "INSERT"},
-    "documents": {"SELECT"},
-    "document_versions": {"SELECT"},
+    "documents": {"SELECT", "INSERT"},
+    "document_versions": {"SELECT", "INSERT"},
     "workspaces": {"SELECT"},
     "organizations": {"SELECT"},
     "audit_events": {"INSERT"},
 }
 WORKER_UPDATE_COLUMNS = {
+    "documents": {"latest_version_id", "updated_at", "deleted_at", "deleted_by"},
     "ingestion_jobs": {
         "state", "run_after", "lease_owner", "lease_expires_at", "heartbeat_at", "current_stage",
         "last_error_code", "last_error_detail", "updated_at", "started_at", "finished_at",
@@ -191,7 +194,7 @@ def test_worker_reaches_nothing_beyond_its_grants(
             ).scalars()
         )
     # alembic_version, users, memberships, grants, sources, upload_sessions: out of reach.
-    assert reachable - M04_CHAT_TABLES == set(WORKER_PRIVILEGES)  # M04 tables: m04_persistence
+    assert reachable - M04_CHAT_TABLES - M06_TABLES == set(WORKER_PRIVILEGES)
 
 
 def test_worker_cannot_create_objects_or_alter_the_schema(

@@ -270,7 +270,6 @@ def _count_col(conn: Connection, table: str, column: str, org_id: uuid.UUID | No
         "users",
         "workspace_memberships",
         "resource_grants",
-        "sources",
         "upload_sessions",
         "audit_events",  # INSERT only: it must not be able to read audit history
     ],

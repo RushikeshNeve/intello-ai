@@ -39,12 +39,21 @@ M03_DEFINERS = [
 # M04 (migration 0007): worker-only definers (see test_17_chat_tables.py for their depth) and the one
 # app-role definer, a creator's own "cancel run" (acts on app.current_org_id + app.current_user_id).
 M04_WORKER_DEFINERS = ["chat_claim_run", "chat_reap_expired_runs", "chat_readable_workspaces"]
-APP_DEFINERS = ["ingest_requeue_job", "chat_cancel_run"]
+# M06 (migration 0009): the scheduler tick (worker) and the unauthenticated webhook's source
+# lookup (app; returns org + sealed secret by source id). Depth: test_18_connector_tables.py.
+M06_WORKER_DEFINERS = ["connector_enqueue_due_syncs"]
+APP_DEFINERS = ["ingest_requeue_job", "chat_cancel_run", "connector_webhook_lookup"]
 
 
 def test_expected_definer_inventory(admin_engine: Engine, migrated: None) -> None:
     assert sorted(name for name, _, _ in _definers(admin_engine)) == sorted(
-        ["ukos_assert_org_has_owner", *M03_DEFINERS, *M04_WORKER_DEFINERS, *APP_DEFINERS]
+        [
+            "ukos_assert_org_has_owner",
+            *M03_DEFINERS,
+            *M04_WORKER_DEFINERS,
+            *M06_WORKER_DEFINERS,
+            *APP_DEFINERS,
+        ]
     )
 
 
