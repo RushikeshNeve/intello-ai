@@ -112,7 +112,7 @@ def build_messages(chunks: Sequence[SourceChunk]) -> list[ChatMessage]:
     blocks = []
     for n, chunk in enumerate(chunks, start=1):
         body = neutralize(chunk.text[:MAX_CHUNK_CHARS]).strip()
-        blocks.append(f"<<<EVIDENCE {n} | chunk {chunk.chunk_index} | ->>>\n{body}\n<<<END {n}>>>")
+        blocks.append(f"<<<EVIDENCE {n}>>>\n{body}\n<<<END {n}>>>")
     return [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": "\n\n".join(blocks)},
@@ -135,6 +135,9 @@ def _load_json(raw: str) -> dict[str, Any] | None:
 
 
 def _chunk_ref(value: Any, chunks: Sequence[SourceChunk]) -> SourceChunk | None:
+    if len(chunks) == 1:
+        # One excerpt in the batch: any reference (small models answer 0 or omit it) means that excerpt.
+        return chunks[0]
     if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= len(chunks):
         return None
     return chunks[value - 1]

@@ -179,4 +179,39 @@ const f2 = await sse(`/api/v1/orgs/${O}/chat/runs/${run2.body.run_id}/events`, a
 const v2 = f2.find((f) => f.event === "verification")?.json;
 const d2 = f2.find((f) => f.event === "completed")?.json;
 out("off-topic question", `${v2?.status ?? "n/a"} :: ${JSON.stringify(d2?.answer_text ?? "").slice(0, 90)}`);
+if (process.env.GRAPH === "1") {
+  // M05: relationship document -> async graph extraction (local LLM) -> entities/neighborhood/claim -> graph chat
+  const gtext = "Priya Raman works for Northwind Labs. Northwind Labs owns the Kestrel-9 project. The Kestrel-9 project depends on the Aurora scheduler. Marcus Webb is a member of Northwind Labs.";
+  const gb = Buffer.from(gtext, "utf8");
+  const gc = await web(`${wsPath}/uploads`, { session: alice, method: "POST", json: { filename: "org-chart.txt", content_type: "text/plain", size_bytes: gb.length, sha256: createHash("sha256").update(gb).digest("hex") } });
+  const gp = await fetch(gc.body.upload.url, { method: gc.body.upload.method, headers: gc.body.upload.headers, body: gb });
+  assert.equal(gp.status, 200);
+  const gf = await web(`${wsPath}/uploads/${gc.body.upload_id}/finalize`, { session: alice, method: "POST" });
+  assert.equal(gf.status, 201, gf.text);
+  const tg = Date.now();
+  let ent = null;
+  while (Date.now() - tg < 180_000) {
+    const e = await web(`${wsPath}/graph/entities?q=northwind&limit=5`, { session: alice });
+    if (e.status === 200 && e.body.items?.length) { ent = e.body.items[0]; break; }
+    await sleep(3000);
+  }
+  out("graph entities", ent ? `${ent.name} (${ent.type}) after ${((Date.now() - tg) / 1000).toFixed(0)}s` : "NONE");
+  assert.ok(ent, "graph extraction produced an entity (GRAPH_ENABLED=true and gemma serving?)");
+  const nb = await web(`${wsPath}/graph/neighborhood?entity_id=${ent.id}&depth=1&limit=30`, { session: alice });
+  assert.equal(nb.status, 200, nb.text);
+  out("neighborhood", `${nb.body.nodes.length} nodes, ${nb.body.edges.length} edges, truncated=${nb.body.truncated}`);
+  assert.ok(nb.body.edges.length >= 1, "at least one verified edge");
+  const cl = await web(`${wsPath}/graph/claims/${nb.body.edges[0].claim_id}`, { session: alice });
+  assert.equal(cl.status, 200, cl.text);
+  out("claim evidence", `${cl.body.claim.predicate}, ${cl.body.evidence.length} evidence item(s)`);
+  assert.ok(cl.body.evidence.length >= 1);
+  const mo = await web(`${wsPath}/graph/neighborhood?entity_id=${ent.id}`, { session: mallory });
+  out("outsider graph", String(mo.status));
+  assert.equal(mo.status, 404);
+  const r3 = await web(`/api/v1/orgs/${O}/chat/threads/${thread.body.id}/runs`, { session: alice, method: "POST", json: { content: "Who works for the organization that owns Kestrel-9?", idempotency_key: randomUUID() } });
+  const f3 = await sse(`/api/v1/orgs/${O}/chat/runs/${r3.body.run_id}/events`, alice);
+  const d3 = f3.find((f) => f.event === "completed")?.json;
+  const v3 = f3.find((f) => f.event === "verification")?.json;
+  out("graph chat answer", `${v3?.status} :: ${JSON.stringify(d3?.answer_text ?? "").slice(0, 160)}`);
+}
 console.log("\nSMOKE PASSED");
