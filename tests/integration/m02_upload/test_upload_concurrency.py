@@ -6,6 +6,7 @@ import threading
 from collections import Counter
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from functools import partial
 from typing import TypeVar
 
@@ -84,6 +85,22 @@ def test_concurrent_first_uploads_create_a_single_upload_source(
     assert [r.status for r in results] == [201] * THREADS, [r.body for r in results]
     assert api.count("sources", "workspace_id = :w AND kind = 'upload'", w=scene.ws) == 1
     assert api.count("documents", "workspace_id = :w", w=scene.ws) == THREADS
+
+
+def test_first_upload_in_many_workspaces_on_reused_connections(
+    api: UploadApi, scene: Scene
+) -> None:
+    """Regression (found by the M03 gate): the lazy upload-source insert uses ON CONFLICT with a
+    partial-index predicate. With a bound ``kind`` parameter PostgreSQL cannot infer the index once
+    psycopg promotes the statement to a server-side prepared one (5th execution on a connection),
+    so the first upload in a later new workspace failed with a 500."""
+    for i in range(12):
+        ws = api.create_workspace(scene.org_id, scene.owner)
+        here = replace(scene, ws=ws)
+        upload = api.session(here, scene.owner, f"first {i}".encode())
+        res = api.finalize(here, scene.owner, upload["upload_id"])
+        assert res.status == 201, (i, res.body)
+        assert api.count("sources", "workspace_id = :w AND kind = 'upload'", w=ws) == 1
 
 
 def test_concurrent_session_creation_cannot_exceed_the_pending_cap(
