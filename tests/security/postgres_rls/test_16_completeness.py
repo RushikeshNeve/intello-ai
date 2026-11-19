@@ -1,0 +1,92 @@
+"""Completeness gate: a table that gains RLS without tenancy tests fails this suite.
+
+Three layers:
+
+1. the explicit registries (``ORG_TABLE_SPECS`` for the M01 tables, ``DOC_TABLES`` plus its
+   grant / builder / key registries for M02 + M03) must together equal ``ORG_SCOPED_TABLES``;
+2. the live database must have RLS (enabled and forced) on exactly the tables the metadata
+   declares, and no other ordinary table in ``public``;
+3. when the whole suite is collected, every RLS table must appear as the parameter of at least
+   one no-context test and one cross-org test.
+"""
+
+from __future__ import annotations
+
+import pytest
+from app.core.models import ORG_SCOPED_TABLES, RLS_TABLES, Base
+from rls_docs_world import BUILDERS, DOC_TABLES, GRANTS, PARENTS, PK, ROLES
+from rls_world import ORG_TABLE_SPECS
+from sqlalchemy import Engine, text
+
+NO_CONTEXT_TESTS = {
+    "test_select_unset_context_sees_nothing",  # test_02 (M01 tables + users)
+    "test_select_without_context_sees_nothing",  # test_11 (M02 + M03, both roles)
+}
+CROSS_ORG_TESTS = {
+    "test_only_own_org_rows_visible",  # test_03 (M01 org-scoped tables)
+    "test_select_is_confined_to_the_context_org",  # test_11
+}
+
+
+def test_registries_cover_every_org_scoped_table_exactly_once() -> None:
+    assert set(DOC_TABLES).isdisjoint(ORG_TABLE_SPECS)
+    assert set(ORG_TABLE_SPECS) | set(DOC_TABLES) == set(ORG_SCOPED_TABLES), (
+        "a table was added to ORG_SCOPED_TABLES without a tenancy registry entry: add it to "
+        "rls_world.ORG_TABLE_SPECS (M01) or rls_docs_world.DOC_TABLES + GRANTS/BUILDERS/PK/PARENTS"
+    )
+    assert len(DOC_TABLES) == len(set(DOC_TABLES))
+
+
+def test_doc_registries_are_complete_for_both_roles() -> None:
+    assert set(BUILDERS) == set(PK) == set(PARENTS) == set(DOC_TABLES)
+    for role in ROLES:
+        assert set(GRANTS[role]) == set(DOC_TABLES), role
+
+
+def test_metadata_matches_the_declared_rls_tables() -> None:
+    assert set(Base.metadata.tables) == set(RLS_TABLES)
+
+
+def test_database_has_rls_on_exactly_the_declared_tables(
+    admin_engine: Engine, migrated: None
+) -> None:
+    with admin_engine.connect() as conn:
+        rows = conn.execute(
+            text(
+                "SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity FROM pg_class c"
+                " JOIN pg_namespace n ON n.oid = c.relnamespace"
+                " WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')"
+            )
+        ).all()
+    tables = {name: (rls, force) for name, rls, force in rows}
+    tables.pop("alembic_version", None)
+    assert set(tables) == set(RLS_TABLES), (
+        "ordinary table(s) in public that are not in RLS_TABLES: "
+        f"{sorted(set(tables) - set(RLS_TABLES))}; missing: {sorted(set(RLS_TABLES) - set(tables))}"
+    )
+    assert all(v == (True, True) for v in tables.values()), tables
+
+
+def test_every_rls_table_has_tenancy_tests_in_this_suite(request: pytest.FixtureRequest) -> None:
+    items = request.session.items
+    names = {i.originalname or i.name for i in items if hasattr(i, "originalname")}
+    if not (NO_CONTEXT_TESTS & names and CROSS_ORG_TESTS & names):
+        pytest.skip("not the whole suite: collection check needs test_02/03/11 collected")
+
+    def tables_of(test_names: set[str]) -> set[str]:
+        found: set[str] = set()
+        for item in items:
+            if (getattr(item, "originalname", None) or "") not in test_names:
+                continue
+            params = getattr(getattr(item, "callspec", None), "params", {})
+            if "table" in params:
+                found.add(params["table"])
+        return found
+
+    no_context = tables_of(NO_CONTEXT_TESTS)
+    cross_org = tables_of(CROSS_ORG_TESTS)
+    assert set(RLS_TABLES) <= no_context, f"no no-context test for {set(RLS_TABLES) - no_context}"
+    # `users` is not org-keyed; its isolation tests are test_06 (co-member visibility).
+    assert set(ORG_SCOPED_TABLES) <= cross_org, (
+        f"no cross-org test for {set(ORG_SCOPED_TABLES) - cross_org}"
+    )
