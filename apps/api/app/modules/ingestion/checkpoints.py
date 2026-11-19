@@ -39,6 +39,7 @@ from app.modules.ingestion.models import (
     IngestionJobEvent,
 )
 from app.modules.ingestion.runner_types import ClaimedJob, JobContext, LeaseLost
+from app.workers.leases import job_is_ours
 
 CHECKPOINT_RUNNING = "running"
 CHECKPOINT_COMPLETED = "completed"
@@ -60,22 +61,15 @@ def fence(session: Session, claim: ClaimedJob, *, stage: str | None = None) -> N
     Raises :class:`LeaseLost` when the job is no longer ``running`` under this owner and epoch
     (expired and reaped, re-claimed by another worker, cancelled by a deletion...).
     """
-    row = session.execute(
-        text(
-            "UPDATE ingestion_jobs SET updated_at = now(),"
-            " current_stage = COALESCE(CAST(:stage AS text), current_stage)"
-            " WHERE id = :job AND lease_owner = :owner AND lease_epoch = :epoch"
-            " AND state = 'running' RETURNING id"
-        ),
-        {
-            "stage": stage,
-            "job": claim.job_id,
-            "owner": claim.lease_owner,
-            "epoch": claim.lease_epoch,
-        },
-    ).first()
-    if row is None:
-        raise LeaseLost("job lease lost")
+    job_is_ours(session, claim)  # FOR UPDATE: the job row stays locked until commit
+    if stage is not None:
+        session.execute(
+            text(
+                "UPDATE ingestion_jobs SET updated_at = now(), current_stage = :stage"
+                " WHERE id = :job"
+            ),
+            {"stage": stage, "job": claim.job_id},
+        )
 
 
 def add_job_event(
@@ -254,7 +248,7 @@ class StageRunner:
         self._artifacts = artifacts
 
     def _tx(self) -> Any:
-        return self._ctx.session_factory(org_id=self._claim.org_id)
+        return self._ctx.session_factory(self._claim.org_id)
 
     def artifact_stage(
         self,

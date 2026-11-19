@@ -381,7 +381,7 @@ def test_worker_session_without_org_context_sees_nothing(make_env: MakeEnv) -> N
         ):
             assert session.execute(text(f"SELECT count(*) FROM {table}")).scalar_one() == 0
     other = env.new_scope()
-    with env.sessions(org_id=other.org_id) as session:  # another org's context: still nothing
+    with env.sessions(other.org_id) as session:  # another org's context: still nothing
         assert (
             session.execute(
                 text("SELECT count(*) FROM knowledge_revisions WHERE id = :r"),

@@ -28,6 +28,7 @@ from typing import Any, Final
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.core.config import Settings
 from app.modules.ai.embeddings import EmbeddingError, EmbeddingProvider
 from app.modules.ingestion import artifacts as art
 from app.modules.ingestion.artifacts import ArtifactStore
@@ -186,7 +187,7 @@ class DefaultPipelineRunner:
         repo = self._get_repo()
         stages = StageRunner(claim, ctx, artifacts)
 
-        with ctx.session_factory(org_id=claim.org_id) as session:
+        with ctx.session_factory(claim.org_id) as session:
             fence(session, claim, stage="extract")
             src = self._load_source(session, claim)
             if src is None:
@@ -342,7 +343,7 @@ class DefaultPipelineRunner:
         # 5. validate -> revision becomes ``ready`` ----------------------------------
         def compute_validate() -> None:
             indexing.validate_index(repo, scope, ident, chunks)
-            with ctx.session_factory(org_id=claim.org_id) as session:
+            with ctx.session_factory(claim.org_id) as session:
                 fence(session, claim, stage="validate")
                 indexing.mark_ready(
                     session,
@@ -381,7 +382,7 @@ class DefaultPipelineRunner:
     # --------------------------------------------------------------------------- helpers
 
     def _scope(self, ctx: JobContext, claim: ClaimedJob) -> OrgScope:
-        with ctx.session_factory(org_id=claim.org_id) as session:
+        with ctx.session_factory(claim.org_id) as session:
             return validated_org_scope(session, claim.org_id)
 
     def _load_source(self, session: Session, claim: ClaimedJob) -> _Source | None:
@@ -410,7 +411,7 @@ class DefaultPipelineRunner:
 
     def _alive(self, ctx: JobContext, claim: ClaimedJob) -> None:
         """Stop quietly when the document or version was deleted meanwhile."""
-        with ctx.session_factory(org_id=claim.org_id) as session:
+        with ctx.session_factory(claim.org_id) as session:
             fence(session, claim)
             if self._load_source(session, claim) is None:
                 raise _DocumentDeleted
@@ -458,7 +459,7 @@ class DefaultPipelineRunner:
     def _mark_failed(self, claim: ClaimedJob, ctx: JobContext) -> None:
         """Best effort: a terminal processing failure leaves the revision ``failed`` (not stuck)."""
         try:
-            with ctx.session_factory(org_id=claim.org_id) as session:
+            with ctx.session_factory(claim.org_id) as session:
                 fence(session, claim)
                 session.execute(
                     text(
@@ -479,3 +480,9 @@ class DefaultPipelineRunner:
             return
         repo.delete_revision(scope, claim.revision_id)
         self._get_artifacts().delete_revision(claim.org_id, claim.revision_id)
+
+
+def build_pipeline_runner(settings: Settings) -> DefaultPipelineRunner:
+    """Dotted-path factory loaded by the worker runtime (``INGEST_PIPELINE_RUNNER``)."""
+    del settings  # dependencies come from the environment (``ingestion.wiring``)
+    return DefaultPipelineRunner()

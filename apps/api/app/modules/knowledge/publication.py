@@ -27,6 +27,7 @@ from typing import Final, Literal
 from sqlalchemy import insert, text
 from sqlalchemy.orm import Session
 
+from app.core.config import Settings
 from app.modules.audit.events import AuditEventType, record_event
 from app.modules.ingestion.artifacts import ArtifactStore
 from app.modules.ingestion.checkpoints import add_job_event, fence
@@ -267,24 +268,24 @@ def publish_revision(
     finds the pointer already swapped and only redoes the idempotent flip, and the reconcile sweep
     repairs it independently). ``check_fence`` is an optional ``Callable[[], None]``.
     """
-    with sessions(org_id=claim.org_id) as session:
+    with sessions(claim.org_id) as session:
         outcome = commit_pointer(session, claim)
     # <- the pointer transaction committed here: this is the publication.
     if outcome.status not in ("published", "already_published"):
         return outcome
     if check_fence is not None:
         check_fence()
-    with sessions(org_id=claim.org_id) as session:
+    with sessions(claim.org_id) as session:
         scope = validated_org_scope(session, claim.org_id)
         previous = _pointer_previous(session, claim.document_id, claim.revision_id)
     flip_flags(repo, scope, claim.revision_id, outcome.previous_revision_id or previous)
     # A deletion or a newer publication may have slipped in between: the pointer decides.
-    with sessions(org_id=claim.org_id) as session:
+    with sessions(claim.org_id) as session:
         still = _pointer_revision(session, claim.document_id)
     if still != claim.revision_id:
         reconcile_document(sessions, repo, claim.org_id, claim.document_id)
     else:
-        with sessions(org_id=claim.org_id) as session:
+        with sessions(claim.org_id) as session:
             session.execute(
                 text(
                     "UPDATE document_publications SET reconciled_at = now()"
@@ -417,7 +418,7 @@ def reconcile_document(
     Transient index errors (``KnowledgeStoreUnavailable``) propagate: the sweep retries.
     """
     del revision_id  # a hint only
-    with sessions(org_id=org_id) as session:
+    with sessions(org_id) as session:
         if not lock_document(session, document_id, wait=False):
             return ReconcileResult("busy")
         try:
@@ -488,3 +489,38 @@ def reconcile_document(
         if action == "ok" and (flipped or purged):
             action = "repaired"
         return ReconcileResult(action, flipped=flipped, purged_revisions=purged)
+
+
+class DefaultReconcileHandler:
+    """``ReconcileHandler``: drift repair of one document (flag flip AND purge of superseded
+    revisions). Serves ``knowledge.reconcile`` and ``knowledge.revision.published``; idempotent.
+    A ``busy`` result (a publication/deletion holds the document lock) needs no retry: the pointer
+    transaction resets ``reconciled_at`` so the sweep picks the document up again."""
+
+    def __init__(
+        self,
+        *,
+        sessions: WorkerSessions | None = None,
+        repo: KnowledgeRepository | None = None,
+        artifacts: ArtifactStore | None = None,
+    ) -> None:
+        self._sessions = sessions
+        self._repo = repo
+        self._artifacts = artifacts
+
+    def handle(self, org_id: uuid.UUID, document_id: uuid.UUID) -> None:
+        from app.modules.ingestion import wiring
+
+        reconcile_document(
+            self._sessions or wiring.default_worker_sessions(),
+            self._repo or wiring.default_repository(),
+            org_id,
+            document_id,
+            artifacts=self._artifacts or wiring.default_artifact_store(),
+        )
+
+
+def build_reconcile_handler(settings: Settings) -> DefaultReconcileHandler:
+    """Dotted-path factory loaded by the worker runtime (``INGEST_RECONCILE_HANDLER``)."""
+    del settings
+    return DefaultReconcileHandler()

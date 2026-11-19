@@ -27,6 +27,7 @@ from typing import Final
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.core.config import Settings
 from app.modules.ingestion.artifacts import ArtifactStore
 from app.modules.ingestion.runner_types import WorkerSessions
 from app.modules.knowledge.ports import (
@@ -108,14 +109,14 @@ def purge_document(
     document_id: uuid.UUID,
 ) -> DeletionResult:
     """Deny in PostgreSQL (committed), then purge the index and the artifacts."""
-    with sessions(org_id=org_id) as session:
+    with sessions(org_id) as session:
         result, revisions = deny_in_postgres(session, org_id, document_id)
     if result.skipped:
         logger.warning("document.deleted event for a live document ignored")
         return result
     # <- committed: the document is denied everywhere; the rest is cleanup and may be retried.
     try:
-        with sessions(org_id=org_id) as session:
+        with sessions(org_id) as session:
             scope = validated_org_scope(session, org_id)
     except UnknownOrganization:
         return result  # the organization itself is gone: tenant purge is the org-deletion job
@@ -148,3 +149,9 @@ class DefaultDocumentDeletedHandler:
         repo = self._repo or wiring.default_repository()
         artifacts = self._artifacts or wiring.default_artifact_store()
         purge_document(sessions, repo, artifacts, org_id, document_id)
+
+
+def build_document_deleted_handler(settings: Settings) -> DefaultDocumentDeletedHandler:
+    """Dotted-path factory loaded by the worker runtime (``INGEST_DELETE_HANDLER``)."""
+    del settings
+    return DefaultDocumentDeletedHandler()

@@ -21,8 +21,9 @@ from app.modules.ai.embeddings import EmbeddingModelSpec, FakeEmbeddingClient
 from app.modules.ingestion.artifacts import ArtifactStore
 from app.modules.ingestion.ids import PIPELINE_VERSION, revision_id_for
 from app.modules.ingestion.pipeline import DefaultPipelineRunner
-from app.modules.ingestion.runner_types import ClaimedJob, LeaseLost
+from app.modules.ingestion.runner_types import ClaimedJob, JobContext
 from app.modules.knowledge.ports import OrgScope, SearchFilters, SearchHit, validated_org_scope
+from app.workers.leases import job_is_ours
 
 SPEC = EmbeddingModelSpec(
     model_id="fake-embed",
@@ -69,43 +70,16 @@ class RepoProxy:
         return call
 
 
-class Ctx:
-    """A ``JobContext`` over the worker engine; ``check_fence`` really checks the job row."""
-
-    def __init__(self, env: Env, claim: ClaimedJob) -> None:
-        self._env = env
-        self._claim = claim
-        self.heartbeats = 0
-        self.fence_checks = 0
-        self.settings = SimpleNamespace(
-            INGEST_MAX_PDF_PAGES=2000,
-            INGEST_MAX_EXTRACT_BYTES=50 * 1024 * 1024,
-            INGEST_CHUNK_TARGET_CHARS=300,
-            INGEST_CHUNK_OVERLAP_CHARS=50,
-            INGEST_MAX_CHUNKS=20_000,
-            INGEST_EMBED_BATCH_SIZE=4,
-        )
-
-    @property
-    def session_factory(self) -> Any:
-        return self._env.sessions
-
-    def heartbeat(self) -> None:
-        self.heartbeats += 1
-
-    def check_fence(self) -> None:
-        self.fence_checks += 1
-        c = self._claim
-        with self._env.sessions(org_id=c.org_id) as s:
-            row = s.execute(
-                text(
-                    "SELECT 1 FROM ingestion_jobs WHERE id = :j AND lease_owner = :o"
-                    " AND lease_epoch = :e AND state = 'running'"
-                ),
-                {"j": c.job_id, "o": c.lease_owner, "e": c.lease_epoch},
-            ).first()
-        if row is None:
-            raise LeaseLost("test fence")
+def make_settings() -> Any:
+    """The ``INGEST_*`` values the pipeline reads (small chunks: many chunks from small texts)."""
+    return SimpleNamespace(
+        INGEST_MAX_PDF_PAGES=2000,
+        INGEST_MAX_EXTRACT_BYTES=50 * 1024 * 1024,
+        INGEST_CHUNK_TARGET_CHARS=300,
+        INGEST_CHUNK_OVERLAP_CHARS=50,
+        INGEST_MAX_CHUNKS=20_000,
+        INGEST_EMBED_BATCH_SIZE=4,
+    )
 
 
 class Env:
@@ -133,7 +107,7 @@ class Env:
     # ------------------------------------------------------------------- sessions and scopes
 
     @contextmanager
-    def sessions(self, *, org_id: uuid.UUID) -> Iterator[Session]:
+    def sessions(self, org_id: uuid.UUID) -> Iterator[Session]:
         with tenant_session(user_id=None, org_id=org_id, engine=self.worker) as session:
             yield session
 
@@ -224,8 +198,28 @@ class Env:
             lease_owner="w1",
         )
 
-    def ctx(self, claim: ClaimedJob) -> Ctx:
-        return Ctx(self, claim)
+    def ctx(self, claim: ClaimedJob) -> JobContext:
+        """A real ``JobContext`` over the worker engine; ``check_fence`` checks the job row."""
+
+        def check_fence() -> None:
+            with self.sessions(claim.org_id) as s:
+                job_is_ours(s, claim)
+
+        def set_stage(stage: str) -> None:
+            with self.sessions(claim.org_id) as s:
+                job_is_ours(s, claim)
+                s.execute(
+                    text("UPDATE ingestion_jobs SET current_stage = :s WHERE id = :j"),
+                    {"s": stage, "j": claim.job_id},
+                )
+
+        return JobContext(
+            session_factory=self.sessions,
+            heartbeat=lambda: None,
+            check_fence=check_fence,
+            set_stage=set_stage,
+            settings=make_settings(),
+        )
 
     def runner(self, **overrides: Any) -> DefaultPipelineRunner:
         kwargs: dict[str, Any] = {

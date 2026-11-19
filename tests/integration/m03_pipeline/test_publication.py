@@ -37,7 +37,7 @@ def published_in_index(env: Env, scope: Any, revision_id: Any) -> int:
 
 
 def live(env: Env, scope: Any, revision_id: Any) -> bool:
-    with env.sessions(org_id=scope.org_id) as s:
+    with env.sessions(scope.org_id) as s:
         return is_revision_published(s, scope.org_id, scope.document_id, revision_id)
 
 
@@ -214,7 +214,7 @@ def test_stale_worker_cannot_publish(env: Env) -> None:
         env.runner().run(c2, ctx2)
     assert env.pointer(other) is None
     # And the barrier itself refuses the stale claim.
-    with pytest.raises(LeaseLost), env.sessions(org_id=other.org_id) as session:
+    with pytest.raises(LeaseLost), env.sessions(other.org_id) as session:
         commit_pointer(session, c2)
     with pytest.raises(LeaseLost):
         publish_revision(env.sessions, env.repo, c2)

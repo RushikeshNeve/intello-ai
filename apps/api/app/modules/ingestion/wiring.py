@@ -6,16 +6,9 @@ database, an object store or an index, and tests inject fakes through the constr
 
 from __future__ import annotations
 
-import uuid
-from collections.abc import Iterator
-from contextlib import contextmanager
 from functools import lru_cache
 
-from sqlalchemy import Engine
-from sqlalchemy.orm import Session
-
-from app.core.config import get_settings
-from app.core.db import create_db_engine, tenant_session
+from app.core.config import Settings, get_settings
 from app.modules.ai.embeddings import EmbeddingClient, EmbeddingProvider
 from app.modules.ingestion.artifacts import ArtifactStore
 from app.modules.ingestion.runner_types import WorkerSessions
@@ -23,23 +16,11 @@ from app.modules.knowledge.ports import KnowledgeRepository
 from app.modules.storage.ports import ObjectStore
 
 
-@lru_cache(maxsize=1)
-def _worker_engine() -> Engine:
-    url = get_settings().sqlalchemy_worker_url
-    if url is None:
-        raise RuntimeError("DATABASE_WORKER_URL is not configured")
-    return create_db_engine(url)
-
-
-def default_worker_sessions() -> WorkerSessions:
+def default_worker_sessions(settings: Settings | None = None) -> WorkerSessions:
     """Worker-role transactions with ``app.current_org_id`` set (RLS binds every statement)."""
+    from app.workers.worker_db import get_worker_engine, session_factory_for
 
-    @contextmanager
-    def open_session(*, org_id: uuid.UUID) -> Iterator[Session]:
-        with tenant_session(user_id=None, org_id=org_id, engine=_worker_engine()) as session:
-            yield session
-
-    return open_session
+    return session_factory_for(get_worker_engine(settings or get_settings()))
 
 
 @lru_cache(maxsize=1)
