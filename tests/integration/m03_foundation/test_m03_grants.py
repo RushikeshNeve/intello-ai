@@ -13,6 +13,7 @@ from sqlalchemy.exc import DBAPIError
 from app.core.models import RLS_TABLES
 from app.modules.ingestion.models import INGESTION_TABLES
 
+M04_CHAT_TABLES = {"ai_policies", "chat_threads", "chat_messages", "chat_runs", "chat_run_events"}
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 SEARCH_PATH = ["search_path=pg_catalog, public, pg_temp"]
 DEFINER_FUNCTIONS = {
@@ -190,7 +191,7 @@ def test_worker_reaches_nothing_beyond_its_grants(
             ).scalars()
         )
     # alembic_version, users, memberships, grants, sources, upload_sessions: out of reach.
-    assert reachable == set(WORKER_PRIVILEGES)
+    assert reachable - M04_CHAT_TABLES == set(WORKER_PRIVILEGES)  # M04 tables: m04_persistence
 
 
 def test_worker_cannot_create_objects_or_alter_the_schema(

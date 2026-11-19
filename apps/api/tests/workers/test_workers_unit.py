@@ -14,6 +14,7 @@ from sqlalchemy import Engine
 
 from app.workers import leases
 from app.workers.celery_app import (
+    QUEUE_CHAT,
     QUEUE_INGEST,
     QUEUE_MAINTENANCE,
     TASK_DELETE_DOCUMENT,
@@ -151,7 +152,7 @@ def test_celery_configuration_is_at_least_once_safe() -> None:
     assert conf.task_serializer == "json"
     assert list(conf.accept_content) == ["json"]
     assert conf.task_create_missing_queues is False
-    assert {q.name for q in conf.task_queues} == {QUEUE_INGEST, QUEUE_MAINTENANCE}
+    assert {q.name for q in conf.task_queues} == {QUEUE_INGEST, QUEUE_MAINTENANCE, QUEUE_CHAT}
     assert conf.broker_transport_options["visibility_timeout"] == s.visibility_timeout_seconds
     assert conf.task_routes[TASK_RUN_JOB]["queue"] == QUEUE_INGEST
 

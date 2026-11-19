@@ -9,7 +9,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, SecretStr, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.modules.ingestion.ids import compute_embedding_space_id
@@ -78,8 +78,47 @@ class Settings(BaseSettings):
     AI_EMBEDDING_DOCUMENT_PREFIX: str = "title: none | text: "
     AI_EMBEDDING_SPEC_VERSION: int = Field(default=1, ge=1)
 
+    # Search, chat and verification (M04 contract §11).
+    SEARCH_DEFAULT_LIMIT: int = Field(default=10, ge=1, le=50)
+    SEARCH_CANDIDATES: int = Field(default=50, ge=1, le=500)
+    SEARCH_MAX_PER_DOCUMENT: int = Field(default=3, ge=1, le=20)
+    SEARCH_RATE_PER_MIN: int = Field(default=60, ge=1, le=100_000)
+    CHAT_MODEL: str = Field(default="google/gemma-3-4b", min_length=1, max_length=200)
+    CHAT_CONTEXT_TOKENS: int = Field(default=4096, ge=256, le=1_000_000)
+    CHAT_MAX_OUTPUT_TOKENS: int = Field(default=800, ge=1, le=65_536)
+    CHAT_TEMPERATURE: float = Field(default=0.0, ge=0.0, le=2.0)
+    CHAT_HISTORY_TURNS: int = Field(default=6, ge=0, le=50)
+    CHAT_RUN_TIMEOUT_SECONDS: int = Field(default=180, ge=10, le=3600)
+    CHAT_MAX_RUNS_PER_MIN: int = Field(default=10, ge=1, le=10_000)
+    CHAT_MAX_CONCURRENT_RUNS: int = Field(default=2, ge=1, le=100)
+    VERIFY_MODE: Literal["strict", "flag"] = "strict"
+    VERIFY_LEXICAL_MIN: float = Field(default=0.35, ge=0.0, le=1.0)
+    VERIFY_EMBED_MIN: float = Field(default=0.55, ge=0.0, le=1.0)
+    # External providers (DC-020): off unless BOTH this flag and the org's ai_policies row allow it.
+    AI_EXTERNAL_PROVIDERS_ENABLED: bool = False
+    OPENAI_API_KEY: SecretStr | None = None
+    OPENAI_CHAT_MODEL: str = Field(default="gpt-4o-mini", min_length=1, max_length=200)
+
     # Per-dependency timeout for /health/ready, seconds.
     HEALTH_CHECK_TIMEOUT_SECONDS: float = Field(default=2.0, gt=0, le=30)
+
+    @field_validator("OPENAI_API_KEY", mode="before")
+    @classmethod
+    def _blank_openai_key_is_none(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
+    @model_validator(mode="after")
+    def _check_chat_settings(self) -> Settings:
+        if self.CHAT_MAX_OUTPUT_TOKENS * 2 > self.CHAT_CONTEXT_TOKENS:
+            raise ValueError(
+                "CHAT_MAX_OUTPUT_TOKENS must be at most half of CHAT_CONTEXT_TOKENS "
+                "(the prompt needs room for evidence)"
+            )
+        if self.SEARCH_DEFAULT_LIMIT > self.SEARCH_CANDIDATES:
+            raise ValueError("SEARCH_DEFAULT_LIMIT must not exceed SEARCH_CANDIDATES")
+        return self
 
     @model_validator(mode="after")
     def _check_ingestion_settings(self) -> Settings:

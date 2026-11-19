@@ -38,6 +38,7 @@ os.environ.setdefault("REDIS_HOST_PORT", "26544")
 from alembic import command  # noqa: E402
 from alembic.config import Config  # noqa: E402
 from compose_support import ComposeProject, compose_file, require_docker, wait_until  # noqa: E402
+from rls_chat_world import ChatWorld, seed_chat_world  # noqa: E402
 from rls_docs_world import DocWorld, seed_doc_world  # noqa: E402
 from rls_world import World, seed_world  # noqa: E402
 from sqlalchemy import Engine, create_engine, text  # noqa: E402
@@ -159,6 +160,12 @@ def world(admin_engine: Engine, migrated: None) -> World:
 def docs(admin_engine: Engine, world: World) -> DocWorld:
     """Per-tenant document/ingestion rows for the M02 + M03 tables (admin-seeded)."""
     return seed_doc_world(admin_engine, world)
+
+
+@pytest.fixture(scope="session")
+def chat(admin_engine: Engine, world: World) -> ChatWorld:
+    """Per-tenant chat / AI-policy rows for the M04 tables (admin-seeded; migration 0007)."""
+    return seed_chat_world(admin_engine, world)
 
 
 @pytest.fixture(scope="session")

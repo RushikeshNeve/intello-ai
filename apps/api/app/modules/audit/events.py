@@ -63,6 +63,10 @@ class AuditEventType(StrEnum):
     DOCUMENT_INGESTION_RETRIED = "document.ingestion.retried"
     # M04: a search was performed (counts only, never the query text).
     SEARCH_PERFORMED = "search.performed"
+    # M04 (contract §5, §8): counts and ids only, never question or answer text.
+    ORG_AI_POLICY_UPDATED = "org.ai_policy.updated"
+    CHAT_RUN_CREATED = "chat.run.created"
+    CHAT_THREAD_DELETED = "chat.thread.deleted"
 
 
 class SessionOpener(Protocol):

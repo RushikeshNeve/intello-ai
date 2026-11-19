@@ -126,6 +126,7 @@ def test_state_sets_match_the_contract() -> None:
         "knowledge.revision.published",
         "document.deleted",
         "knowledge.reconcile",
+        "chat.run.queued",  # M04 (migration 0007)
     }
 
 

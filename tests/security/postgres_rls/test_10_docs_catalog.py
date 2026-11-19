@@ -134,6 +134,12 @@ def test_worker_reachable_relations_are_exactly_the_documented_set(
         "knowledge_revisions",
         "document_publications",
         "outbox_events",
+        # chat runtime (M04, migration 0007; exact grants: test_17_chat_tables.py)
+        "ai_policies",
+        "chat_threads",
+        "chat_messages",
+        "chat_runs",
+        "chat_run_events",
     }
     with admin_engine.connect() as conn:
         reachable = set(

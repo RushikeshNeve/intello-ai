@@ -27,10 +27,13 @@ from app.workers.settings import WorkerSettings, get_worker_settings
 
 QUEUE_INGEST: Final = "ingest"
 QUEUE_MAINTENANCE: Final = "maintenance"
+QUEUE_CHAT: Final = "chat"
 
 TASK_RUN_JOB: Final = "ingest.run_job"
 TASK_RECONCILE: Final = "maintenance.reconcile"
 TASK_DELETE_DOCUMENT: Final = "maintenance.delete_document"
+# M04: implemented by the chat runtime (batch B); the dispatcher routes ``chat.run.queued`` here.
+TASK_CHAT_RUN: Final = "chat.run"
 
 
 def _queue(name: str) -> Any:
@@ -71,11 +74,12 @@ def make_celery(settings: WorkerSettings | None = None) -> Celery:
         worker_send_task_events=False,
         task_default_queue=QUEUE_MAINTENANCE,
         task_create_missing_queues=False,
-        task_queues=(_queue(QUEUE_INGEST), _queue(QUEUE_MAINTENANCE)),
+        task_queues=(_queue(QUEUE_INGEST), _queue(QUEUE_MAINTENANCE), _queue(QUEUE_CHAT)),
         task_routes={
             TASK_RUN_JOB: {"queue": QUEUE_INGEST},
             TASK_RECONCILE: {"queue": QUEUE_MAINTENANCE},
             TASK_DELETE_DOCUMENT: {"queue": QUEUE_MAINTENANCE},
+            TASK_CHAT_RUN: {"queue": QUEUE_CHAT},
         },
         enable_utc=True,
         timezone="UTC",
