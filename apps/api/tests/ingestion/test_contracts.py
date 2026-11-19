@@ -200,6 +200,9 @@ def test_processing_error_closed_code_set_and_flags() -> None:
         "too_large",
         "too_many_pages",
         "malformed_input",
+        "ocr_unavailable",
+        "transcription_unavailable",
+        "video_unavailable",
     } == ERROR_CODES
     err = ProcessingError("unsupported_type", permanent=True)
     assert err.code == "unsupported_type"

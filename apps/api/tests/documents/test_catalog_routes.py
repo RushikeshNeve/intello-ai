@@ -31,6 +31,8 @@ EXPECTED_DOCUMENT_ROUTES = {
     (f"{DOCS}/{{document_id}}/ingestion/events", "GET"),
     # M04.01.04 (m04-contracts.md §4): chunk evidence read from the artifact store.
     (f"{DOCS}/{{document_id}}/versions/{{version_id}}/chunks/{{chunk_id}}", "GET"),
+    # M06.01.02 (m06-contracts.md §3): safe URL capture.
+    (f"{DOCS}/from-url", "POST"),
 }
 HTTP_METHODS = {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
 
