@@ -51,6 +51,19 @@ async function WorkspaceHome({ params }: { params: Promise<{ orgSlug: string; wo
           Open documents
         </Link>
       </section>
+      <section aria-labelledby="ws-graph-heading" className="rounded-lg border border-border p-6">
+        <h2 id="ws-graph-heading" className="text-base font-medium">
+          Knowledge graph
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">See how the things in your documents connect, with the source of each link.</p>
+        <Link
+          href={`${path}/graph`}
+          className="mt-4 inline-flex h-9 items-center rounded-md border border-border px-4 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          data-testid="open-graph"
+        >
+          Explore the graph
+        </Link>
+      </section>
     </div>
   );
 }

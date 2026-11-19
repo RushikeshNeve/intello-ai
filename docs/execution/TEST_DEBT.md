@@ -8,3 +8,4 @@
 - M02: PDF iframe and text preview in a real browser (manual guide §5b).
 - Security: PK-collision existence oracle; 24 ruff + 4 mypy findings in old security tests; 56 older style findings (M08.03.01).
 - Retry button shown for `unsupported` files (decide in M06).
+- M05 integration: no HTTP-stub web e2e for the graph explorer (React Flow canvas is stubbed in vitest; real-browser pass of canvas keyboard focus and edge click pending); entity name search scans up to 5000 active entities per request in RushDB (no proven substring operator), revisit with a native prefix/contains filter.

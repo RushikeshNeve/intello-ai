@@ -20,7 +20,7 @@ import os
 import threading
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Literal
 
 from sqlalchemy import Engine
@@ -57,8 +57,23 @@ def build_default_chat_deps(settings: Settings) -> ChatDeps:
         embedder = wiring.default_embedder()
     except Exception:  # noqa: BLE001 - retrieval degrades to keyword, as in the search API
         embedder = None
-    del settings
-    return ChatDeps(repo=repo, embedder=embedder, chat_settings=ChatSettings())
+    deps = ChatDeps(repo=repo, embedder=embedder, chat_settings=ChatSettings())
+    if not getattr(settings, "GRAPH_ENABLED", False):
+        return deps
+    try:  # the graph is optional: without it the run answers from base evidence
+        from app.infrastructure.rushdb.graph import RushDbGraphRepository
+        from app.infrastructure.rushdb.settings import RushDbSettings
+        from app.modules.graph.read_adapter import StoreGraphReadRepository
+        from app.modules.graph.wiring import ArtifactChunkSource
+
+        return replace(
+            deps,
+            graph_repo=StoreGraphReadRepository(RushDbGraphRepository(RushDbSettings())),
+            graph_chunks=ArtifactChunkSource(wiring.default_artifact_store()),
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.warning("chat: graph dependencies unavailable (%s)", type(exc).__name__)
+        return deps
 
 
 def run_chat(

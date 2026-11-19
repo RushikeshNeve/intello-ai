@@ -434,6 +434,103 @@ class InMemoryGraphRepository(InMemoryKnowledgeRepository):
             ]
         return sorted(found, key=lambda e: str(e.id))
 
+    # -- scoped reads (mirror of RushDbGraphRepository, one visibility rule)
+
+    @staticmethod
+    def _visible(c: ClaimRecord, org: uuid.UUID, workspace_ids: frozenset[uuid.UUID]) -> bool:
+        return (
+            c.org_id == org
+            and c.workspace_id in workspace_ids
+            and c.published
+            and c.verification == "verified"
+        )
+
+    def read_claims_incident(
+        self,
+        scope: OrgScope,
+        workspace_ids: frozenset[uuid.UUID],
+        entity_ids: Sequence[uuid.UUID],
+        limit: int,
+    ) -> list[ClaimRecord]:
+        ids = set(entity_ids)
+        with self._lock:
+            found = [
+                c
+                for c in self._tenant(scope).claims.values()
+                if (c.subject_id in ids or c.object_id in ids)
+                and self._visible(c, scope.org_id, workspace_ids)
+            ]
+        found.sort(key=lambda c: (-c.confidence, str(c.id)))
+        return found[:limit] if limit > 0 else []
+
+    def read_claim(
+        self, scope: OrgScope, workspace_ids: frozenset[uuid.UUID], claim_id: uuid.UUID
+    ) -> ClaimRecord | None:
+        with self._lock:
+            c = self._tenant(scope).claims.get(claim_id)
+        return c if c is not None and self._visible(c, scope.org_id, workspace_ids) else None
+
+    def read_entities(
+        self,
+        scope: OrgScope,
+        workspace_ids: frozenset[uuid.UUID],
+        entity_ids: Sequence[uuid.UUID],
+    ) -> list[EntityRecord]:
+        with self._lock:
+            ents = self._tenant(scope).entities
+            return [
+                e
+                for i in entity_ids
+                if (e := ents.get(i)) is not None
+                and e.org_id == scope.org_id
+                and e.workspace_id in workspace_ids
+            ]
+
+    def search_entities(
+        self,
+        scope: OrgScope,
+        workspace_ids: frozenset[uuid.UUID],
+        q: str,
+        type: str | None,
+        limit: int,
+        after: tuple[str, uuid.UUID] | None,
+    ) -> list[EntityRecord]:
+        needle = q.casefold()
+        with self._lock:
+            ents = [
+                e
+                for e in self._tenant(scope).entities.values()
+                if e.org_id == scope.org_id
+                and e.workspace_id in workspace_ids
+                and e.entity_state == "active"
+                and needle in e.canonical_name.casefold()
+                and (type is None or e.type == type)
+            ]
+        ents.sort(key=lambda e: (e.canonical_name.casefold(), str(e.id)))
+        if after is not None:
+            key = (after[0], str(after[1]))
+            ents = [e for e in ents if (e.canonical_name.casefold(), str(e.id)) > key]
+        return ents[:limit]
+
+    def read_evidence(
+        self,
+        scope: OrgScope,
+        workspace_ids: frozenset[uuid.UUID],
+        claim_ids: Sequence[uuid.UUID],
+    ) -> list[EvidenceRecord]:
+        wanted = set(claim_ids)
+        with self._lock:
+            tenant = self._tenant(scope)
+            found = [
+                ev
+                for ev in tenant.evidence.values()
+                if ev.claim_id in wanted
+                and ev.org_id == scope.org_id
+                and (c := tenant.claims.get(ev.claim_id)) is not None
+                and self._visible(c, scope.org_id, workspace_ids)
+            ]
+        return sorted(found, key=lambda e: str(e.id))
+
     def delete_graph_revision(self, scope: OrgScope, revision_id: uuid.UUID) -> int:
         with self._lock:
             return self._drop_graph(self._tenant(scope), revision_id=revision_id, document_id=None)
