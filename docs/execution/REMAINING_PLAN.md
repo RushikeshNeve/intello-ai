@@ -11,3 +11,6 @@ Rules: ALL tasks built; sanity tests only; one slim contract per milestone (≤ 
 | M08 hardening/release (12) | A: lean adversarial + deletion-lineage + credential tests (M08.01.*); B: backup automation + restore rehearsal + tracing + minimal load test (M08.02.*); C: CI gates, install/security runbooks, acceptance checklist, tag baseline, deferrals (M08.03.*) | 3 |
 
 Dependencies that are only formal (not technical): M06.01/.02 do not need the graph, so M06 batch A can start while M05 UI is finishing. Decisions needed from the user: first connector (see below) and its test credentials by M06.
+
+## M09 — UI/UX revamp (user decision 2026-11-19)
+Not part of the original M00–M08 plan. Build ALL functionality first (M04–M08, current UI stays functional-but-plain); then a dedicated milestone M09 reworks the whole UI/UX following `docs/ui-spec/PRODUCT_UI_SPEC.md`, `docs/ui-spec/DESIGN_TOKENS.md` and `docs/ui-spec/CLAUDE_FRONTEND_HANDOFF.md` (user-supplied; read them at M09 start, write a slim `m09-contracts.md`, then republish the UI). Until then: no UX polish work, only functional UI.
