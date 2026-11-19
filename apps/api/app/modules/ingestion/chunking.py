@@ -277,6 +277,13 @@ def _make_chunk(index: int, parts: list[_Part], revision_id: uuid.UUID) -> Chunk
                 line_start=loc.line_start,
                 line_end=loc.line_end,
                 section_path=loc.section_path,
+                sheet=loc.sheet,
+                row_start=loc.row_start,
+                row_end=loc.row_end,
+                col_start=loc.col_start,
+                col_end=loc.col_end,
+                time_start=loc.time_start,
+                time_end=loc.time_end,
             )
         )
         if loc.page is not None:

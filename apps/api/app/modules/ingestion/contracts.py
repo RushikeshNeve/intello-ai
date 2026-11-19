@@ -41,10 +41,11 @@ MAX_SECTION_DEPTH: Final = 32
 MAX_SECTION_TITLE_CHARS: Final = 500
 MAX_HEADING_LEVEL: Final = 6
 MAX_CHUNK_LOCATORS: Final = MAX_BLOCKS
+MAX_MEDIA_SECONDS: Final = 24 * 3600
 
-Modality = Literal["pdf", "text", "markdown", "html"]
+Modality = Literal["pdf", "text", "markdown", "html", "spreadsheet", "code", "image", "audio"]
 BlockKind = Literal["heading", "paragraph", "list", "table", "code", "quote"]
-LocatorKind = Literal["page", "offset", "line"]
+LocatorKind = Literal["page", "offset", "line", "cell", "time"]
 ErrorCode = Literal[
     "unsupported_type",
     "no_text_extracted",
@@ -53,6 +54,9 @@ ErrorCode = Literal[
     "too_large",
     "too_many_pages",
     "malformed_input",
+    "ocr_unavailable",
+    "transcription_unavailable",
+    "video_unavailable",
 ]
 ERROR_CODES: Final[frozenset[str]] = frozenset(
     {
@@ -63,7 +67,14 @@ ERROR_CODES: Final[frozenset[str]] = frozenset(
         "too_large",
         "too_many_pages",
         "malformed_input",
+        "ocr_unavailable",
+        "transcription_unavailable",
+        "video_unavailable",
     }
+)
+# Codes that end a job as ``unsupported`` (a capability or type we do not handle), not as failed.
+UNSUPPORTED_CODES: Final[frozenset[str]] = frozenset(
+    {"unsupported_type", "ocr_unavailable", "transcription_unavailable", "video_unavailable"}
 )
 MAX_ERROR_DETAIL_CHARS: Final = 200
 
@@ -139,6 +150,9 @@ class ProcessorInfo(_Model):
 class Stats(_Model):
     pages: Annotated[int, Field(ge=0)] | None = None
     chars: Annotated[int, Field(ge=0, le=MAX_STREAM_CHARS)]
+    # OCR mean confidence (0..1) and audio duration in seconds (M06.02.03/.04); additive.
+    confidence: Annotated[float, Field(ge=0, le=1)] | None = None
+    duration_seconds: Annotated[float, Field(ge=0)] | None = None
 
 
 class Locator(_Model):
@@ -163,6 +177,17 @@ class Locator(_Model):
         ]
         | None
     ) = None
+    # ``cell`` locators (M06.02.01): sheet name and 1-based inclusive row/column ranges.
+    sheet: (
+        Annotated[str, StringConstraints(min_length=1, max_length=MAX_SECTION_TITLE_CHARS)] | None
+    ) = None
+    row_start: Annotated[int, Field(ge=1)] | None = None
+    row_end: Annotated[int, Field(ge=1)] | None = None
+    col_start: Annotated[int, Field(ge=1)] | None = None
+    col_end: Annotated[int, Field(ge=1)] | None = None
+    # ``time`` locators (M06.02.04): seconds from the start of the media.
+    time_start: Annotated[float, Field(ge=0, le=MAX_MEDIA_SECONDS)] | None = None
+    time_end: Annotated[float, Field(ge=0, le=MAX_MEDIA_SECONDS)] | None = None
 
     @field_validator("section_path")
     @classmethod
@@ -188,7 +213,40 @@ class Locator(_Model):
                 raise ValueError("only line locators carry a line range")
             if self.line_end < self.line_start:
                 raise ValueError("line_end must be >= line_start")
+        self._check_cell()
+        self._check_time()
         return self
+
+    def _check_cell(self) -> None:
+        cols = (self.col_start, self.col_end)
+        cell_fields = (self.sheet, self.row_start, self.row_end, *cols)
+        if self.kind != "cell":
+            if any(v is not None for v in cell_fields):
+                raise ValueError("only cell locators carry sheet/row/column fields")
+            return
+        if self.sheet is None or self.row_start is None or self.row_end is None:
+            raise ValueError("a cell locator needs sheet, row_start and row_end")
+        if self.row_end < self.row_start:
+            raise ValueError("row_end must be >= row_start")
+        if (self.col_start is None) != (self.col_end is None):
+            raise ValueError("col_start and col_end go together")
+        if (
+            self.col_start is not None
+            and self.col_end is not None
+            and self.col_end < self.col_start
+        ):
+            raise ValueError("col_end must be >= col_start")
+        _utf8_safe(self.sheet)
+
+    def _check_time(self) -> None:
+        if self.kind != "time":
+            if self.time_start is not None or self.time_end is not None:
+                raise ValueError("only time locators carry time fields")
+            return
+        if self.time_start is None or self.time_end is None:
+            raise ValueError("a time locator needs time_start and time_end")
+        if self.time_end < self.time_start:
+            raise ValueError("time_end must be >= time_start")
 
 
 class Block(_Model):
@@ -233,6 +291,10 @@ class ExtractedDocument(_Model):
         "text": "line",
         "markdown": "line",
         "html": "offset",
+        "spreadsheet": "cell",
+        "code": "line",
+        "image": "offset",
+        "audio": "time",
     }
 
     @model_validator(mode="after")

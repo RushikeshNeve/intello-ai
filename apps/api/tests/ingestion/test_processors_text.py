@@ -46,7 +46,7 @@ def test_registry_covers_the_supported_types_case_insensitively() -> None:
 
 @pytest.mark.parametrize(
     "content_type",
-    ["image/png", "application/zip", "", "text", "application/octet-stream", "text/csv"],
+    ["image/gif", "application/zip", "", "text", "application/octet-stream", "text/rtf"],
 )
 def test_unknown_types_are_a_permanent_unsupported_type(content_type: str) -> None:
     with pytest.raises(ProcessingError) as info:
