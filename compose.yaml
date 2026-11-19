@@ -19,3 +19,5 @@ include:
     env_file: .env
   - path: infrastructure/compose/apps.yml
     env_file: .env
+  - path: infrastructure/compose/workers.yml
+    env_file: .env
