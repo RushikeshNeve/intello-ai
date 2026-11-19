@@ -69,3 +69,20 @@ Parallel-safety: foundation owns `apps/api/**` except `authorization/policy.py`,
 | (gate) | M02 full-stack e2e + exit gate | coordinator | main | all | DONE (13/13 on real stack with RustFS) |
 
 Parallel-safety (batch A): the foundation agent owns migrations, `models.py`, `config.py`, the `documents/` package skeleton, `apps.yml` and `.env.example`; the storage agent owns `modules/storage`, `infrastructure/object_storage` and `pyproject.toml`/`uv.lock` (its adapter reads its own settings class, so it needs nothing from the foundation); the web agent owns `apps/web/src/features/documents/upload` and the web manifest. Each uses its own Docker project and ports.
+
+## M03 — Reliable knowledge ingestion
+
+| Task | Description | Agent | Branch | Depends on | Status |
+|---|---|---|---|---|---|
+| (prep) | M03 contract + deterministic id module | coordinator | main | M02 gate | DONE |
+| M03.01.01 | Jobs, outbox, checkpoints, revisions, worker role (migration 0005) | foundation-agent | agent/m03-foundation | contract | DONE (250 DB tests; RLS 504) |
+| M03.02.01-03 | Extracted-content contract, PDF/TXT/MD/HTML processors, chunking | processing-agent | agent/m03-processing | contract | DONE (182 tests; goldens, adversarial, property) |
+| M03.02.05 | Local embedding adapter + stub server | embeddings-agent | agent/m03-embeddings | contract | DONE (163 tests; real LM Studio 5/5) |
+| M03.03.01 | RushDB knowledge repository adapter | rushdb-agent | agent/m03-rushdb-adapter | contract | DONE (76 unit + 63 real RushDB) |
+| M03.01.02-04 | Outbox dispatcher, Celery queues, claims/leases/heartbeats/fencing | runtime-agent | agent/m03-runtime | batch A | DONE (25 real Postgres/Redis/Celery) |
+| M03.02.04, M03.03.02-03 | Checkpoints, versioned indexing, publication barrier, deletion | pipeline-agent | agent/m03-pipeline | batch A | DONE (44 incl. real RushDB + RustFS) |
+| M03.03.04 | Status API/SSE + retry (0006) | status-api-agent | agent/m03-status-api | batch B | IN PROGRESS |
+| M03.03.04 | Status UI | web-agent | agent/m03-status-ui | contract | IN PROGRESS |
+| (coverage) | Adversarial RLS tests for M02+M03 tables | rls-agent | agent/m03-rls-coverage | batch A | IN PROGRESS |
+| M03.03.05 | Retry/dead-letter/crash-injection tests | coordinator | main | batch C | TODO (gate) |
+| (gate) | M03 full-stack e2e + exit gate | coordinator | main | all | TODO |
