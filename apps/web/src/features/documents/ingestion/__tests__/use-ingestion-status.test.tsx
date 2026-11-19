@@ -5,10 +5,11 @@ import { act, cleanup, renderHook } from "@testing-library/react";
 import { fakeFetcher, jsonResponse } from "@/features/organizations/__tests__/helpers";
 import { QueryProvider, makeQueryClient } from "@/lib/query/provider";
 import type { IngestionSummary } from "../api";
+import { job, snap, statusBody, summary } from "./fixtures";
 import { MAX_SSE_FAILURES, RECONNECT_BASE_MS, useIngestionStatus, type EventSourceLike } from "../use-ingestion-status";
 
 const WS = "/v1/orgs/o1/workspaces/w1/documents";
-const queued: IngestionSummary = { state: "queued", stage: null, updated_at: "2026-11-18T12:00:00Z", error_code: null };
+const queued = summary({ state: "queued", updated_at: "2026-11-18T12:00:00Z" });
 
 class FakeES implements EventSourceLike {
   static all: FakeES[] = [];
@@ -44,7 +45,7 @@ function setHidden(hidden: boolean) {
 }
 
 function setup(over: { documentId?: string; versionRef?: string; initial?: IngestionSummary | null; eventSource?: typeof factory | null; status?: () => Response } = {}) {
-  const status = over.status ?? (() => jsonResponse(200, { ...queued, attempts: 0, max_attempts: 5, revision_id: null, published_at: null }));
+  const status = over.status ?? (() => jsonResponse(200, statusBody(queued)));
   const { fetcher, calls } = fakeFetcher({
     [`GET ${WS}/d-1/ingestion`]: () => status(),
     [`GET ${WS}/d-2/ingestion`]: () => status(),
@@ -88,17 +89,17 @@ describe("useIngestionStatus", () => {
     expect(FakeES.all[0].url).toBe("/api/v1/orgs/o1/workspaces/w1/documents/d-1/ingestion/events");
     act(() => FakeES.all[0].open());
     expect(result.current.connection).toBe("live");
-    act(() => FakeES.all[0].emit("snapshot", { state: "queued", stage: null, updated_at: "2026-11-18T12:00:00Z", error_code: null }));
-    act(() => FakeES.all[0].emit("job", { seq: 1, state: "processing", stage: "extract", updated_at: "2026-11-18T12:00:01Z", error_code: null }));
+    act(() => FakeES.all[0].emit("snapshot", snap(queued)));
+    act(() => FakeES.all[0].emit("job", job(1, summary({ state: "processing", stage: "extract" }))));
     expect(result.current.summary).toMatchObject({ state: "processing", stage: "extract" });
-    act(() => FakeES.all[0].emit("job", { seq: 1, state: "processing", stage: "extract", updated_at: "2026-11-18T12:00:01Z", error_code: null }));
+    act(() => FakeES.all[0].emit("job", job(1, summary({ state: "processing", stage: "extract" }))));
     expect(result.current.events.filter((e) => e.seq === 1)).toHaveLength(1); // de-duplicated by seq
   });
 
   it("ignores malformed payloads", () => {
     const { result } = setup();
     act(() => FakeES.all[0].listeners.get("job")?.({ data: "not json" } as MessageEvent<string>));
-    act(() => FakeES.all[0].emit("job", { state: "exploded" }));
+    act(() => FakeES.all[0].emit("job", { seq: 1, ingestion: { state: "exploded" } }));
     expect(result.current.summary).toEqual(queued);
   });
 
@@ -138,14 +139,14 @@ describe("useIngestionStatus", () => {
       eventSource: null,
       status: () => {
         n++;
-        return jsonResponse(200, { state: n >= 2 ? "indexed" : "processing", stage: n >= 2 ? null : "embed", updated_at: null, error_code: null, attempts: 1, max_attempts: 5, revision_id: null, published_at: null });
+        return jsonResponse(200, statusBody(summary({ state: n >= 2 ? "ready" : "processing", stage: n >= 2 ? null : "embed" })));
       },
     });
     expect(result.current.connection).toBe("polling");
     await act(async () => void (await vi.advanceTimersByTimeAsync(5000)));
     expect(result.current.summary?.state).toBe("processing");
     await act(async () => void (await vi.advanceTimersByTimeAsync(5000)));
-    expect(result.current.summary?.state).toBe("indexed");
+    expect(result.current.summary?.state).toBe("ready");
     expect(result.current.connection).toBe("idle");
     const total = calls.length;
     await act(async () => void (await vi.advanceTimersByTimeAsync(60_000)));
@@ -154,14 +155,14 @@ describe("useIngestionStatus", () => {
 
   it("closes the stream when a terminal event arrives", () => {
     const { result } = setup();
-    act(() => FakeES.all[0].emit("job", { seq: 2, state: "indexed", stage: null, updated_at: "2026-11-18T12:01:00Z", error_code: null }));
-    expect(result.current.summary?.state).toBe("indexed");
+    act(() => FakeES.all[0].emit("job", job(2, summary({ state: "ready", stage: null }))));
+    expect(result.current.summary?.state).toBe("ready");
     expect(FakeES.all[0].closed).toBe(true);
     expect(live()).toHaveLength(0);
   });
 
   it("does not open anything when the document is already terminal", () => {
-    setup({ initial: { state: "failed", stage: "embed", updated_at: null, error_code: "index_error" } });
+    setup({ initial: summary({ state: "failed", stage: "embed", error_code: "index_error" }) });
     expect(FakeES.all).toHaveLength(0);
   });
 
@@ -203,7 +204,7 @@ describe("useIngestionStatus", () => {
 
   it("switching documents closes the old stream and never shows the old state", () => {
     const { result, rerender } = setup();
-    act(() => FakeES.all[0].emit("job", { seq: 1, state: "processing", stage: "chunk", updated_at: null, error_code: null }));
+    act(() => FakeES.all[0].emit("job", job(1, summary({ state: "processing", stage: "chunk" }))));
     expect(result.current.summary?.stage).toBe("chunk");
     const first = FakeES.all[0];
     rerender({ documentId: "d-2", versionRef: "v-9" });
@@ -212,13 +213,13 @@ describe("useIngestionStatus", () => {
     expect(result.current.events).toEqual([]);
     expect(FakeES.all[1].url).toContain("/documents/d-2/");
     // a late event from the old stream cannot leak in
-    act(() => first.emit("job", { seq: 5, state: "indexed", stage: null, updated_at: null, error_code: null }));
+    act(() => first.emit("job", job(5, summary({ state: "ready", stage: null }))));
     expect(result.current.summary?.state).toBe("queued");
   });
 
   it("a new version of the same document is a new key", () => {
     const { result, rerender } = setup();
-    act(() => FakeES.all[0].emit("job", { seq: 1, state: "processing", stage: "chunk", updated_at: null, error_code: null }));
+    act(() => FakeES.all[0].emit("job", job(1, summary({ state: "processing", stage: "chunk" }))));
     rerender({ documentId: "d-1", versionRef: "v-2" });
     expect(result.current.summary).toEqual(queued);
     expect(FakeES.all[0].closed).toBe(true);
@@ -226,12 +227,41 @@ describe("useIngestionStatus", () => {
 
   it("refresh() re-reads the status and restarts the stream after a retry", async () => {
     const { result } = setup({
-      initial: { state: "failed", stage: "embed", updated_at: null, error_code: "index_error" },
-      status: () => jsonResponse(200, { ...queued, attempts: 0, max_attempts: 5, revision_id: null, published_at: null }),
+      initial: summary({ state: "failed", stage: "embed", error_code: "index_error" }),
+      status: () => jsonResponse(200, statusBody(queued)),
     });
     expect(FakeES.all).toHaveLength(0);
     await act(async () => void (await result.current.refresh()));
     expect(result.current.summary?.state).toBe("queued");
     expect(live()).toHaveLength(1);
+  });
+
+  it("`end` (terminal) closes the stream without reconnecting and reads the persisted state once", async () => {
+    const { calls } = setup();
+    act(() => FakeES.all[0].listeners.get("end")?.({ data: JSON.stringify({ reason: "terminal" }) } as MessageEvent<string>));
+    expect(FakeES.all[0].closed).toBe(true);
+    await act(async () => void (await vi.advanceTimersByTimeAsync(60_000)));
+    expect(FakeES.all).toHaveLength(1); // no automatic reopen
+    expect(calls.filter((c) => c.path.endsWith("/ingestion"))).toHaveLength(1);
+  });
+
+  it("`end` (timeout) reopens once; a second timeout without a snapshot does not loop", async () => {
+    setup();
+    const end = (es: FakeES, reason: string) => es.listeners.get("end")?.({ data: JSON.stringify({ reason }) } as MessageEvent<string>);
+    act(() => end(FakeES.all[0], "timeout"));
+    expect(FakeES.all).toHaveLength(2);
+    act(() => end(FakeES.all[1], "timeout"));
+    expect(FakeES.all).toHaveLength(2);
+    // a snapshot re-arms the single reopen
+    act(() => FakeES.all[1].emit("snapshot", snap(queued)));
+  });
+
+  it("`end` (unavailable) stops calmly: no reconnect, no polling", async () => {
+    const { result, calls } = setup();
+    act(() => FakeES.all[0].listeners.get("end")?.({ data: JSON.stringify({ reason: "unavailable" }) } as MessageEvent<string>));
+    expect(result.current.connection).toBe("stopped");
+    await act(async () => void (await vi.advanceTimersByTimeAsync(60_000)));
+    expect(FakeES.all).toHaveLength(1);
+    expect(calls).toHaveLength(0);
   });
 });

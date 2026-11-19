@@ -5,19 +5,20 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { fakeFetcher, jsonResponse, renderWithQuery } from "@/features/organizations/__tests__/helpers";
 import type { IngestionSummary } from "../api";
+import { statusBody, summary } from "./fixtures";
 import { ProcessingPanel } from "../processing-panel";
 import { IngestionBadge } from "../status-badge";
 
 afterEach(cleanup);
 
 const WS = "/v1/orgs/o1/workspaces/w1/documents/d-1";
-const failed: IngestionSummary = { state: "failed", stage: "embed", updated_at: "2026-11-18T12:00:00Z", error_code: "index_unavailable" };
-const status = (s: IngestionSummary) => ({ ...s, attempts: 1, max_attempts: 5, revision_id: "rev-secret-id", published_at: null });
+const failed = summary({ state: "failed", stage: "embed", updated_at: "2026-11-18T12:00:00Z", error_code: "index_unavailable", message: "The search index was unavailable.", can_retry: true });
+const status = (s: IngestionSummary) => statusBody(s);
 
 function mount(initial: IngestionSummary | null, o: { canWrite?: boolean; retry?: () => Response; after?: IngestionSummary } = {}) {
   const { fetcher, calls } = fakeFetcher({
-    [`POST ${WS}/ingestion/retry`]: () => (o.retry ? o.retry() : jsonResponse(202, { job_id: "j-1" })),
-    [`GET ${WS}/ingestion`]: () => jsonResponse(200, status(o.after ?? { state: "queued", stage: null, updated_at: null, error_code: null })),
+    [`POST ${WS}/ingestion/retry`]: () => (o.retry ? o.retry() : jsonResponse(202, { job_id: "j-1", ingestion: summary({ state: "queued" }) })),
+    [`GET ${WS}/ingestion`]: () => jsonResponse(200, status(o.after ?? summary({ state: "queued" }))),
   });
   renderWithQuery(
     <ProcessingPanel orgId="o1" workspaceId="w1" documentId="d-1" versionRef="v-1" initial={initial} canWrite={o.canWrite ?? true} eventSource={null} pollMs={60_000} />,
@@ -28,14 +29,14 @@ function mount(initial: IngestionSummary | null, o: { canWrite?: boolean; retry?
 
 describe("IngestionBadge", () => {
   const cases: [IngestionSummary, string][] = [
-    [{ state: "queued", stage: null, updated_at: null, error_code: null }, "Queued"],
-    [{ state: "processing", stage: "chunk", updated_at: null, error_code: null }, "Processing (Splitting into passages)"],
-    [{ state: "indexed", stage: null, updated_at: null, error_code: null }, "Ready"],
-    [{ state: "failed", stage: null, updated_at: null, error_code: "x" }, "Failed"],
-    [{ state: "unsupported", stage: null, updated_at: null, error_code: "unsupported_type" }, "Not supported"],
-    [{ state: "failed", stage: null, updated_at: null, error_code: "no_text_extracted" }, "No text found"],
-    [{ state: "cancelled", stage: null, updated_at: null, error_code: null }, "Cancelled"],
-    [{ state: "none", stage: null, updated_at: null, error_code: null }, "Not processed"],
+    [summary({ state: "queued" }), "Queued"],
+    [summary({ state: "processing", stage: "chunk" }), "Processing (Splitting into passages)"],
+    [summary({ state: "ready" }), "Ready"],
+    [summary({ state: "failed", error_code: "x" }), "Failed"],
+    [summary({ state: "unsupported", error_code: "unsupported_type" }), "Not supported"],
+    [summary({ state: "no_text", error_code: "no_text_extracted" }), "No text found"],
+    [summary({ state: "cancelled" }), "Cancelled"],
+    [summary({ state: "none" }), "Not processed"],
   ];
   it.each(cases)("renders %j as text %s", (summary, text) => {
     render(<IngestionBadge summary={summary} />);
@@ -49,7 +50,7 @@ describe("IngestionBadge", () => {
 
 describe("ProcessingPanel", () => {
   it("shows a safe failure message, never the raw code or internals", () => {
-    mount({ ...failed, error_code: "weird <b>Traceback</b> at /srv/app.py:12" });
+    mount({ ...failed, message: null, error_code: "weird <b>Traceback</b> at /srv/app.py:12" });
     const panel = screen.getByTestId("processing-panel");
     expect(within(panel).getByTestId("processing-failure")).toHaveTextContent("Something went wrong while processing this file");
     expect(panel.textContent).not.toMatch(/Traceback|app\.py|rev-secret/);
@@ -57,7 +58,8 @@ describe("ProcessingPanel", () => {
   });
 
   it("shows stage progress with text, not colour alone", () => {
-    mount({ state: "processing", stage: "embed", updated_at: null, error_code: null });
+    mount(summary({ state: "processing", stage: "embed", attempts_label: "Attempt 2 of 5" }));
+    expect(screen.getByTestId("attempts-label").textContent).toBe("Attempt 2 of 5");
     const steps = within(screen.getByTestId("processing-steps")).getAllByRole("listitem");
     expect(steps.map((s) => s.getAttribute("data-status"))).toEqual(["done", "done", "current", "todo", "todo"]);
     expect(steps[2]).toHaveAttribute("aria-current", "step");
@@ -66,7 +68,7 @@ describe("ProcessingPanel", () => {
   });
 
   it("announces state in a polite live region", () => {
-    mount({ state: "indexed", stage: null, updated_at: null, error_code: null });
+    mount(summary({ state: "ready" }));
     const live = screen.getByTestId("processing-live");
     expect(live).toHaveAttribute("aria-live", "polite");
     expect(live).toHaveTextContent("Processing finished");
@@ -84,9 +86,9 @@ describe("ProcessingPanel", () => {
     const { fetcher, calls } = fakeFetcher({
       [`POST ${WS}/ingestion/retry`]: async () => {
         await gate;
-        return jsonResponse(202, { job_id: "j-1" });
+        return jsonResponse(202, { job_id: "j-1", ingestion: summary({ state: "queued" }) });
       },
-      [`GET ${WS}/ingestion`]: () => jsonResponse(200, status({ state: "queued", stage: null, updated_at: null, error_code: null })),
+      [`GET ${WS}/ingestion`]: () => jsonResponse(200, status(summary({ state: "queued" }))),
     });
     renderWithQuery(<ProcessingPanel orgId="o1" workspaceId="w1" documentId="d-1" versionRef="v-1" initial={failed} canWrite eventSource={null} pollMs={60_000} />, { fetcher });
     const user = userEvent.setup();
@@ -102,7 +104,7 @@ describe("ProcessingPanel", () => {
   });
 
   it("retry 409: calm message that it is already running", async () => {
-    mount(failed, { retry: () => jsonResponse(409, { detail: "conflict" }), after: { state: "processing", stage: "extract", updated_at: null, error_code: null } });
+    mount(failed, { retry: () => jsonResponse(409, { detail: "conflict" }), after: summary({ state: "processing", stage: "extract" }) });
     await userEvent.setup().click(screen.getByRole("button", { name: "Retry" }));
     await waitFor(() => expect(screen.getByTestId("retry-result")).toHaveTextContent("already being processed"));
     await waitFor(() => expect(screen.getByTestId("ingestion-badge")).toHaveTextContent("Processing"));
@@ -127,12 +129,24 @@ describe("ProcessingPanel", () => {
   });
 
   it("offers 'Process now' for a document that was never processed, and is keyboard operable", async () => {
-    const calls = mount({ state: "none", stage: null, updated_at: null, error_code: null });
+    const calls = mount(summary({ state: "none", can_retry: true }));
     const user = userEvent.setup();
     await user.tab();
     expect(screen.getByRole("button", { name: "Process now" })).toHaveFocus();
     await user.keyboard("{Enter}");
     await waitFor(() => expect(calls.some((c) => c.method === "POST")).toBe(true));
+  });
+
+  it("shows the server message and hides Retry when the server says can_retry is false (e.g. no_text)", () => {
+    mount(summary({ state: "no_text", error_code: "no_text_extracted", message: "No readable text was found in this document.", can_retry: false }));
+    expect(screen.getByTestId("processing-failure")).toHaveTextContent("No readable text was found");
+    expect(screen.queryByRole("button", { name: /retry/i })).toBeNull();
+    expect(screen.getByTestId("ingestion-badge")).toHaveTextContent("No text found");
+  });
+
+  it("offers Retry for an unsupported document when the server allows it", () => {
+    mount(summary({ state: "unsupported", error_code: "unsupported_type", message: "This file type cannot be processed yet.", can_retry: true }));
+    expect(screen.getByRole("button", { name: "Retry" })).toBeEnabled();
   });
 
   it("is quiet (no crash, no raw data) when the API sent no summary", () => {
@@ -146,22 +160,22 @@ describe("timeline", () => {
     const { fetcher } = fakeFetcher({
       [`GET ${WS}/ingestion`]: () =>
         jsonResponse(200, {
-          ...status({ state: "processing", stage: "chunk", updated_at: "2026-11-18T12:00:05Z", error_code: null }),
+          ...status(summary({ state: "processing", stage: "chunk", updated_at: "2026-11-18T12:00:05Z" })),
           events: [
-            { seq: 1, state: "queued", stage: null, error_code: null, at: "2026-11-18T12:00:00Z" },
-            { seq: 2, state: "processing", stage: "extract", error_code: null, at: "2026-11-18T12:00:02Z" },
-            { seq: 3, state: "processing", stage: "chunk", error_code: null, at: "2026-11-18T12:00:05Z" },
+            { id: 1, type: "queued", label: "Queued", stage: null, attempt: 1, at: "2026-11-18T12:00:00Z" },
+            { id: 2, type: "stage_started", label: "Stage started", stage: "extract", attempt: 1, at: "2026-11-18T12:00:02Z" },
+            { id: 3, type: "stage_started", label: "Stage started", stage: "chunk", attempt: 1, at: "2026-11-18T12:00:05Z" },
           ],
         }),
     });
     vi.useFakeTimers({ shouldAdvanceTime: true });
     renderWithQuery(
-      <ProcessingPanel orgId="o1" workspaceId="w1" documentId="d-1" versionRef="v-1" initial={{ state: "queued", stage: null, updated_at: null, error_code: null }} canWrite eventSource={null} pollMs={1000} />,
+      <ProcessingPanel orgId="o1" workspaceId="w1" documentId="d-1" versionRef="v-1" initial={summary({ state: "queued" })} canWrite eventSource={null} pollMs={1000} />,
       { fetcher },
     );
     await vi.advanceTimersByTimeAsync(1100);
-    const items = await screen.findAllByText(/Processing \(|Queued/, { selector: "[data-testid=processing-timeline] span" });
-    expect(items.map((i) => i.textContent)).toEqual(["Processing (Splitting into passages)", "Processing (Extracting text)", "Queued"]);
+    const items = await screen.findAllByText(/Stage started|Queued/, { selector: "[data-testid=processing-timeline] span" });
+    expect(items.map((i) => i.textContent)).toEqual(["Stage started (Splitting into passages)", "Stage started (Extracting text)", "Queued"]);
     expect(screen.getByText("2026-11-18 12:00:05 UTC")).toBeInTheDocument();
     vi.useRealTimers();
   });

@@ -1,12 +1,6 @@
 /**
- * Ingestion status API client + parsing (contract m03 §11). EVERY wire shape the UI assumes lives in this one
- * module, so a refinement of the contract is a change here and nowhere else.
- *
- * Assumptions beyond the written contract (flagged for reconciliation):
- *  - state may also be "cancelled" (deleted-document cancellation, m03 §9); unknown states are rejected.
- *  - the status body / SSE `job` payloads may carry an optional `events: [{seq, state, stage, error_code, at}]`
- *    timeline and an optional `at` / `created_at` timestamp per event; absent fields are tolerated.
- *  - stage is one of extract|chunk|embed|index|validate|publish; anything else is shown without a stage.
+ * Ingestion status API client + parsing (contract m03 §11 as implemented in §13; source of truth:
+ * apps/api/app/modules/ingestion/schemas.py). EVERY wire shape the UI relies on lives in this module.
  */
 import {
   ApiError,
@@ -17,26 +11,31 @@ import {
   type Fetcher,
 } from "@/features/organizations/api/http";
 
-export const INGESTION_STATES = ["none", "queued", "processing", "indexed", "failed", "unsupported", "cancelled"] as const;
+export const INGESTION_STATES = ["none", "queued", "processing", "ready", "failed", "unsupported", "no_text", "cancelled"] as const;
 export type IngestionState = (typeof INGESTION_STATES)[number];
 
 export const STAGES = ["extract", "chunk", "embed", "index", "validate", "publish"] as const;
 export type Stage = (typeof STAGES)[number];
 
-/** The `Document.ingestion` summary (list items and single document). */
+/** `Document.ingestion` and the head of the status body. `message` is server-supplied and safe to show. */
 export type IngestionSummary = {
   state: IngestionState;
   stage: Stage | null;
-  updated_at: string | null;
+  attempts_label: string | null;
   error_code: string | null;
+  message: string | null;
+  updated_at: string | null;
+  /** Server-computed: retryable state AND document.write. */
+  can_retry: boolean;
 };
 
 export type IngestionEvent = {
-  /** `ingestion_job_events.seq` when known (SSE `id`), used to de-duplicate. */
+  /** `ingestion_job_events.seq` (the SSE `id`), used to de-duplicate. */
   seq: number | null;
-  state: IngestionState;
+  type: string;
+  label: string;
   stage: Stage | null;
-  error_code: string | null;
+  attempt: number | null;
   at: string | null;
 };
 
@@ -75,7 +74,15 @@ function parseStage(o: Record<string, unknown>): Stage | null {
 
 export function parseSummary(v: unknown): IngestionSummary {
   if (!isRecord(v)) invalid();
-  return { state: parseState(v), stage: parseStage(v), updated_at: nullableString(v, "updated_at"), error_code: nullableString(v, "error_code") };
+  return {
+    state: parseState(v),
+    stage: parseStage(v),
+    attempts_label: nullableString(v, "attempts_label"),
+    error_code: nullableString(v, "error_code"),
+    message: nullableString(v, "message"),
+    updated_at: nullableString(v, "updated_at"),
+    can_retry: v.can_retry === true,
+  };
 }
 
 /** For `Document.ingestion`: a missing or malformed summary must never break the whole list. */
@@ -87,15 +94,17 @@ export function parseSummaryLoose(v: unknown): IngestionSummary | null {
   }
 }
 
+/** Timeline entry `{id, type, label, stage, attempt, at}`; SSE `job` frames use `seq` instead of `id`. */
 export function parseEvent(v: unknown): IngestionEvent {
   if (!isRecord(v)) invalid();
-  const seq = v.seq;
+  const id = typeof v.id === "number" ? v.id : typeof v.seq === "number" ? v.seq : null;
   return {
-    seq: typeof seq === "number" && Number.isFinite(seq) ? seq : null,
-    state: parseState(v),
+    seq: id !== null && Number.isFinite(id) ? id : null,
+    type: typeof v.type === "string" ? v.type : "",
+    label: typeof v.label === "string" ? v.label : "",
     stage: parseStage(v),
-    error_code: nullableString(v, "error_code"),
-    at: nullableString(v, "at") ?? nullableString(v, "created_at") ?? nullableString(v, "updated_at"),
+    attempt: typeof v.attempt === "number" ? v.attempt : null,
+    at: nullableString(v, "at"),
   };
 }
 
@@ -121,9 +130,11 @@ export function parseStatus(v: unknown): IngestionStatus {
   };
 }
 
-export function parseRetry(v: unknown): { job_id: string } {
+export type RetryAccepted = { job_id: string; ingestion: IngestionSummary | null };
+
+export function parseRetry(v: unknown): RetryAccepted {
   if (!isRecord(v) || typeof v.job_id !== "string") invalid();
-  return { job_id: v.job_id };
+  return { job_id: v.job_id, ingestion: parseSummaryLoose(v.ingestion) };
 }
 
 const docPath = (orgId: string, workspaceId: string, documentId: string): string =>
@@ -137,7 +148,7 @@ export function getIngestion(fetcher: Fetcher, orgId: string, workspaceId: strin
 }
 
 /** 202 `{job_id}`; 409 when a job is already active, 403/404 when the caller may not write. */
-export function retryIngestion(fetcher: Fetcher, orgId: string, workspaceId: string, documentId: string): Promise<{ job_id: string }> {
+export function retryIngestion(fetcher: Fetcher, orgId: string, workspaceId: string, documentId: string): Promise<RetryAccepted> {
   return requestJson(fetcher, `${ingestionPath(orgId, workspaceId, documentId)}/retry` as ApiPath, parseRetry, { method: "POST" });
 }
 
@@ -152,24 +163,24 @@ export function toRetryOutcome(err: unknown): RetryOutcome {
   return "failed";
 }
 
-/** Parses one SSE `data:` payload (`snapshot` = status shape, `job` = event shape); null when unusable. */
-export function parseStreamPayload(data: string): { summary: IngestionSummary; event: IngestionEvent | null; status: IngestionStatus | null } | null {
+export type StreamFrame =
+  | { kind: "snapshot"; summary: IngestionSummary }
+  | { kind: "job"; summary: IngestionSummary; event: IngestionEvent }
+  | { kind: "end"; reason: "terminal" | "timeout" | "unavailable" };
+
+/** Parses one SSE frame (`snapshot` {cursor, document_id, version_id, ingestion}, `job` {seq, ..., ingestion}, `end` {reason}). */
+export function parseStreamFrame(type: string, data: string): StreamFrame | null {
   try {
     const body: unknown = JSON.parse(data);
-    const summary = parseSummary(body);
-    let event: IngestionEvent | null = null;
-    try {
-      event = parseEvent(body);
-    } catch {
-      event = null;
+    if (!isRecord(body)) return null;
+    if (type === "end") {
+      const r = body.reason;
+      return { kind: "end", reason: r === "terminal" || r === "timeout" ? r : "unavailable" };
     }
-    let status: IngestionStatus | null = null;
-    try {
-      status = parseStatus(body);
-    } catch {
-      status = null;
-    }
-    return { summary, event, status };
+    const summary = parseSummary(body.ingestion);
+    if (type === "snapshot") return { kind: "snapshot", summary };
+    if (type === "job") return { kind: "job", summary, event: parseEvent(body) };
+    return null;
   } catch {
     return null;
   }

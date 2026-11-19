@@ -8,10 +8,10 @@
 //   globex bob=owner, alice=member   bench (alice VIEWER: read-only, can_upload=false) holds 1 doc; vault (bob only) holds 1 secret doc
 //   initech mallory=owner   plans
 //
-// M03.03.04 additions (contract m03 §11): every document carries an ingestion job (default `indexed`);
+// M03.03.04 additions (shapes of contract m03 §13, apps/api/app/modules/ingestion/schemas.py): every document carries an ingestion job (default `ready`);
 //   GET  {doc}/ingestion, POST {doc}/ingestion/retry (write only; 409 while active), GET {doc}/ingestion/events (SSE:
 //   `snapshot` then `job` with id: seq, keep-alive comments). Test control: GET /__ingest/step?doc=ID (queued ->
-//   processing[extract|chunk|embed|index|publish] -> indexed), /__ingest/fail?doc=ID&code=X, /__ingest/state.
+//   processing[extract|chunk|embed|index|publish] -> ready), /__ingest/fail?doc=ID&code=X, /__ingest/state.
 //   acme/papers holds "Pipeline demo" (queued) and "Broken PDF" (failed pdf_unreadable); globex/bench's doc is failed.
 //   GET /__log     every API request: {method, path, caller, status, ...}   GET /__seed   ids   GET /__store_log
 import { createServer } from "node:http";
@@ -28,7 +28,7 @@ const orgs = new Map();
 const workspaces = new Map();
 const documents = new Map(); // id -> {id, workspace_id, title, created_at, updated_at, deleted, versions: [oldest..newest]}
 const ingestion = new Map(); // doc id -> {state, stage, error_code, attempts, seq, events: [], subs: Set<fn>}
-const STEPS = [["queued", null], ["processing", "extract"], ["processing", "chunk"], ["processing", "embed"], ["processing", "index"], ["processing", "publish"], ["indexed", null]];
+const STEPS = [["queued", null], ["processing", "extract"], ["processing", "chunk"], ["processing", "embed"], ["processing", "index"], ["processing", "publish"], ["ready", null]];
 const blobs = new Map(); // version id -> {bytes, content_type}
 
 function seedOrg(slug, name, members, wss) {
@@ -82,22 +82,44 @@ function addDoc(wsId, { title, versions, updatedMinutesAgo }) {
   return doc;
 }
 
+const MESSAGES = {
+  pdf_unreadable: "The PDF could not be read. It may be damaged or password protected.",
+  index_unavailable: "The search index was unavailable.",
+  no_text_extracted: "No readable text was found in this document.",
+  unsupported_type: "This file type cannot be processed yet.",
+  processing_failed: "Processing failed.",
+};
+const EVENT_OF = { queued: ["queued", "Queued"], processing: ["stage_started", "Stage started"], ready: ["published", "Published"], failed: ["dead", "Failed"], unsupported: ["unsupported", "Not supported"], no_text: ["unsupported", "Not supported"], cancelled: ["cancelled", "Cancelled"], none: ["queued", "Queued"] };
+const retryableState = (state) => state === "failed" || state === "unsupported" || state === "none";
+
 function setIngestion(docId, state, stage = null, error_code = null) {
   let g = ingestion.get(docId);
   if (!g) ingestion.set(docId, (g = { state, stage, error_code, attempts: 0, seq: 0, events: [], subs: new Set(), updated_at: now() }));
+  // unknown codes collapse to processing_failed, like the real closed table
+  const code = state === "failed" || state === "unsupported" || state === "no_text" ? (error_code in MESSAGES ? error_code : "processing_failed") : null;
   g.state = state;
-  g.stage = stage;
-  g.error_code = error_code;
+  g.stage = state === "queued" || state === "processing" ? stage : null;
+  g.error_code = code;
   g.updated_at = now();
   if (state === "queued") g.attempts += 1;
-  const ev = { seq: ++g.seq, state, stage, error_code, at: g.updated_at };
+  const [type, label] = EVENT_OF[state];
+  const ev = { id: ++g.seq, type, label, stage, attempt: Math.max(g.attempts, 1), at: g.updated_at };
   g.events.push(ev);
-  for (const fn of g.subs) fn(ev);
+  for (const fn of [...g.subs]) fn(ev);
   return g;
 }
-const ingestionSummary = (docId) => {
+const ingestionSummary = (docId, canWrite = true) => {
   const g = ingestion.get(docId);
-  return g ? { state: g.state, stage: g.stage, updated_at: g.updated_at, error_code: g.error_code } : { state: "none", stage: null, updated_at: null, error_code: null };
+  if (!g) return { state: "none", stage: null, attempts_label: null, error_code: null, message: null, updated_at: null, can_retry: canWrite };
+  return {
+    state: g.state,
+    stage: g.stage,
+    attempts_label: g.state === "queued" || g.state === "processing" ? `Attempt ${g.attempts} of 5` : null,
+    error_code: g.error_code,
+    message: g.error_code ? MESSAGES[g.error_code] : null,
+    updated_at: g.updated_at,
+    can_retry: canWrite && retryableState(g.state),
+  };
 };
 const isActive = (g) => g && (g.state === "queued" || g.state === "processing");
 
@@ -120,7 +142,7 @@ const vaultDoc = addDoc(globex.ws.vault.id, { title: "Vault Secret Doc", updated
 const papers = acme.ws.papers.id;
 const pipelineDoc = addDoc(papers, { title: "Pipeline demo", updatedMinutesAgo: 1, versions: [{ filename: "demo.txt", type: "text/plain", bytes: Buffer.from("demo\n") }] });
 const brokenDoc = addDoc(papers, { title: "Broken PDF", updatedMinutesAgo: 2, versions: [{ filename: "broken.pdf", type: "application/pdf", bytes: Buffer.from("%PDF-broken") }] });
-for (const dd of documents.values()) setIngestion(dd.id, "indexed");
+for (const dd of documents.values()) setIngestion(dd.id, "ready");
 setIngestion(pipelineDoc.id, "queued");
 setIngestion(brokenDoc.id, "failed", "extract", "pdf_unreadable");
 setIngestion(benchDoc.id, "failed", "embed", "index_unavailable");
@@ -181,7 +203,7 @@ function docOut(doc, w, org, role) {
     version_count: doc.versions.length,
     latest_version: versionOut(doc, latest),
     permissions: perms(role),
-    ingestion: ingestionSummary(doc.id),
+    ingestion: ingestionSummary(doc.id, perms(role).write),
   };
 }
 
@@ -224,30 +246,55 @@ function listDocs(url, w, org, role, res, entry) {
 
 function ingestionRoute(req, res, doc, parts, role, entry) {
   const g = ingestion.get(doc.id);
+  const canWrite = perms(role).write;
   const sub = parts[8];
   if (parts.length === 8 && req.method === "GET") {
-    return send(res, 200, { ...ingestionSummary(doc.id), attempts: g?.attempts ?? 0, max_attempts: 5, revision_id: g ? "00000000-0000-4000-8000-0000000000aa" : null, published_at: g?.state === "indexed" ? g.updated_at : null, events: g ? g.events.slice(-50) : [] }, entry);
+    return send(res, 200, {
+      ...ingestionSummary(doc.id, canWrite),
+      document_id: doc.id,
+      version_id: doc.versions.at(-1).id,
+      job_id: g ? "00000000-0000-4000-8000-0000000000bb" : null,
+      revision_id: g ? "00000000-0000-4000-8000-0000000000aa" : null,
+      attempts: g?.attempts ?? 0,
+      max_attempts: 5,
+      published_at: g?.state === "ready" ? g.updated_at : null,
+      events: g ? g.events.slice(-50) : [],
+      next_after: null,
+    }, entry);
   }
   if (sub === "retry" && req.method === "POST") {
-    if (!perms(role).write) return send(res, 403, { detail: "forbidden" }, entry);
-    if (isActive(g)) return send(res, 409, { detail: "conflict" }, entry);
+    if (!canWrite) return send(res, 403, { detail: "forbidden" }, entry);
+    if (!retryableState(g?.state ?? "none")) return send(res, 409, { detail: "conflict" }, entry);
     setIngestion(doc.id, "queued");
-    return send(res, 202, { job_id: randomUUID() }, entry);
+    return send(res, 202, { job_id: randomUUID(), ingestion: ingestionSummary(doc.id, canWrite) }, entry);
   }
   if (sub === "events" && req.method === "GET") {
     entry.status = 200;
+    entry.last_event_id = req.headers["last-event-id"] ?? null;
     res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
-    const snap = { ...ingestionSummary(doc.id), attempts: g?.attempts ?? 0, max_attempts: 5, events: g ? g.events.slice(-50) : [] };
-    res.write(`event: snapshot\ndata: ${JSON.stringify(snap)}\n\n`);
     const gg = g ?? setIngestion(doc.id, "none");
-    const push = (ev) => res.write(`event: job\nid: ${ev.seq}\ndata: ${JSON.stringify({ ...ev, updated_at: ev.at })}\n\n`);
+    const frame = (event, data, id) => res.write(`${id ? `id: ${id}\n` : ""}event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    const terminal = () => !["queued", "processing"].includes(gg.state);
+    res.write("retry: 3000\n\n");
+    frame("snapshot", { cursor: gg.seq, document_id: doc.id, version_id: doc.versions.at(-1).id, ingestion: ingestionSummary(doc.id, canWrite) });
+    if (terminal()) {
+      frame("end", { reason: "terminal" });
+      return res.end();
+    }
+    let ka;
+    const push = (ev) => {
+      frame("job", { seq: ev.id, document_id: doc.id, version_id: doc.versions.at(-1).id, type: ev.type, label: ev.label, stage: ev.stage, attempt: ev.attempt, at: ev.at, ingestion: ingestionSummary(doc.id, canWrite) }, ev.id);
+      if (terminal()) {
+        frame("end", { reason: "terminal" });
+        res.end();
+      }
+    };
     gg.subs.add(push);
     streams.n += 1;
-    const ka = setInterval(() => res.write(": keep-alive\n\n"), 15_000);
+    ka = setInterval(() => res.write(": keep-alive\n\n"), 15_000);
     req.on("close", () => {
       clearInterval(ka);
-      gg.subs.delete(push);
-      streams.n -= 1;
+      if (gg.subs.delete(push)) streams.n -= 1;
     });
     return;
   }

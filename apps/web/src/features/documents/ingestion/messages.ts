@@ -1,5 +1,5 @@
 /** User-facing text for ingestion. Raw server text, ids and stack traces are never rendered (m03 §12). */
-import type { IngestionState, IngestionSummary, Stage } from "./api";
+import type { IngestionSummary, Stage } from "./api";
 
 /** Closed set from m03 §7 plus pipeline-level codes. Unknown codes fall back to GENERIC_FAILURE. */
 export const ERROR_MESSAGES: Record<string, string> = {
@@ -17,6 +17,12 @@ export const ERROR_MESSAGES: Record<string, string> = {
   index_unavailable: "The search index was unavailable. Please try again in a few minutes.",
   index_error: "We couldn't add this document to search. Please try again.",
   index_incomplete: "We couldn't add this document to search. Please try again.",
+  lease_expired: "Processing was interrupted and did not recover. You can try again.",
+  internal_error: "Processing failed unexpectedly. You can try again.",
+  source_missing: "The stored file could not be found.",
+  embedding_error: "We couldn't finish preparing this document for search. Please try again.",
+  organization_unavailable: "This organization is unavailable right now.",
+  processing_failed: "Something went wrong while processing this file. You can try again.",
   embedding_count_mismatch: "We couldn't finish preparing this document for search. Please try again.",
   embedding_space_mismatch: "We couldn't finish preparing this document for search. Please try again.",
   lease_lost: "Processing was interrupted. It will be retried, or you can try again.",
@@ -25,8 +31,12 @@ export const ERROR_MESSAGES: Record<string, string> = {
 
 export const GENERIC_FAILURE = "Something went wrong while processing this file. You can try again.";
 
-/** Safe by construction: only own keys of the map are looked up, and the code itself is never shown. */
-export function failureMessage(code: string | null | undefined): string {
+/**
+ * Prefers the server-supplied `message` (a closed, safe table server-side); falls back to the local map.
+ * Safe by construction: only own keys of the map are looked up, and the code itself is never shown.
+ */
+export function failureMessage(code: string | null | undefined, serverMessage?: string | null): string {
+  if (serverMessage && serverMessage.trim()) return serverMessage;
   if (code && Object.prototype.hasOwnProperty.call(ERROR_MESSAGES, code)) return ERROR_MESSAGES[code];
   return GENERIC_FAILURE;
 }
@@ -38,8 +48,10 @@ export type DisplayKind = "none" | "queued" | "processing" | "ready" | "failed" 
 
 export function displayKind(s: Pick<IngestionSummary, "state" | "error_code">): DisplayKind {
   switch (s.state) {
-    case "indexed":
+    case "ready":
       return "ready";
+    case "no_text":
+      return "no_text";
     case "processing":
       return "processing";
     case "queued":
@@ -105,7 +117,7 @@ export function announcement(s: IngestionSummary): string {
     case "failed":
     case "unsupported":
     case "no_text":
-      return `Processing stopped. ${failureMessage(s.error_code)}`;
+      return `Processing stopped. ${failureMessage(s.error_code, s.message)}`;
     case "cancelled":
       return "Processing was cancelled.";
     case "none":
@@ -113,11 +125,6 @@ export function announcement(s: IngestionSummary): string {
     default:
       return `Status: ${badgeText(s)}.`;
   }
-}
-
-/** Contract: retry creates a job when the latest job is `dead` (failed) or there is none. */
-export function isRetryable(state: IngestionState): boolean {
-  return state === "failed" || state === "none";
 }
 
 export const RETRY_RESULT: Record<string, string> = {

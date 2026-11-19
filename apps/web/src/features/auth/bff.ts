@@ -19,6 +19,7 @@ const FORWARDED_REQUEST_HEADERS = [
   "if-match",
   "if-none-match",
   "if-modified-since",
+  "last-event-id",
   "x-request-id",
 ] as const;
 

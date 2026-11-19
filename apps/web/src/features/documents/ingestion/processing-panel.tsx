@@ -7,12 +7,11 @@ import { useApiFetcher } from "@/lib/query/provider";
 import { retryIngestion, toRetryOutcome, type IngestionEvent, type IngestionSummary } from "./api";
 import {
   PROGRESS_STEPS,
+  STAGE_LABELS,
   RETRY_RESULT,
   announcement,
-  badgeText,
   displayKind,
   failureMessage,
-  isRetryable,
   stepIndex,
 } from "./messages";
 import { IngestionBadge } from "./status-badge";
@@ -50,7 +49,8 @@ function stepStatus(i: number, summary: IngestionSummary): "done" | "current" | 
 const STEP_TEXT = { done: "done", current: "in progress", failed: "stopped", todo: "waiting" } as const;
 
 function eventLabel(e: IngestionEvent): string {
-  return badgeText({ state: e.state, stage: e.stage, error_code: e.error_code, updated_at: e.at });
+  const stage = e.stage ? ` (${STAGE_LABELS[e.stage]})` : "";
+  return `${e.label || "Update"}${stage}`;
 }
 
 export function ProcessingPanel(props: ProcessingPanelProps) {
@@ -115,7 +115,17 @@ export function ProcessingPanel(props: ProcessingPanelProps) {
 
       {failed && (
         <p className="rounded-md bg-muted px-3 py-2 text-sm" data-testid="processing-failure">
-          {failureMessage(summary.error_code)}
+          {failureMessage(summary.error_code, summary.message)}
+        </p>
+      )}
+      {summary.attempts_label && (kind === "queued" || kind === "processing") && (
+        <p className="text-xs text-muted-foreground" data-testid="attempts-label">
+          {summary.attempts_label}
+        </p>
+      )}
+      {live.connection === "stopped" && (
+        <p className="text-xs text-muted-foreground" data-testid="live-stopped">
+          Live updates are paused. Reload the page to check again.
         </p>
       )}
       {kind === "ready" && <p className="text-sm text-muted-foreground">This document is searchable.</p>}
@@ -138,7 +148,7 @@ export function ProcessingPanel(props: ProcessingPanelProps) {
         })}
       </ol>
 
-      {canWrite && isRetryable(summary.state) && (
+      {canWrite && summary.can_retry && (
         <div className="grid justify-items-start gap-1">
           <Button variant="outline" size="sm" onClick={() => void onRetry()} disabled={retrying} aria-busy={retrying}>
             <RotateCcwIcon aria-hidden="true" />

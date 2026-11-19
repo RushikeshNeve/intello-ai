@@ -4,6 +4,7 @@ import { act, cleanup, screen } from "@testing-library/react";
 import { fakeFetcher, jsonResponse, renderWithQuery } from "@/features/organizations/__tests__/helpers";
 import { makeQueryClient } from "@/lib/query/provider";
 import type { IngestionSummary } from "../../ingestion";
+import { summary } from "../../ingestion/__tests__/fixtures";
 import { LIBRARY, makeDoc, nav, WS } from "../../__tests__/helpers";
 import { Library, LIBRARY_POLL_MS } from "../library";
 
@@ -26,17 +27,17 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-const sum = (state: IngestionSummary["state"], stage: IngestionSummary["stage"] = null): IngestionSummary => ({ state, stage, updated_at: null, error_code: null });
+const sum = (state: IngestionSummary["state"], stage: IngestionSummary["stage"] = null): IngestionSummary => summary({ state, stage });
 
 describe("Library status badges", () => {
   it("polls the list while a row is active, updates badges live, and stops when all are terminal", async () => {
-    const script: IngestionSummary[] = [sum("queued"), sum("processing", "embed"), sum("indexed")];
+    const script: IngestionSummary[] = [sum("queued"), sum("processing", "embed"), sum("ready")];
     let n = 0;
     const { fetcher, calls } = fakeFetcher({
       [`GET ${WS}/documents`]: () => {
         const s = script[Math.min(n++, script.length - 1)];
         return jsonResponse(200, {
-          items: [makeDoc({ id: "d-1", ingestion: s }), makeDoc({ id: "d-2", title: "Done", ingestion: sum("indexed") }), makeDoc({ id: "d-3", title: "Old", ingestion: null })],
+          items: [makeDoc({ id: "d-1", ingestion: s }), makeDoc({ id: "d-2", title: "Done", ingestion: sum("ready") }), makeDoc({ id: "d-3", title: "Old", ingestion: null })],
           next_cursor: null,
           can_upload: false,
         });

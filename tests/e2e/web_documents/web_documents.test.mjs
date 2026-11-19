@@ -343,7 +343,7 @@ test("viewer: failed document shows a human message and Retry; raw codes and int
   const broken = seed.docs["Broken PDF"];
   const r = await web(`${PAPERS}/${broken.id}`, { cookie: session });
   assert.match(r.html, /data-testid="processing-panel"/);
-  assert.match(r.html, /This PDF couldn(&#x27;|')t be read/);
+  assert.match(r.html, /The PDF could not be read/);
   assert.match(r.html, /aria-live="polite"/);
   assert.match(r.html, />Retry</);
   // Visible text only: the RSC payload in <script> tags carries the stable error code as a prop, the user never sees it.
@@ -375,9 +375,11 @@ test("SSE through the BFF: streams unbuffered (snapshot, then job events with id
   assert.equal(res.headers.get("cache-control"), "no-store");
   assert.equal(res.headers.get("set-cookie"), null);
   const sse = sseReader(res);
+  const hello = await sse.next();
+  assert.equal(hello.data, "", "first frame is `retry: 3000`");
   const snap = await sse.next();
   assert.equal(snap.event, "snapshot");
-  assert.equal(JSON.parse(snap.data).state, "queued");
+  assert.equal(JSON.parse(snap.data).ingestion.state, "queued");
   const seen = [];
   for (let i = 0; i < 6; i++) {
     await stubJson(`/__ingest/step?doc=${pipe.id}`); // each step must arrive before the next is triggered: not buffered
@@ -386,11 +388,38 @@ test("SSE through the BFF: streams unbuffered (snapshot, then job events with id
     assert.match(f.id, /^\d+$/);
     seen.push(JSON.parse(f.data));
   }
-  assert.deepEqual(seen.map((e) => [e.state, e.stage]), [["processing", "extract"], ["processing", "chunk"], ["processing", "embed"], ["processing", "index"], ["processing", "publish"], ["indexed", null]]);
-  assert.equal((await stubJson("/__ingest/state")).streams, 1);
+  assert.deepEqual(seen.map((e) => [e.ingestion.state, e.ingestion.stage]), [["processing", "extract"], ["processing", "chunk"], ["processing", "embed"], ["processing", "index"], ["processing", "publish"], ["ready", null]]);
+  const end = await sse.next();
+  assert.equal(end.event, "end");
+  assert.equal(JSON.parse(end.data).reason, "terminal");
   await sse.cancel();
   for (let i = 0; i < 20 && (await stubJson("/__ingest/state")).streams !== 0; i++) await sleep(100);
-  assert.equal((await stubJson("/__ingest/state")).streams, 0, "closing the browser stream closes the upstream stream (no leak)");
+  assert.equal((await stubJson("/__ingest/state")).streams, 0, "the stream is closed after `end`");
+});
+
+test("SSE through the BFF: the browser's Last-Event-ID header reaches the API; aborting the client closes the upstream stream", async () => {
+  const pipe = seed.docs["Pipeline demo"];
+  const brokenDoc = seed.docs["Broken PDF"];
+  await stubJson(`/__ingest/fail?doc=${brokenDoc.id}&code=pdf_unreadable`);
+  await post(`${apiDoc(seed.workspaces.papers, brokenDoc.id)}/ingestion/retry`); // 409 or 202, either way active-or-terminal; make it active:
+  const ctl = new AbortController();
+  const res = await fetch(WEB + `${apiDoc(seed.workspaces.papers, brokenDoc.id)}/ingestion/events`, {
+    headers: { cookie: `${SESSION_COOKIE}=${session}`, accept: "text/event-stream", "last-event-id": "41" },
+    signal: ctl.signal,
+  });
+  assert.equal(res.status, 200);
+  const sse = sseReader(res);
+  await sse.next(); // retry:
+  assert.equal((await sse.next()).event, "snapshot");
+  const log = (await stubJson("/__log")).filter((e) => e.path.endsWith("/ingestion/events") && e.path.includes(brokenDoc.id));
+  assert.equal(log.at(-1).last_event_id, "41");
+  assert.equal((await stubJson("/__ingest/state")).streams, 1);
+  ctl.abort();
+  for (let i = 0; i < 20 && (await stubJson("/__ingest/state")).streams !== 0; i++) await sleep(100);
+  assert.equal((await stubJson("/__ingest/state")).streams, 0, "aborting the browser request closes the upstream stream (no leak)");
+  // leave the document failed again for the following tests
+  await stubJson(`/__ingest/fail?doc=${brokenDoc.id}&code=pdf_unreadable`);
+  void pipe;
 });
 
 test("SSE and retry are refused without a session (401) and cross-origin retry is refused (403)", async () => {
@@ -425,7 +454,7 @@ test("retry through the BFF: 202 queues a new job, a second retry is 409, the st
   await stubJson(`/__ingest/step?doc=${broken.id}`);
   await stubJson(`/__ingest/fail?doc=${broken.id}&code=db_exploded_at_row_17`);
   const v = await web(`${PAPERS}/${broken.id}`, { cookie: session });
-  assert.match(v.html, /Something went wrong while processing this file/);
+  assert.match(v.html, /Processing failed./);
   assert.doesNotMatch(v.html.replace(/<script[\s\S]*?<\/script>/g, ""), /db_exploded/, "an unknown code is never shown");
 });
 

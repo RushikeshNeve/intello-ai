@@ -4,6 +4,7 @@ import { cleanup, screen } from "@testing-library/react";
 import { fakeFetcher, jsonResponse, renderWithQuery } from "@/features/organizations/__tests__/helpers";
 import { LIBRARY, makeDoc, makeVersion, nav, WS } from "../../__tests__/helpers";
 import { DocumentViewer } from "../viewer";
+import { summary } from "../../ingestion/__tests__/fixtures";
 
 vi.mock("next/navigation", async () => (await import("../../__tests__/helpers")).navigationModule);
 vi.mock("next/link", () => ({
@@ -22,7 +23,7 @@ function mount(write: boolean) {
   const v = makeVersion();
   const doc = makeDoc({
     permissions: { write, manage: false },
-    ingestion: { state: "failed", stage: "extract", updated_at: "2026-11-18T12:00:00Z", error_code: "pdf_unreadable" },
+    ingestion: summary({ state: "failed", error_code: "pdf_unreadable", message: "The PDF could not be read. It may be damaged or password protected.", can_retry: write }),
   });
   const { fetcher } = fakeFetcher({
     [`GET ${WS}/documents/d-1/versions/v-1/content-url`]: () =>
@@ -35,7 +36,7 @@ describe("viewer processing panel", () => {
   it("shows the failure in plain words, and Retry to a writer", () => {
     mount(true);
     const panel = screen.getByTestId("processing-panel");
-    expect(panel.textContent).toContain("This PDF couldn't be read");
+    expect(panel.textContent).toContain("The PDF could not be read");
     expect(panel.textContent).not.toContain("pdf_unreadable");
     expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
   });

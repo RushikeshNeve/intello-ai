@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useApiFetcher } from "@/lib/query/provider";
+import { badgeText } from "./messages";
 import {
   getIngestion,
   ingestionEventsPath,
   isTerminal,
-  parseStreamPayload,
+  parseStreamFrame,
   type IngestionEvent,
   type IngestionStatus,
   type IngestionSummary,
@@ -28,7 +29,8 @@ export const RECONNECT_MAX_MS = 30_000;
 export const MAX_SSE_FAILURES = 4;
 const MAX_EVENTS = 100;
 
-export type Connection = "idle" | "connecting" | "live" | "polling";
+/** `stopped`: the server said the stream is unavailable; we stop calmly instead of hammering it. */
+export type Connection = "idle" | "connecting" | "live" | "polling" | "stopped";
 
 export type IngestionLive = {
   summary: IngestionSummary | null;
@@ -55,14 +57,10 @@ export type UseIngestionStatusOptions = {
   pollMs?: number;
 };
 
-function sameStep(a: IngestionEvent | undefined, s: Pick<IngestionSummary, "state" | "stage" | "error_code">): boolean {
-  return !!a && a.state === s.state && a.stage === s.stage && a.error_code === s.error_code;
-}
-
 function mergeEvents(prev: IngestionEvent[], incoming: IngestionEvent[]): IngestionEvent[] {
   const out = [...prev];
   for (const e of incoming) {
-    const dup = out.some((p) => (e.seq !== null && p.seq === e.seq) || (e.seq === null && p.seq === null && sameStep(p, e) && p.at === e.at));
+    const dup = out.some((p) => (e.seq !== null && p.seq === e.seq) || (e.seq === null && p.seq === null && p.label === e.label && p.at === e.at));
     if (!dup) out.push(e);
   }
   return out.slice(-MAX_EVENTS);
@@ -100,8 +98,8 @@ export function useIngestionStatus(opts: UseIngestionStatusOptions): IngestionLi
       let events = base.events;
       if (status && status.events.length > 0) events = mergeEvents(events, status.events);
       else if (event) events = mergeEvents(events, [event]);
-      else if (!sameStep(events.at(-1), summary)) {
-        events = mergeEvents(events, [{ seq: null, state: summary.state, stage: summary.stage, error_code: summary.error_code, at: summary.updated_at }]);
+      else if (events.length === 0) {
+        events = [{ seq: null, type: "state", label: badgeText(summary), stage: summary.stage, attempt: null, at: summary.updated_at }];
       }
       return { ...base, summary, events };
     });
@@ -139,10 +137,26 @@ export function useIngestionStatus(opts: UseIngestionStatusOptions): IngestionLi
       es = null;
     };
 
-    const onPayload = (e: MessageEvent<string>) => {
+    let reopened = false; // a `timeout` end may be reopened once per snapshot
+
+    const onFrame = (type: "snapshot" | "job" | "end") => (e: MessageEvent<string>) => {
       if (disposed) return;
-      const parsed = parseStreamPayload(e.data);
-      if (parsed) apply(key, parsed.summary, parsed.status, parsed.event);
+      const frame = parseStreamFrame(type, e.data);
+      if (!frame) return;
+      if (frame.kind === "end") {
+        // The server closes after `end`: close ours too, or EventSource would reconnect on its own.
+        es?.close();
+        es = null;
+        if (frame.reason === "unavailable") return setConnection(key, "stopped");
+        if (frame.reason === "timeout" && !reopened) {
+          reopened = true;
+          return connect();
+        }
+        void fetchOnce(); // terminal (or a repeated timeout): read the persisted state once
+        return;
+      }
+      if (frame.kind === "snapshot") reopened = false;
+      apply(key, frame.summary, null, frame.kind === "job" ? frame.event : null);
     };
 
     /** One status read; returns true while the job is still active. */
@@ -183,8 +197,9 @@ export function useIngestionStatus(opts: UseIngestionStatusOptions): IngestionLi
         failures = 0;
         if (!disposed) setConnection(key, "live");
       };
-      source.addEventListener("snapshot", onPayload);
-      source.addEventListener("job", onPayload);
+      source.addEventListener("snapshot", onFrame("snapshot"));
+      source.addEventListener("job", onFrame("job"));
+      source.addEventListener("end", onFrame("end"));
       source.onerror = () => {
         if (disposed || es !== source) return;
         source.close();
