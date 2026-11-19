@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-11-19 · **Current milestone:** M04 complete (smoke gate PASSED) → M05 (graph) in progress
+**Updated:** 2026-11-19 · **Current milestone:** M05 complete (smoke gate PASSED) → M06 (connectors/formats) in progress
 **Source of truth:** this Git repository. Notion mirror: **not synchronized** (no Notion integration in this session).
 
 ## Summary
@@ -12,11 +12,11 @@
 | M02 Documents & object storage | 11 | **11** | 0 | **PASSED**, 2026-11-19 |
 | M03 Reliable ingestion | 14 | **14** | 0 | **PASSED**, 2026-11-19 (17/17 full-stack scenarios) |
 | M04 Search & grounded chat | 13 | **13** | 0 | **PASSED** (lean smoke on the live stack with real LM Studio), 2026-11-19 |
-| M05 Graph & GraphRAG | 11 | 0 | 0 | blocked on M04 gate |
+| M05 Graph & GraphRAG | 11 | **11** | 0 | **PASSED** (lean smoke on the live stack with real LM Studio), 2026-11-19 |
 | M06 Connectors & formats | 11 | 0 | 0 | blocked on M05 gate |
 | M07 Memory, research, UX | 11 | 0 | 0 | blocked on M06 gate |
 | M08 Security, eval, release | 12 | 0 | 0 | blocked on M07 gate |
-| **Total** | **108** | **63** | **0** | |
+| **Total** | **108** | **74** | **0** | |
 
 ## M00 exit gate (definition in `DEPENDENCY_GRAPH.md`, DC-007)
 
@@ -99,3 +99,6 @@ Counts on `main`: API unit 1552; DB suites m03_foundation 250, m03_runtime 25, m
 
 ## M04 gate (lean, 2026-11-19)
 Smoke `node tests/e2e/smoke_dev/smoke.mjs` on the dev stack: upload → ready → search (chunk_id on snippet) → grounded chat answer with citation → evidence chunk → outsider 404 → off-topic abstains. Found + fixed: API container lacked RUSHDB_*/AI_BASE_URL (search 503). Counts on main: API unit 1998, web unit 464, RLS 1749, m04_chat 58, m04_retrieval 73, m04_persistence 64, eval 36 (+ web_search e2e 25). Deferred items: `TEST_DEBT.md`.
+
+## M05 gate (lean, 2026-11-19)
+`GRAPH=1 node tests/e2e/smoke_dev/smoke.mjs` on the dev stack (GRAPH_ENABLED=true): relationship document → async extraction (gemma-3-4b) → entities → neighborhood (4 nodes/3 edges) → claim with evidence → outsider 404 → graph-aided grounded chat answer. Found + fixed: extraction prompt/parser chunk-ref mismatch with the real model (all items dropped). Deferred: `TEST_DEBT.md` (entity search loads entities in Python; no web e2e for the explorer; no real-browser canvas check).
