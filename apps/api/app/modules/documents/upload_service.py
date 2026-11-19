@@ -28,7 +28,7 @@ from typing import Final
 from fastapi import HTTPException
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from sqlalchemy import func, insert, select, update
+from sqlalchemy import func, insert, literal_column, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
@@ -411,7 +411,11 @@ def get_or_create_upload_source(
             created_by=user_id,
         )
         .on_conflict_do_nothing(
-            index_elements=[Source.workspace_id], index_where=Source.kind == SOURCE_KIND_UPLOAD
+            index_elements=[Source.workspace_id],
+            # A LITERAL, not a bound parameter: once psycopg server-side-prepares this statement
+            # (5th execution on a connection) PostgreSQL cannot match a parameterized predicate to
+            # the partial unique index and fails with InvalidColumnReference.
+            index_where=Source.kind == literal_column(f"'{SOURCE_KIND_UPLOAD}'"),
         )
     )
     # READ COMMITTED: a concurrent creator's committed row is visible to this new statement.
