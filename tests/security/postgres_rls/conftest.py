@@ -38,6 +38,7 @@ os.environ.setdefault("REDIS_HOST_PORT", "26544")
 from alembic import command  # noqa: E402
 from alembic.config import Config  # noqa: E402
 from compose_support import ComposeProject, compose_file, require_docker, wait_until  # noqa: E402
+from rls_docs_world import DocWorld, seed_doc_world  # noqa: E402
 from rls_world import World, seed_world  # noqa: E402
 from sqlalchemy import Engine, create_engine, text  # noqa: E402
 from sqlalchemy.engine import URL  # noqa: E402
@@ -47,12 +48,18 @@ require_docker()
 PROJECT = os.environ.get("UKOS_RLS_COMPOSE_PROJECT", "ukos-m01-rls")
 
 
-def _url(stack: ComposeProject, *, app: bool) -> URL:
+def _url(stack: ComposeProject, *, app: bool, worker: bool = False) -> URL:
     env = stack.env
+    if worker:
+        user, password = env["POSTGRES_WORKER_USER"], env["POSTGRES_WORKER_PASSWORD"]
+    elif app:
+        user, password = env["POSTGRES_APP_USER"], env["POSTGRES_APP_PASSWORD"]
+    else:
+        user, password = env["POSTGRES_USER"], env["POSTGRES_PASSWORD"]
     return URL.create(
         "postgresql+psycopg",
-        username=env["POSTGRES_APP_USER"] if app else env["POSTGRES_USER"],
-        password=env["POSTGRES_APP_PASSWORD"] if app else env["POSTGRES_PASSWORD"],
+        username=user,
+        password=password,
         host="127.0.0.1",
         port=int(env["POSTGRES_HOST_PORT"]),
         database=env["POSTGRES_DB"],
@@ -116,6 +123,24 @@ def app_engine(stack: ComposeProject, migrated: None) -> Iterator[Engine]:
 
 
 @pytest.fixture(scope="session")
+def worker_engine(stack: ComposeProject, migrated: None) -> Iterator[Engine]:
+    """The M03 ingestion worker role (``ukos_worker``): LOGIN NOSUPERUSER NOBYPASSRLS."""
+    engine = create_engine(_url(stack, app=False, worker=True), pool_pre_ping=True, pool_size=2)
+    yield engine
+    engine.dispose()
+
+
+@pytest.fixture(scope="session")
+def worker_url(stack: ComposeProject) -> URL:
+    return _url(stack, app=False, worker=True)
+
+
+@pytest.fixture(scope="session")
+def worker_role(stack: ComposeProject) -> str:
+    return str(stack.env["POSTGRES_WORKER_USER"])
+
+
+@pytest.fixture(scope="session")
 def app_url(stack: ComposeProject) -> URL:
     return _url(stack, app=True)
 
@@ -128,3 +153,21 @@ def app_role(stack: ComposeProject) -> str:
 @pytest.fixture(scope="session")
 def world(admin_engine: Engine, migrated: None) -> World:
     return seed_world(admin_engine)
+
+
+@pytest.fixture(scope="session")
+def docs(admin_engine: Engine, world: World) -> DocWorld:
+    """Per-tenant document/ingestion rows for the M02 + M03 tables (admin-seeded)."""
+    return seed_doc_world(admin_engine, world)
+
+
+@pytest.fixture(scope="session")
+def engines(app_engine: Engine, worker_engine: Engine) -> dict[str, Engine]:
+    """Role name (``app`` / ``worker``) -> engine."""
+    return {"app": app_engine, "worker": worker_engine}
+
+
+@pytest.fixture(scope="session")
+def role_names(app_role: str, worker_role: str) -> dict[str, str]:
+    """Role key (``app`` / ``worker``) -> PostgreSQL role name."""
+    return {"app": app_role, "worker": worker_role}
