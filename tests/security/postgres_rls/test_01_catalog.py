@@ -29,6 +29,14 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     "ingestion_checkpoints": {"SELECT"},
     "knowledge_revisions": {"SELECT"},
     "document_publications": {"SELECT"},
+    # M04 (migration 0007): the API creates threads/messages/runs and reads everything of its
+    # own; UPDATE is column-level (threads, ai_policies) or absent (runs go through the
+    # chat_cancel_run definer). Deep coverage: test_17_chat_tables.py.
+    "ai_policies": {"SELECT", "INSERT"},
+    "chat_threads": {"SELECT", "INSERT"},
+    "chat_messages": {"SELECT", "INSERT"},
+    "chat_runs": {"SELECT", "INSERT"},
+    "chat_run_events": {"SELECT"},
 }
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 TRIVIAL = {"true", "(true)", "1 = 1", "(1 = 1)"}

@@ -517,10 +517,17 @@ ORG_SCOPED_TABLES: Final = (
     "knowledge_revisions",
     "document_publications",
     "outbox_events",
+    # M04 (migration 0007, docs/architecture/m04-contracts.md §5, §8).
+    "ai_policies",
+    "chat_threads",
+    "chat_messages",
+    "chat_runs",
+    "chat_run_events",
 )
 RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
 
 # Register the M03 models on ``Base.metadata`` (they live in the ingestion module; imported last
 # because they import ``Base`` from here). Keeps ``Base.metadata.tables == RLS_TABLES`` true for
 # every importer of this module.
+from app.modules.ai import models_db as _ai_models  # noqa: E402, F401
 from app.modules.ingestion import models as _ingestion_models  # noqa: E402, F401

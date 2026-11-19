@@ -40,6 +40,9 @@ CONTRACT_EVENT_TYPES = {
     "document.deleted",
     "document.version.indexed",
     "document.ingestion.retried",
+    "org.ai_policy.updated",
+    "chat.run.created",
+    "chat.thread.deleted",
 }
 
 

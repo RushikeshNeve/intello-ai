@@ -61,6 +61,10 @@ class AuditEventType(StrEnum):
     DOCUMENT_VERSION_INDEXED = "document.version.indexed"
     # M03.03.04: a user re-queued a dead/unsupported ingestion job.
     DOCUMENT_INGESTION_RETRIED = "document.ingestion.retried"
+    # M04 (contract §5, §8): counts and ids only, never question or answer text.
+    ORG_AI_POLICY_UPDATED = "org.ai_policy.updated"
+    CHAT_RUN_CREATED = "chat.run.created"
+    CHAT_THREAD_DELETED = "chat.thread.deleted"
 
 
 class SessionOpener(Protocol):

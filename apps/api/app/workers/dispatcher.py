@@ -34,14 +34,17 @@ from typing import Any, Final
 from sqlalchemy import Engine, text
 
 from app.modules.ingestion.models import (
+    EVENT_CHAT_RUN_QUEUED,
     EVENT_DOCUMENT_DELETED,
     EVENT_JOB_QUEUED,
     EVENT_RECONCILE,
     EVENT_REVISION_PUBLISHED,
 )
 from app.workers.celery_app import (
+    QUEUE_CHAT,
     QUEUE_INGEST,
     QUEUE_MAINTENANCE,
+    TASK_CHAT_RUN,
     TASK_DELETE_DOCUMENT,
     TASK_RECONCILE,
     TASK_RUN_JOB,
@@ -96,6 +99,10 @@ def _job_queued(row: OutboxRow) -> Delivery:
     return Delivery(TASK_RUN_JOB, QUEUE_INGEST, (_uuid(row.payload.get("job_id"), "job_id"),))
 
 
+def _chat_run_queued(row: OutboxRow) -> Delivery:
+    return Delivery(TASK_CHAT_RUN, QUEUE_CHAT, (_uuid(row.payload.get("run_id"), "run_id"),))
+
+
 def _document_task(task: str) -> Callable[[OutboxRow], Delivery]:
     def build(row: OutboxRow) -> Delivery:
         document_id = row.payload.get("document_id", row.aggregate_id)
@@ -110,6 +117,7 @@ def _document_task(task: str) -> Callable[[OutboxRow], Delivery]:
 # what the event is for (flag flip of the new revision, purge of the superseded one).
 ROUTES: Final[Mapping[str, Callable[[OutboxRow], Delivery]]] = {
     EVENT_JOB_QUEUED: _job_queued,
+    EVENT_CHAT_RUN_QUEUED: _chat_run_queued,
     EVENT_DOCUMENT_DELETED: _document_task(TASK_DELETE_DOCUMENT),
     EVENT_RECONCILE: _document_task(TASK_RECONCILE),
     EVENT_REVISION_PUBLISHED: _document_task(TASK_RECONCILE),

@@ -36,12 +36,15 @@ M03_DEFINERS = [
 ]
 # M03.03.04 (migration 0006): the one definer the APP role may call (a user's "retry"); it only
 # acts on the caller's own org (app.current_org_id) and PUBLIC still may not execute it.
-APP_DEFINERS = ["ingest_requeue_job"]
+# M04 (migration 0007): worker-only definers (see test_17_chat_tables.py for their depth) and the one
+# app-role definer, a creator's own "cancel run" (acts on app.current_org_id + app.current_user_id).
+M04_WORKER_DEFINERS = ["chat_claim_run", "chat_reap_expired_runs", "chat_readable_workspaces"]
+APP_DEFINERS = ["ingest_requeue_job", "chat_cancel_run"]
 
 
 def test_expected_definer_inventory(admin_engine: Engine, migrated: None) -> None:
     assert sorted(name for name, _, _ in _definers(admin_engine)) == sorted(
-        ["ukos_assert_org_has_owner", *M03_DEFINERS, *APP_DEFINERS]
+        ["ukos_assert_org_has_owner", *M03_DEFINERS, *M04_WORKER_DEFINERS, *APP_DEFINERS]
     )
 
 

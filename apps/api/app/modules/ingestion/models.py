@@ -61,11 +61,13 @@ EVENT_JOB_QUEUED: Final = "ingestion.job.queued"
 EVENT_REVISION_PUBLISHED: Final = "knowledge.revision.published"
 EVENT_DOCUMENT_DELETED: Final = "document.deleted"
 EVENT_RECONCILE: Final = "knowledge.reconcile"
+EVENT_CHAT_RUN_QUEUED: Final = "chat.run.queued"  # M04 (migration 0007)
 OUTBOX_EVENT_TYPES: Final = (
     EVENT_JOB_QUEUED,
     EVENT_REVISION_PUBLISHED,
     EVENT_DOCUMENT_DELETED,
     EVENT_RECONCILE,
+    EVENT_CHAT_RUN_QUEUED,
 )
 
 AGGREGATE_INGESTION_JOB: Final = "ingestion_job"

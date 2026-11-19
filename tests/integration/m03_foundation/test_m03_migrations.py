@@ -19,7 +19,8 @@ from app.core.models import ORG_SCOPED_TABLES, RLS_TABLES, Base
 from app.modules.ingestion.models import INGESTION_TABLES
 
 REVISION = "0005_ingestion"
-HEAD = "0006_ingestion_requeue"  # M03.03.04: ingest_requeue_job on top of 0005
+HEAD = "0007_chat_and_ai_policy"  # M04: chat + ai policy on top of 0006 (M03.03.04 requeue)
+M03_HEAD = "0006_ingestion_requeue"  # M03.03.04: ingest_requeue_job on top of 0005
 PREVIOUS = "0004_upload_session_title"
 PROBE = "ukos_probe_worker"
 FUNCTIONS = {
@@ -67,10 +68,11 @@ def _role(engine: Engine, name: str) -> tuple[Any, ...] | None:
     return None if row is None else tuple(row)
 
 
-def test_head_is_0006(alembic_config: Config) -> None:
+def test_head_is_0007_on_top_of_the_m03_chain(alembic_config: Config) -> None:
     script = ScriptDirectory.from_config(alembic_config)
     assert script.get_heads() == [HEAD]
-    assert script.get_revision(HEAD).down_revision == REVISION
+    assert script.get_revision(HEAD).down_revision == M03_HEAD
+    assert script.get_revision(M03_HEAD).down_revision == REVISION
     assert script.get_revision(REVISION).down_revision == PREVIOUS
 
 
