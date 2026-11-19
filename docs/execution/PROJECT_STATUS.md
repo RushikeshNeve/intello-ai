@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-11-19 · **Current milestone:** M02 complete, gate PASSED → M03 (Reliable Knowledge Ingestion) next
+**Updated:** 2026-11-19 · **Current milestone:** M03 complete, gate PASSED → M04 (Search & grounded chat) next
 **Source of truth:** this Git repository. Notion mirror: **not synchronized** (no Notion integration in this session).
 
 ## Summary
@@ -10,13 +10,13 @@
 | M00 Architecture & local infra | 13 | **13** | 0 | **PASSED (conditional)**, 2026-11-16 |
 | M01 Identity, orgs, workspaces | 12 | **12** | 0 | **PASSED**, 2026-11-18 |
 | M02 Documents & object storage | 11 | **11** | 0 | **PASSED**, 2026-11-19 |
-| M03 Reliable ingestion | 14 | 0 | 0 | ready to start |
-| M04 Search & grounded chat | 13 | 0 | 0 | blocked on M03 gate |
+| M03 Reliable ingestion | 14 | **14** | 0 | **PASSED**, 2026-11-19 (17/17 full-stack scenarios) |
+| M04 Search & grounded chat | 13 | 0 | 0 | ready to start |
 | M05 Graph & GraphRAG | 11 | 0 | 0 | blocked on M04 gate |
 | M06 Connectors & formats | 11 | 0 | 0 | blocked on M05 gate |
 | M07 Memory, research, UX | 11 | 0 | 0 | blocked on M06 gate |
 | M08 Security, eval, release | 12 | 0 | 0 | blocked on M07 gate |
-| **Total** | **108** | **36** | **0** | |
+| **Total** | **108** | **50** | **0** | |
 
 ## M00 exit gate (definition in `DEPENDENCY_GRAPH.md`, DC-007)
 
@@ -81,3 +81,18 @@ i7-14650HX, 23.7 GB RAM (the Docker VM holds about 9.4 GB), RTX 5050 Laptop 8 GB
 4. The npm scaffold has audit advisories (to triage in M08.03.01).
 
 See `ACTIVE_TASKS.md`, `BLOCKERS.md`, `DECISION_CHANGES.md`, `SESSION_HANDOFF.md`.
+
+## M03 exit gate (2026-11-19)
+
+| Gate condition | Result | Evidence |
+|---|---|---|
+| Full stack incl. real `worker` + `dispatcher` containers, RushDB, RustFS, stub embeddings | ✅ 17/17 | `bash tests/e2e/fullstack_m03/run.sh` (run by the agent twice, then by the coordinator on `main`, exit 0, log scan clean) |
+| Upload → ready for TXT/MD/HTML/PDF; unsupported / no-text / corrupt terminal states | ✅ | scenarios 1, 5a |
+| Partial index never visible; new version isolation; idempotent re-delivery | ✅ | scenarios 3, 4, 6c |
+| Crash injection (worker, dispatcher, RushDB, embedder), dead-letter + retry, reconcile | ✅ | scenarios 5b, 6a-e |
+| Deletion: immediate denial, purge of chunks and artifacts | ✅ (vector index stats do not drop: DC-024(7), M08 item) | scenario 7 |
+| Tenancy/security: concealed 404, no ports, role checks, no secrets in logs | ✅ | scenarios 8, 99; RLS suite 1552 |
+
+Counts on `main`: API unit 1552; DB suites m03_foundation 250, m03_runtime 25, m03_pipeline 44, m03_status 52; RLS 1552; web unit 325; web e2e documents 21 / tenancy 6 / auth 12; strict mypy clean.
+
+**Known items carried:** `unsupported` files still show Retry (decide in M06); no real-browser pass of the new UI yet (user manual test §5c); real LM Studio throughput unmeasured; first-upload ON CONFLICT bug (M02) fixed by the gate (dev stack needs rebuild); GraphRAG/Claim cleanup in RushDB deletion belongs to M05; physical purge of originals (object delete, `purged_at`) still open; in-memory web session store; style findings in older tests (M08.03.01).

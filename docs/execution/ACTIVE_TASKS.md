@@ -81,8 +81,8 @@ Parallel-safety (batch A): the foundation agent owns migrations, `models.py`, `c
 | M03.03.01 | RushDB knowledge repository adapter | rushdb-agent | agent/m03-rushdb-adapter | contract | DONE (76 unit + 63 real RushDB) |
 | M03.01.02-04 | Outbox dispatcher, Celery queues, claims/leases/heartbeats/fencing | runtime-agent | agent/m03-runtime | batch A | DONE (25 real Postgres/Redis/Celery) |
 | M03.02.04, M03.03.02-03 | Checkpoints, versioned indexing, publication barrier, deletion | pipeline-agent | agent/m03-pipeline | batch A | DONE (44 incl. real RushDB + RustFS) |
-| M03.03.04 | Status API/SSE + retry (0006) | status-api-agent | agent/m03-status-api | batch B | IN PROGRESS |
-| M03.03.04 | Status UI | web-agent | agent/m03-status-ui | contract | IN PROGRESS |
-| (coverage) | Adversarial RLS tests for M02+M03 tables | rls-agent | agent/m03-rls-coverage | batch A | IN PROGRESS |
-| M03.03.05 | Retry/dead-letter/crash-injection tests | coordinator | main | batch C | TODO (gate) |
-| (gate) | M03 full-stack e2e + exit gate | coordinator | main | all | TODO |
+| M03.03.04 | Status API/SSE + retry (0006) | status-api-agent | agent/m03-status-api | batch B | DONE |
+| M03.03.04 | Status UI | web-agent | agent/m03-status-ui | contract | DONE |
+| (coverage) | Adversarial RLS tests for M02+M03 tables | rls-agent | agent/m03-rls-coverage | batch A | DONE |
+| M03.03.05 | Retry/dead-letter/crash-injection tests | gate-agent | agent/m03-gate | batch C | DONE (scenarios 5b, 6a-e) |
+| (gate) | M03 full-stack e2e + exit gate | gate-agent + coordinator | main | all | DONE (17/17) |
