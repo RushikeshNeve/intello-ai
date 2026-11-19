@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-11-19 · **Current milestone:** M03 complete, gate PASSED → M04 (Search & grounded chat) next
+**Updated:** 2026-11-19 · **Current milestone:** M04 complete (smoke gate PASSED) → M05 (graph) in progress
 **Source of truth:** this Git repository. Notion mirror: **not synchronized** (no Notion integration in this session).
 
 ## Summary
@@ -11,12 +11,12 @@
 | M01 Identity, orgs, workspaces | 12 | **12** | 0 | **PASSED**, 2026-11-18 |
 | M02 Documents & object storage | 11 | **11** | 0 | **PASSED**, 2026-11-19 |
 | M03 Reliable ingestion | 14 | **14** | 0 | **PASSED**, 2026-11-19 (17/17 full-stack scenarios) |
-| M04 Search & grounded chat | 13 | 0 | 0 | ready to start |
+| M04 Search & grounded chat | 13 | **13** | 0 | **PASSED** (lean smoke on the live stack with real LM Studio), 2026-11-19 |
 | M05 Graph & GraphRAG | 11 | 0 | 0 | blocked on M04 gate |
 | M06 Connectors & formats | 11 | 0 | 0 | blocked on M05 gate |
 | M07 Memory, research, UX | 11 | 0 | 0 | blocked on M06 gate |
 | M08 Security, eval, release | 12 | 0 | 0 | blocked on M07 gate |
-| **Total** | **108** | **50** | **0** | |
+| **Total** | **108** | **63** | **0** | |
 
 ## M00 exit gate (definition in `DEPENDENCY_GRAPH.md`, DC-007)
 
@@ -96,3 +96,6 @@ See `ACTIVE_TASKS.md`, `BLOCKERS.md`, `DECISION_CHANGES.md`, `SESSION_HANDOFF.md
 Counts on `main`: API unit 1552; DB suites m03_foundation 250, m03_runtime 25, m03_pipeline 44, m03_status 52; RLS 1552; web unit 325; web e2e documents 21 / tenancy 6 / auth 12; strict mypy clean.
 
 **Known items carried:** `unsupported` files still show Retry (decide in M06); no real-browser pass of the new UI yet (user manual test §5c); real LM Studio throughput unmeasured; first-upload ON CONFLICT bug (M02) fixed by the gate (dev stack needs rebuild); GraphRAG/Claim cleanup in RushDB deletion belongs to M05; physical purge of originals (object delete, `purged_at`) still open; in-memory web session store; style findings in older tests (M08.03.01).
+
+## M04 gate (lean, 2026-11-19)
+Smoke `node tests/e2e/smoke_dev/smoke.mjs` on the dev stack: upload → ready → search (chunk_id on snippet) → grounded chat answer with citation → evidence chunk → outsider 404 → off-topic abstains. Found + fixed: API container lacked RUSHDB_*/AI_BASE_URL (search 503). Counts on main: API unit 1998, web unit 464, RLS 1749, m04_chat 58, m04_retrieval 73, m04_persistence 64, eval 36 (+ web_search e2e 25). Deferred items: `TEST_DEBT.md`.

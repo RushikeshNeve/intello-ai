@@ -959,7 +959,7 @@ test("8b. containers: no host ports for worker/dispatcher; no RushDB token in we
     const env = docker(`exec ${ctr(s)} env`);
     assert.ok(!/RUSHDB|DATABASE_WORKER|POSTGRES_WORKER|CELERY|S3_SECRET/.test(env), `${s} container has no RushDB/worker/broker/storage secrets`);
   }
-  assert.ok(!/RUSHDB_TOKEN/.test(docker(`exec ${ctr("api")} env`)), "the API container does not hold the RushDB token either (only the worker does)");
+  // M04: search runs inside the API, so the API now holds the RushDB token too (web never does).
 
   const t = ws.happy;
   const W = "change-me-postgres-worker";

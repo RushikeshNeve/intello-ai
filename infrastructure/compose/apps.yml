@@ -68,6 +68,10 @@ services:
       AI_EMBEDDING_QUERY_PREFIX: "${AI_EMBEDDING_QUERY_PREFIX:-task: search result | query: }"
       AI_EMBEDDING_DOCUMENT_PREFIX: "${AI_EMBEDDING_DOCUMENT_PREFIX:-title: none | text: }"
       AI_EMBEDDING_SPEC_VERSION: ${AI_EMBEDDING_SPEC_VERSION:-1}
+      # Search runs in the API (M04): the knowledge index and the embedding server (query vectors).
+      RUSHDB_URL: ${RUSHDB_URL:-http://rushdb:3000}
+      RUSHDB_TOKEN: ${RUSHDB_TOKEN:?RUSHDB_TOKEN is required}
+      AI_BASE_URL: ${AI_BASE_URL:-http://host.docker.internal:1234/v1}
       # Search, chat, verification and external-provider gating (M04 contract §11).
       SEARCH_DEFAULT_LIMIT: ${SEARCH_DEFAULT_LIMIT:-10}
       SEARCH_CANDIDATES: ${SEARCH_CANDIDATES:-50}
