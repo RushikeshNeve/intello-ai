@@ -1,0 +1,11 @@
+Lighthouse Keeper's Log
+
+This is an original plain-text sample. It contains a few paragraphs, some	tab characters,
+and   irregular   spacing that normalization should collapse.
+
+Unicode survives: café, naïve, Ωmega, 数据, and an emoji 🙂 appear here.
+This second line belongs to the same paragraph.
+
+
+
+After several blank lines a new paragraph begins.

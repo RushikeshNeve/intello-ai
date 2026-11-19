@@ -1,0 +1,2 @@
+# Fixture inputs are byte-exact (encodings, BOMs, line endings): never normalize them.
+inputs/* -text

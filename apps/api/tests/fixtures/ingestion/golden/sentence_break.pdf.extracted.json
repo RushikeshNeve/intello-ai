@@ -1,0 +1,42 @@
+{
+  "blocks": [
+    {
+      "block_id": "b0",
+      "kind": "paragraph",
+      "locator": {
+        "char_end": 179,
+        "char_start": 0,
+        "kind": "page",
+        "page": 1
+      },
+      "text": "Minutes of the committee meeting. The members reviewed the budget for the coming year and,\nafter a long discussion about the cost of the new library roof, the committee decided to"
+    },
+    {
+      "block_id": "b1",
+      "kind": "paragraph",
+      "locator": {
+        "char_end": 264,
+        "char_start": 181,
+        "kind": "page",
+        "page": 2
+      },
+      "text": "postpone the vote until the next meeting. The chair thanked everyone for attending."
+    }
+  ],
+  "modality": "pdf",
+  "processor": {
+    "name": "pdf",
+    "version": "1"
+  },
+  "schema_version": 1,
+  "source": {
+    "byte_size": 1575,
+    "content_type": "application/pdf",
+    "sha256": "3ad8041921b204907c55541b3410713493d1cf365427ff82806cfe39c49e45fc",
+    "version_id": "22222222-2222-4222-8222-222222222222"
+  },
+  "stats": {
+    "chars": 264,
+    "pages": 2
+  }
+}

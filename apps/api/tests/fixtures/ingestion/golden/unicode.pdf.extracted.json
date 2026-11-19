@@ -1,0 +1,31 @@
+{
+  "blocks": [
+    {
+      "block_id": "b0",
+      "kind": "paragraph",
+      "locator": {
+        "char_end": 140,
+        "char_start": 0,
+        "kind": "page",
+        "page": 1
+      },
+      "text": "Unicode sample\nGreek: Γεια σου κόσμε. Η θάλασσα είναι γαλήνια.\nCyrillic: Привет, мир! Море спокойно.\nLatin: café naïve façade Łódź Ångström."
+    }
+  ],
+  "modality": "pdf",
+  "processor": {
+    "name": "pdf",
+    "version": "1"
+  },
+  "schema_version": 1,
+  "source": {
+    "byte_size": 13432,
+    "content_type": "application/pdf",
+    "sha256": "c4d3eb7a5280bb38716bbb1ac79c7cb501bb1892898b0d757a1ef20434264725",
+    "version_id": "22222222-2222-4222-8222-222222222222"
+  },
+  "stats": {
+    "chars": 140,
+    "pages": 1
+  }
+}

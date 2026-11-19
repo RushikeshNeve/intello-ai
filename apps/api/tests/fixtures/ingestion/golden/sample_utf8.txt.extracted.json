@@ -1,0 +1,67 @@
+{
+  "blocks": [
+    {
+      "block_id": "b0",
+      "kind": "paragraph",
+      "locator": {
+        "char_end": 23,
+        "char_start": 0,
+        "kind": "line",
+        "line_end": 1,
+        "line_start": 1
+      },
+      "text": "Lighthouse Keeper's Log"
+    },
+    {
+      "block_id": "b1",
+      "kind": "paragraph",
+      "locator": {
+        "char_end": 172,
+        "char_start": 25,
+        "kind": "line",
+        "line_end": 4,
+        "line_start": 3
+      },
+      "text": "This is an original plain-text sample. It contains a few paragraphs, some tab characters,\nand irregular spacing that normalization should collapse."
+    },
+    {
+      "block_id": "b2",
+      "kind": "paragraph",
+      "locator": {
+        "char_end": 291,
+        "char_start": 174,
+        "kind": "line",
+        "line_end": 7,
+        "line_start": 6
+      },
+      "text": "Unicode survives: café, naïve, Ωmega, 数据, and an emoji 🙂 appear here.\nThis second line belongs to the same paragraph."
+    },
+    {
+      "block_id": "b3",
+      "kind": "paragraph",
+      "locator": {
+        "char_end": 342,
+        "char_start": 293,
+        "kind": "line",
+        "line_end": 11,
+        "line_start": 11
+      },
+      "text": "After several blank lines a new paragraph begins."
+    }
+  ],
+  "modality": "text",
+  "processor": {
+    "name": "text",
+    "version": "1"
+  },
+  "schema_version": 1,
+  "source": {
+    "byte_size": 359,
+    "content_type": "text/plain",
+    "sha256": "b7cd5aeac9505e94b446ba107ad1792e2b5594ea17c775a6e964b60562c40430",
+    "version_id": "22222222-2222-4222-8222-222222222222"
+  },
+  "stats": {
+    "chars": 342
+  }
+}

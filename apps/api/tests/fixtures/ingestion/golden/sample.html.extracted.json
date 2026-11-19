@@ -1,0 +1,179 @@
+{
+  "blocks": [
+    {
+      "block_id": "b0",
+      "kind": "heading",
+      "level": 1,
+      "locator": {
+        "char_end": 14,
+        "char_start": 0,
+        "kind": "offset",
+        "section_path": [
+          "Orchard Report"
+        ]
+      },
+      "text": "Orchard Report"
+    },
+    {
+      "block_id": "b1",
+      "kind": "paragraph",
+      "locator": {
+        "char_end": 84,
+        "char_start": 16,
+        "kind": "offset",
+        "section_path": [
+          "Orchard Report"
+        ]
+      },
+      "text": "Welcome to the orchard. Trees & shrubs grow here year-round, © 2026."
+    },
+    {
+      "block_id": "b2",
+      "kind": "heading",
+      "level": 2,
+      "locator": {
+        "char_end": 93,
+        "char_start": 86,
+        "kind": "offset",
+        "section_path": [
+          "Orchard Report",
+          "Harvest"
+        ]
+      },
+      "text": "Harvest"
+    },
+    {
+      "block_id": "b3",
+      "kind": "paragraph",
+      "locator": {
+        "char_end": 138,
+        "char_start": 95,
+        "kind": "offset",
+        "section_path": [
+          "Orchard Report",
+          "Harvest"
+        ]
+      },
+      "text": "Apples ripen first.\nPears follow in autumn."
+    },
+    {
+      "block_id": "b4",
+      "kind": "list",
+      "locator": {
+        "char_end": 178,
+        "char_start": 140,
+        "kind": "offset",
+        "section_path": [
+          "Orchard Report",
+          "Harvest"
+        ]
+      },
+      "text": "- Apples\n- Pears\n- Conference\n- Comice"
+    },
+    {
+      "block_id": "b5",
+      "kind": "list",
+      "locator": {
+        "char_end": 195,
+        "char_start": 180,
+        "kind": "offset",
+        "section_path": [
+          "Orchard Report",
+          "Harvest"
+        ]
+      },
+      "text": "1. Pick\n2. Sort"
+    },
+    {
+      "block_id": "b6",
+      "kind": "heading",
+      "level": 3,
+      "locator": {
+        "char_end": 203,
+        "char_start": 197,
+        "kind": "offset",
+        "section_path": [
+          "Orchard Report",
+          "Harvest",
+          "Yields"
+        ]
+      },
+      "text": "Yields"
+    },
+    {
+      "block_id": "b7",
+      "kind": "table",
+      "locator": {
+        "char_end": 253,
+        "char_start": 205,
+        "kind": "offset",
+        "section_path": [
+          "Orchard Report",
+          "Harvest",
+          "Yields"
+        ]
+      },
+      "text": "Yield by tree\nTree | Kilos\nApple | 120\nPear | 95"
+    },
+    {
+      "block_id": "b8",
+      "kind": "code",
+      "locator": {
+        "char_end": 279,
+        "char_start": 255,
+        "kind": "offset",
+        "section_path": [
+          "Orchard Report",
+          "Harvest",
+          "Yields"
+        ]
+      },
+      "text": "row 1\n  indented   row 2"
+    },
+    {
+      "block_id": "b9",
+      "kind": "quote",
+      "locator": {
+        "char_end": 316,
+        "char_start": 281,
+        "kind": "offset",
+        "section_path": [
+          "Orchard Report",
+          "Harvest",
+          "Yields"
+        ]
+      },
+      "text": "Plant in spring.\nHarvest in autumn."
+    },
+    {
+      "block_id": "b10",
+      "kind": "paragraph",
+      "locator": {
+        "char_end": 326,
+        "char_start": 318,
+        "kind": "offset",
+        "section_path": [
+          "Orchard Report",
+          "Harvest",
+          "Yields"
+        ]
+      },
+      "text": "The end."
+    }
+  ],
+  "modality": "html",
+  "processor": {
+    "name": "html",
+    "version": "1"
+  },
+  "schema_version": 1,
+  "source": {
+    "byte_size": 1735,
+    "content_type": "text/html",
+    "sha256": "dada48dd9add81cf0bf2ccf60680a289ae8ad54bf67842ce0484836c2bd928b0",
+    "version_id": "22222222-2222-4222-8222-222222222222"
+  },
+  "stats": {
+    "chars": 326
+  }
+}

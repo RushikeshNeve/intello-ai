@@ -1,0 +1,50 @@
+[
+  {
+    "chunk_id": "00c52919-9bdc-5095-9260-824e00580fcf",
+    "chunk_index": 0,
+    "content_hash": "33c73deb2ad3f3333a7f80bf05eb241e77c8a0068a2982d055d9d96da04a603a",
+    "heading_path": [],
+    "locators": [
+      {
+        "char_end": 16,
+        "char_start": 0,
+        "kind": "line",
+        "line_end": 1,
+        "line_start": 1
+      },
+      {
+        "char_end": 178,
+        "char_start": 18,
+        "kind": "line",
+        "line_end": 3,
+        "line_start": 3
+      }
+    ],
+    "text": "Journal du phare\n\nLe gardien a noté que la marée était très haute ce matin. Les bateaux sont rentrés tôt, et le café était déjà prêt. À midi, une tempête s'est levée sur la côte.",
+    "token_estimate": 45
+  },
+  {
+    "chunk_id": "cafca652-c635-5e48-8ca0-0b17efa9376a",
+    "chunk_index": 1,
+    "content_hash": "ba92a41b2e921e3cd6d5d3cd0bb5c46c87f2a61e9eb2763c1fb53f27de25ac01",
+    "heading_path": [],
+    "locators": [
+      {
+        "char_end": 324,
+        "char_start": 180,
+        "kind": "line",
+        "line_end": 5,
+        "line_start": 5
+      },
+      {
+        "char_end": 406,
+        "char_start": 326,
+        "kind": "line",
+        "line_end": 7,
+        "line_start": 7
+      }
+    ],
+    "text": "Nachtrag auf Deutsch: Die Straße zum Hafen ist wegen des Sturms gesperrt. Über der Küste hängen schwere Wolken, und die Fähre fährt heute nicht.\n\nÚltimo apunte: el faro funciona con normalidad; la niebla es espesa en la bahía.",
+    "token_estimate": 57
+  }
+]

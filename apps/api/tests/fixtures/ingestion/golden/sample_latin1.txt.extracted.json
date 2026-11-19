@@ -1,0 +1,67 @@
+{
+  "blocks": [
+    {
+      "block_id": "b0",
+      "kind": "paragraph",
+      "locator": {
+        "char_end": 16,
+        "char_start": 0,
+        "kind": "line",
+        "line_end": 1,
+        "line_start": 1
+      },
+      "text": "Journal du phare"
+    },
+    {
+      "block_id": "b1",
+      "kind": "paragraph",
+      "locator": {
+        "char_end": 178,
+        "char_start": 18,
+        "kind": "line",
+        "line_end": 3,
+        "line_start": 3
+      },
+      "text": "Le gardien a noté que la marée était très haute ce matin. Les bateaux sont rentrés tôt, et le café était déjà prêt. À midi, une tempête s'est levée sur la côte."
+    },
+    {
+      "block_id": "b2",
+      "kind": "paragraph",
+      "locator": {
+        "char_end": 324,
+        "char_start": 180,
+        "kind": "line",
+        "line_end": 5,
+        "line_start": 5
+      },
+      "text": "Nachtrag auf Deutsch: Die Straße zum Hafen ist wegen des Sturms gesperrt. Über der Küste hängen schwere Wolken, und die Fähre fährt heute nicht."
+    },
+    {
+      "block_id": "b3",
+      "kind": "paragraph",
+      "locator": {
+        "char_end": 406,
+        "char_start": 326,
+        "kind": "line",
+        "line_end": 7,
+        "line_start": 7
+      },
+      "text": "Último apunte: el faro funciona con normalidad; la niebla es espesa en la bahía."
+    }
+  ],
+  "modality": "text",
+  "processor": {
+    "name": "text",
+    "version": "1"
+  },
+  "schema_version": 1,
+  "source": {
+    "byte_size": 407,
+    "content_type": "text/plain",
+    "sha256": "83fc39caf785755ba28386e5e66fc1ecdcecc2f4cb9595f26a62cf26f3268b1b",
+    "version_id": "22222222-2222-4222-8222-222222222222"
+  },
+  "stats": {
+    "chars": 406
+  }
+}

@@ -1,0 +1,209 @@
+[
+  {
+    "chunk_id": "00c52919-9bdc-5095-9260-824e00580fcf",
+    "chunk_index": 0,
+    "content_hash": "ca5b0add668d6cb8f98aec4f850cec2afdc37dfd0343cf5dd0bc911b324612e2",
+    "heading_path": [
+      "Harbour Notes"
+    ],
+    "locators": [
+      {
+        "char_end": 13,
+        "char_start": 0,
+        "kind": "line",
+        "line_end": 6,
+        "line_start": 6,
+        "section_path": [
+          "Harbour Notes"
+        ]
+      },
+      {
+        "char_end": 134,
+        "char_start": 15,
+        "kind": "line",
+        "line_end": 9,
+        "line_start": 8,
+        "section_path": [
+          "Harbour Notes"
+        ]
+      },
+      {
+        "char_end": 141,
+        "char_start": 136,
+        "kind": "line",
+        "line_end": 11,
+        "line_start": 11,
+        "section_path": [
+          "Harbour Notes",
+          "Tides"
+        ]
+      },
+      {
+        "char_end": 243,
+        "char_start": 143,
+        "kind": "line",
+        "line_end": 13,
+        "line_start": 13,
+        "section_path": [
+          "Harbour Notes",
+          "Tides"
+        ]
+      }
+    ],
+    "text": "Harbour Notes\n\nAn original sample document used to test the Markdown processor. It has a short\nintroduction that wraps over two lines.\n\nTides\n\nThe tide table is read twice a day. Low water comes first; high water follows about six hours later.",
+    "token_estimate": 61
+  },
+  {
+    "chunk_id": "cafca652-c635-5e48-8ca0-0b17efa9376a",
+    "chunk_index": 1,
+    "content_hash": "aa24379861cad873e186f5a362805d63a8306c6752893217fe29ab94301da310",
+    "heading_path": [
+      "Harbour Notes",
+      "Tides",
+      "Spring tides"
+    ],
+    "locators": [
+      {
+        "char_end": 257,
+        "char_start": 245,
+        "kind": "line",
+        "line_end": 15,
+        "line_start": 15,
+        "section_path": [
+          "Harbour Notes",
+          "Tides",
+          "Spring tides"
+        ]
+      },
+      {
+        "char_end": 378,
+        "char_start": 259,
+        "kind": "line",
+        "line_end": 18,
+        "line_start": 17,
+        "section_path": [
+          "Harbour Notes",
+          "Tides",
+          "Spring tides"
+        ]
+      },
+      {
+        "char_end": 450,
+        "char_start": 380,
+        "kind": "line",
+        "line_end": 23,
+        "line_start": 20,
+        "section_path": [
+          "Harbour Notes",
+          "Tides",
+          "Spring tides"
+        ]
+      },
+      {
+        "char_end": 480,
+        "char_start": 452,
+        "kind": "line",
+        "line_end": 26,
+        "line_start": 25,
+        "section_path": [
+          "Harbour Notes",
+          "Tides",
+          "Spring tides"
+        ]
+      },
+      {
+        "char_end": 524,
+        "char_start": 482,
+        "kind": "line",
+        "line_end": 29,
+        "line_start": 28,
+        "section_path": [
+          "Harbour Notes",
+          "Tides",
+          "Spring tides"
+        ]
+      }
+    ],
+    "text": "Spring tides\n\nSpring tides are the largest. See the tide chart for details, and\nthe harbour map for the layout. Raw tags are dropped.\n\n- Check the gauge\n- Log the reading\n- Note the time\n- Report anomalies\n\n1. First step\n2. Second step\n\nThe sea is calm today.\nVisibility is good.",
+    "token_estimate": 70
+  },
+  {
+    "chunk_id": "c290e24b-f268-52d7-8df0-40ca75fbd8fa",
+    "chunk_index": 2,
+    "content_hash": "838db0d908472ee6cfb6b528daf8ee1b236f4bf5fafd0d56acbe0e065b130dca",
+    "heading_path": [
+      "Harbour Notes",
+      "Neap tides"
+    ],
+    "locators": [
+      {
+        "char_end": 536,
+        "char_start": 526,
+        "kind": "line",
+        "line_end": 32,
+        "line_start": 31,
+        "section_path": [
+          "Harbour Notes",
+          "Neap tides"
+        ]
+      },
+      {
+        "char_end": 600,
+        "char_start": 538,
+        "kind": "line",
+        "line_end": 34,
+        "line_start": 34,
+        "section_path": [
+          "Harbour Notes",
+          "Neap tides"
+        ]
+      },
+      {
+        "char_end": 607,
+        "char_start": 602,
+        "kind": "line",
+        "line_end": 36,
+        "line_start": 36,
+        "section_path": [
+          "Harbour Notes",
+          "Tools"
+        ]
+      },
+      {
+        "char_end": 712,
+        "char_start": 609,
+        "kind": "line",
+        "line_end": 44,
+        "line_start": 38,
+        "section_path": [
+          "Harbour Notes",
+          "Tools"
+        ]
+      },
+      {
+        "char_end": 763,
+        "char_start": 714,
+        "kind": "line",
+        "line_end": 49,
+        "line_start": 46,
+        "section_path": [
+          "Harbour Notes",
+          "Tools"
+        ]
+      },
+      {
+        "char_end": 792,
+        "char_start": 765,
+        "kind": "line",
+        "line_end": 55,
+        "line_start": 55,
+        "section_path": [
+          "Harbour Notes",
+          "Tools"
+        ]
+      }
+    ],
+    "text": "Neap tides\n\nNeap tides are the smallest. They have a Setext heading above.\n\nTools\n\ndef depth(gauge):\n    if gauge > 3:   # keep   spacing here\n        return \"deep\"\n\n    return \"shallow\"\n\nTool | Use\nGauge | Reads depth\nLog | Records data\n\nFinal paragraph & sign-off.",
+    "token_estimate": 67
+  }
+]

@@ -1,0 +1,20 @@
+[
+  {
+    "chunk_id": "00c52919-9bdc-5095-9260-824e00580fcf",
+    "chunk_index": 0,
+    "content_hash": "426486e4ba82b80d3b8adda782c3948c33aa2dddac64d701cf080fd97f94986d",
+    "heading_path": [],
+    "locators": [
+      {
+        "char_end": 140,
+        "char_start": 0,
+        "kind": "page",
+        "page": 1
+      }
+    ],
+    "page_end": 1,
+    "page_start": 1,
+    "text": "Unicode sample\nGreek: Γεια σου κόσμε. Η θάλασσα είναι γαλήνια.\nCyrillic: Привет, мир! Море спокойно.\nLatin: café naïve façade Łódź Ångström.",
+    "token_estimate": 35
+  }
+]
