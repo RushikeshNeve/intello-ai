@@ -112,6 +112,39 @@ docker exec ukos-postgres-1 psql -U ukos_admin -d ukos -c "SELECT email, created
 You should see `user.provisioned` for each user, `org.created`, `org.member.added`, `workspace.created`,
 `workspace.member.added`, and `authz.denied` (`denied`) for the 403/404 attempts.
 
+## 5b. Documents (M02): upload, search, versions, delete
+
+Do this as **alice** in the org and workspace from step 2 (and again as bob and mallory at the end). Keep using `127.0.0.1`:
+uploads go from your browser straight to the object store at `http://127.0.0.1:9300`, and its CORS rule only allows the web origin.
+
+1. **Open the library.** On the workspace page click **Open documents** (or go to `/o/<org-slug>/w/<workspace-slug>/documents`).
+   Empty state, with the upload area visible because alice may upload.
+2. **Upload.** Drag in a few files, or use **Choose files**: a PDF, a `.txt`, a `.png`, and a small `.html` file.
+   **Expect:** a progress bar per file, then "done", and a new row in the table (title = file name without its extension).
+3. **Search and filter.** Type part of a title; pick *PDF* / *Text* / *Images* in the type filter; change the sort. **Reload the page and use
+   Back/Forward:** the same view returns, because everything lives in the URL. (*Excel (.xlsx)* matches `.xlsx` only; *Unknown type* matches files whose type the
+   browser couldn't identify.)
+4. **Open each file in the viewer** (click the title):
+   - PDF → shown inline; PNG → shown inline; `.txt` → shown as plain text.
+   - `.html` → **never rendered**: you get a download card instead (that's the security rule).
+5. **New version.** In the viewer click **Upload new version** and pick a different file. **Expect:** the version list shows *v2 (current)* above
+   *v1 (superseded)*; selecting v1 still shows the **original** content; the title did not change.
+6. **Rename**, then **Delete** (it asks you to confirm). **Expect:** the row disappears from the list, and opening the old viewer link now shows a calm
+   "not available" page.
+7. **Errors.** Try a file over 100 MB: you get a clear "larger than 100 MB" message *before* any upload starts. Stop the object store
+   (`docker compose stop objectstore`), upload a small file, and see the retry/error state; start it again (`docker compose start objectstore`) and press **Retry**.
+8. **Other users.** Add bob to the workspace as a viewer (the console commands in step 2 of the workflow above). As **bob**: the document list and viewer work and
+   downloads work, but there is no upload area and no Rename/Delete. As **mallory**: the not-found page, nothing listed.
+9. **Look under the hood:**
+
+```bash
+docker exec ukos-postgres-1 psql -U ukos_admin -d ukos -c "SELECT d.title, v.version_number, v.original_filename, v.size_bytes, left(v.sha256, 12) AS sha FROM documents d JOIN document_versions v ON v.document_id = d.id ORDER BY d.created_at, v.version_number"
+docker exec ukos-postgres-1 psql -U ukos_admin -d ukos -c "SELECT occurred_at, event_type, outcome FROM audit_events WHERE event_type LIKE 'document.%' ORDER BY occurred_at"
+```
+
+**Please tell me what you see for these two, they are the only parts no automated test could check in a real browser:**
+(a) does the **PDF** appear inline in the viewer? (b) does the **`.txt`** preview show its text? If either fails, "Download" still works, and I'll fix the preview.
+
 ## 6. Calling the API directly (optional)
 
 Get a token with Dex's password grant, then call any route from the `/docs` list:
@@ -128,7 +161,7 @@ Tokens last 15 minutes.
 
 ## 7. Not built yet (so you don't look for it)
 
-No screen to add or remove members (use the console), no documents or upload (M02), no search or chat (M04), no
+No screen to add or remove members (use the console), no turning uploaded files into searchable knowledge (M03), no search or chat (M04), no
 dark-mode switch (M07). Sessions live in the web server's memory, so restarting the `web` container signs everyone out.
 
 ## 8. Troubleshooting
