@@ -59,6 +59,8 @@ class AuditEventType(StrEnum):
     DOCUMENT_DELETED = "document.deleted"
     # M03 (contract §9): written by the publication transaction when a revision becomes searchable.
     DOCUMENT_VERSION_INDEXED = "document.version.indexed"
+    # M03.03.04: a user re-queued a dead/unsupported ingestion job.
+    DOCUMENT_INGESTION_RETRIED = "document.ingestion.retried"
 
 
 class SessionOpener(Protocol):

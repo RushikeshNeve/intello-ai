@@ -19,6 +19,7 @@ from app.core.models import ORG_SCOPED_TABLES, RLS_TABLES, Base
 from app.modules.ingestion.models import INGESTION_TABLES
 
 REVISION = "0005_ingestion"
+HEAD = "0006_ingestion_requeue"  # M03.03.04: ingest_requeue_job on top of 0005
 PREVIOUS = "0004_upload_session_title"
 PROBE = "ukos_probe_worker"
 FUNCTIONS = {
@@ -28,6 +29,7 @@ FUNCTIONS = {
     "outbox_mark_dispatched",
     "outbox_mark_failed",
     "knowledge_next_reconcile_batch",
+    "ingest_requeue_job",
     "ukos_ingestion_job_events_append_only",
 }
 # (LOGIN, SUPERUSER, BYPASSRLS, CREATEROLE, CREATEDB, REPLICATION)
@@ -65,9 +67,10 @@ def _role(engine: Engine, name: str) -> tuple[Any, ...] | None:
     return None if row is None else tuple(row)
 
 
-def test_head_is_0005(alembic_config: Config) -> None:
+def test_head_is_0006(alembic_config: Config) -> None:
     script = ScriptDirectory.from_config(alembic_config)
-    assert script.get_heads() == [REVISION]
+    assert script.get_heads() == [HEAD]
+    assert script.get_revision(HEAD).down_revision == REVISION
     assert script.get_revision(REVISION).down_revision == PREVIOUS
 
 
@@ -122,7 +125,7 @@ def test_round_trip_keeps_the_worker_role(
     assert set(INGESTION_TABLES) <= _tables(admin_engine)
     assert _functions(admin_engine) == FUNCTIONS
     with admin_engine.connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == REVISION
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == HEAD
 
 
 def test_worker_role_attributes(

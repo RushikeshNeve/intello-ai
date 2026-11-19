@@ -30,6 +30,7 @@ from app.core.models import (
     SHA256_PATTERN,
     TITLE_MAX_LENGTH,
 )
+from app.modules.ingestion.schemas import IngestionSummary
 
 _PATH_SEPARATORS: Final = re.compile(r"[\\/]")
 _WHITESPACE: Final = re.compile(r"\s+")
@@ -215,6 +216,8 @@ class Document(BaseModel):
     version_count: int
     latest_version: Version | None
     permissions: DocumentPermissions
+    # M03.03.04: processing state of the latest version (user-safe; ``none`` = no job yet).
+    ingestion: IngestionSummary = IngestionSummary()
 
 
 class DocumentList(BaseModel):
