@@ -30,8 +30,8 @@ from app.modules.ai.chat_router import router as chat_router
 from app.modules.ai.policy_router import router as ai_policy_router
 from app.modules.connectors.url_capture import router as url_capture_router
 from app.modules.documents import router as documents_router
-from app.modules.graph.router_review import router as graph_review_router
 from app.modules.graph.api import router as graph_router
+from app.modules.graph.router_review import router as graph_review_router
 from app.modules.identity.oidc import OidcTokenVerifier
 from app.modules.identity.provisioning import DbUserProvisioner
 from app.modules.ingestion.capabilities_router import router as capabilities_router

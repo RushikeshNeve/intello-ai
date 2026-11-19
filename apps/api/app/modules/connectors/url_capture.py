@@ -117,8 +117,11 @@ class PinnedRequest:
 
 
 class FetchResponse(Protocol):
-    status_code: int
-    headers: Mapping[str, str]
+    @property
+    def status_code(self) -> int: ...
+
+    @property
+    def headers(self) -> Mapping[str, str]: ...
 
     def iter_bytes(self) -> Iterator[bytes]: ...
 

@@ -17,7 +17,7 @@ from app.modules.ingestion.contracts import (
     Locator,
     ProcessingError,
 )
-from app.modules.ingestion.pipeline import UNSUPPORTED_CODES as PIPELINE_CODES
+from app.modules.ingestion.contracts import UNSUPPORTED_CODES as PIPELINE_CODES
 from app.modules.ingestion.processors.capabilities import (
     FormatSettings,
     OcrResult,

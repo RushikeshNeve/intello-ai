@@ -1,1 +1,4 @@
-"""Knowledge graph (M05): build side (ontology, extraction, resolution, claims) and read side (traversal, router, merge, API)."""
+"""Knowledge graph (M05).
+
+Build side: ontology, extraction, resolution, claims. Read side: traversal, router, merge, API.
+"""

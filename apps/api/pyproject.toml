@@ -55,7 +55,7 @@ plugins = ["pydantic.mypy"]
 
 # boto3/botocore/celery/kombu ship no type information; adapters confine them behind typed wrappers.
 [[tool.mypy.overrides]]
-module = ["boto3", "boto3.*", "botocore", "botocore.*", "celery", "celery.*", "kombu", "kombu.*"]
+module = ["boto3", "boto3.*", "botocore", "botocore.*", "celery", "celery.*", "kombu", "kombu.*", "openpyxl", "openpyxl.*"]
 ignore_missing_imports = true
 
 [tool.pydantic-mypy]
