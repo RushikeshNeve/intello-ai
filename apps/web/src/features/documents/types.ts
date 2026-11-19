@@ -1,4 +1,6 @@
-/** Shapes of the documents API (contract m02 §5). */
+import type { IngestionSummary } from "./ingestion/api";
+
+/** Shapes of the documents API (contract m02 §5; `ingestion` from m03 §11). */
 export const RETENTION_STATUSES = ["current", "superseded"] as const;
 
 export type Version = {
@@ -27,6 +29,8 @@ export type Document = {
   version_count: number;
   latest_version: Version | null;
   permissions: DocumentPermissions;
+  /** Latest version's processing summary; null when the API did not send one. */
+  ingestion: IngestionSummary | null;
 };
 
 export type DocumentList = { items: Document[]; next_cursor: string | null; can_upload: boolean };

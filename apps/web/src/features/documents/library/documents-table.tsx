@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatBytes } from "@/features/documents/upload/messages";
 import { formatDate, typeLabel } from "../format";
+import { IngestionBadge } from "../ingestion";
 import type { Document, Order, Sort } from "../types";
 
 export type DocumentsTableProps = {
@@ -98,6 +99,7 @@ export function DocumentsTable(props: DocumentsTableProps) {
         <TableRow className="hover:bg-transparent">
           <SortHeader label="Title" column="title" sort={props.sort} order={props.order} onSort={props.onSort} />
           <TableHead scope="col">Type</TableHead>
+          <TableHead scope="col">Status</TableHead>
           <TableHead scope="col" className="text-right">
             Size
           </TableHead>
@@ -128,6 +130,9 @@ export function DocumentsTable(props: DocumentsTableProps) {
                 )}
               </TableCell>
               <TableCell>{typeLabel(doc.latest_version?.content_type)}</TableCell>
+              <TableCell>
+                <IngestionBadge summary={doc.ingestion} />
+              </TableCell>
               <TableCell className="text-right whitespace-nowrap tabular-nums">
                 {doc.latest_version ? formatBytes(doc.latest_version.size_bytes) : "-"}
               </TableCell>

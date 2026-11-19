@@ -12,6 +12,7 @@ import { DocumentUploader } from "@/features/documents/upload";
 import { deleteDocument, listDocuments, renameDocument, toDocumentErrorCode } from "../api";
 import { documentKeys } from "../keys";
 import { SORTS, type Document, type DocumentList, type Order, type Sort } from "../types";
+import { isTerminal } from "../ingestion";
 import { DeleteDialog, RenameDialog } from "./document-dialogs";
 import { DocumentsTable } from "./documents-table";
 import {
@@ -31,6 +32,12 @@ import {
   type TypeFilter,
 } from "./url-state";
 export const SEARCH_DEBOUNCE_MS = 300;
+/**
+ * Live status in the library: no per-row streams. While any row on the page is queued/processing the page's own
+ * list query is refetched every LIBRARY_POLL_MS (one request per interval whatever the page size; react-query
+ * pauses it in hidden tabs and stops it when every row is terminal).
+ */
+export const LIBRARY_POLL_MS = 3_000;
 
 export type LibraryProps = {
   orgId: string;
@@ -87,6 +94,8 @@ export function Library({ orgId, workspaceId, basePath, initial }: LibraryProps)
     queryFn: () => listDocuments(fetcher, orgId, workspaceId, toApiParams(state)),
     initialData: initial && initial.key === key ? initial.data : undefined,
     placeholderData: keepPreviousData,
+    refetchInterval: (q) =>
+      q.state.data?.items.some((d) => d.ingestion !== null && !isTerminal(d.ingestion.state)) ? LIBRARY_POLL_MS : false,
   });
   const data = query.data;
   const errorCode = query.isError ? toDocumentErrorCode(query.error) : null;

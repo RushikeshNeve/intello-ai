@@ -31,6 +31,7 @@ export function makeDoc(over: Partial<Document> = {}): Document {
     version_count: 1,
     latest_version: makeVersion({ document_id: id }),
     permissions: { write: true, manage: true },
+    ingestion: null,
     ...over,
   };
 }
