@@ -1,0 +1,338 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useApiFetcher } from "@/lib/query/provider";
+import type { Workspace } from "@/features/workspaces/api";
+import { createThread, getThread, startRun, toChatErrorCode, type ChatMessage, type ThreadDetail } from "./api";
+import { AnswerBody, SourceList, VerificationBanner } from "./answer-view";
+import { Composer } from "./composer";
+import { chatKeys, newIdempotencyKey } from "./keys";
+import { runErrorMessage, sendErrorMessage } from "./messages";
+import { isTerminalStatus, type RunView } from "./run-state";
+import type { RunStream } from "./sse";
+import { threadTitle } from "./thread-list";
+import { useChatRun, type Connection } from "./use-chat-run";
+
+export type ConversationProps = {
+  orgId: string;
+  orgSlug: string;
+  workspaces: readonly Workspace[];
+  /** Null = a new chat (the thread is created with the first message). */
+  threadId: string | null;
+  stream?: RunStream;
+};
+
+/** A send that failed for want of an answer (network): resending reuses the same key, so it can never run twice. */
+type Pending = { content: string; key: string; threadId: string | null };
+
+const CONNECTION_NOTE: Partial<Record<Connection, string>> = {
+  reconnecting: "Connection interrupted. Reconnecting…",
+  polling: "Live updates are paused. Checking progress every few seconds…",
+  stopped: "Live updates aren't available right now. The answer will appear here when it is ready; you can also reload.",
+};
+
+export function Conversation({ orgId, orgSlug, workspaces, threadId, stream }: ConversationProps) {
+  const fetcher = useApiFetcher();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const base = `/o/${encodeURIComponent(orgSlug)}/chat`;
+  const ctx = { orgSlug, workspaces };
+
+  const threadQuery = useQuery({
+    queryKey: chatKeys.thread(orgId, threadId ?? "new"),
+    enabled: threadId !== null,
+    retry: false,
+    staleTime: 5_000,
+    queryFn: ({ signal }) => getThread(fetcher, orgId, threadId!, signal),
+  });
+  const detail = threadQuery.data ?? null;
+  const loadError = threadQuery.isError ? toChatErrorCode(threadQuery.error) : null;
+
+  // --- which run is shown: the one just sent here, else the one the server says is active (resumed after reload) ---
+  const [localRunId, setLocalRunId] = useState<string | null>(null);
+  const [stickyRunId, setStickyRunId] = useState<string | null>(null);
+  const serverRunId = detail?.active_run?.run_id ?? null;
+  if (serverRunId && serverRunId !== stickyRunId && localRunId === null) setStickyRunId(serverRunId);
+  const runId = localRunId ?? stickyRunId;
+
+  const onSettled = useCallback(() => {
+    if (threadId) void queryClient.invalidateQueries({ queryKey: chatKeys.thread(orgId, threadId) });
+    void queryClient.invalidateQueries({ queryKey: chatKeys.threads(orgId) });
+  }, [queryClient, orgId, threadId]);
+  const live = useChatRun({ orgId, threadId: threadId ?? "new", runId, stream, onSettled });
+  const view = live.view;
+  const running = view !== null && !isTerminalStatus(view.status);
+
+  // --- composer ---
+  const [draft, setDraft] = useState("");
+  const [scopeChoice, setScopeChoice] = useState<string | null | undefined>(undefined);
+  const scope = scopeChoice !== undefined ? scopeChoice : (detail?.thread.workspace_id ?? null);
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [pending, setPending] = useState<Pending | null>(null);
+  const [cancelError, setCancelError] = useState(false);
+  const draftRef = useRef<HTMLDivElement>(null);
+
+  async function send(content: string, again?: Pending) {
+    if (sending) return;
+    setSending(true);
+    setSendError(null);
+    const key = again?.key ?? newIdempotencyKey();
+    let tid = again?.threadId ?? threadId;
+    try {
+      let created = null;
+      if (!tid) {
+        created = await createThread(fetcher, orgId, { workspace_id: scope });
+        tid = created.id;
+      }
+      const accepted = await startRun(fetcher, orgId, tid, { content, idempotency_key: key, ...(scope ? { workspace_ids: [scope] } : {}) });
+      const message: ChatMessage = {
+        id: accepted.message_id || `local-${key}`,
+        role: "user",
+        content,
+        citations: [],
+        verification: null,
+        run_id: accepted.run_id,
+        created_at: new Date().toISOString(),
+      };
+      const finalTid = tid;
+      queryClient.setQueryData<ThreadDetail>(chatKeys.thread(orgId, finalTid), (old) => {
+        const seed: ThreadDetail = old ?? {
+          thread: created ?? { id: finalTid, workspace_id: scope, title: "", created_at: "", updated_at: "" },
+          messages: [],
+          active_run: null,
+        };
+        const messages = seed.messages.some((m) => m.id === message.id) ? seed.messages : [...seed.messages, message];
+        return { ...seed, messages, active_run: { run_id: accepted.run_id, state: accepted.state } };
+      });
+      void queryClient.invalidateQueries({ queryKey: chatKeys.threads(orgId) });
+      setDraft("");
+      setPending(null);
+      setCancelError(false);
+      if (threadId === null) {
+        // The conversation for the new thread mounts at its own URL and resumes this run from the seeded cache.
+        router.push(`${base}/${encodeURIComponent(finalTid)}`);
+      } else {
+        setLocalRunId(accepted.run_id);
+      }
+    } catch (err) {
+      const code = toChatErrorCode(err);
+      setPending(code === "network" ? { content, key, threadId: tid } : null);
+      setSendError(sendErrorMessage(code));
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const lastUser = [...(detail?.messages ?? [])].reverse().find((m) => m.role === "user") ?? null;
+  const retry = () => {
+    const content = lastUser?.content ?? pending?.content;
+    if (content) void send(content); // a new run needs a new idempotency key
+  };
+
+  async function cancel() {
+    setCancelError(false);
+    if (!(await live.cancel())) setCancelError(true);
+  }
+
+  // --- scrolling and announcements ---
+  const endRef = useRef<HTMLDivElement>(null);
+  const messageCount = detail?.messages.length ?? 0;
+  const streamed = view?.text.length ?? 0;
+  useEffect(() => {
+    endRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [messageCount, streamed]);
+  const announcement = !view
+    ? ""
+    : view.status === "completed"
+      ? "Answer ready."
+      : view.status === "failed"
+        ? "The answer failed."
+        : view.status === "cancelled"
+          ? "Answer cancelled."
+          : "Writing an answer…";
+
+  if (threadId !== null && threadQuery.isPending) {
+    return (
+      <div role="status" aria-label="Loading conversation" className="grid gap-3" data-testid="conversation-loading">
+        <Skeleton className="h-16 w-2/3" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    );
+  }
+  if (threadId !== null && loadError) {
+    const gone = loadError === "not_found";
+    return (
+      <div role="alert" className="grid justify-items-start gap-3 rounded-lg border border-dashed border-border p-6" data-testid="conversation-error" data-code={loadError}>
+        <h1 tabIndex={-1} className="text-lg font-semibold tracking-tight outline-none">
+          {gone ? "This conversation isn't available" : "Temporarily unavailable"}
+        </h1>
+        <p className="max-w-md text-sm text-muted-foreground">
+          {gone ? "It may have been deleted, or it may belong to someone else." : "We couldn't load this conversation. Your data is safe; try again in a moment."}
+        </p>
+        {gone ? (
+          <Link href={base} className="text-sm underline underline-offset-2">
+            Start a new chat
+          </Link>
+        ) : (
+          <Button variant="outline" onClick={() => void threadQuery.refetch()}>
+            Try again
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  const messages = detail?.messages ?? [];
+  const persistedAnswer = runId !== null && messages.some((m) => m.role === "assistant" && m.run_id === runId);
+  const showLive = view !== null && !persistedAnswer;
+  // A last question with no answer at all (e.g. the run failed before a reload): offer a retry.
+  const unanswered = !running && !showLive && !sending && messages.at(-1)?.role === "user";
+
+  return (
+    <div className="grid min-w-0 gap-4" data-testid="conversation" data-thread-id={threadId ?? ""}>
+      <h1 tabIndex={-1} className="text-xl font-semibold tracking-tight break-words outline-none" data-testid="conversation-title">
+        {detail ? threadTitle(detail.thread) : "New chat"}
+      </h1>
+      <p role="status" className="sr-only" data-testid="chat-status">
+        {announcement}
+      </p>
+
+      <div className="grid gap-4" data-testid="messages">
+        {messages.length === 0 && !showLive && (
+          <p className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground" data-testid="chat-empty">
+            Ask a question about your documents. Answers cite their sources, and say so plainly when your documents don&apos;t contain the answer.
+          </p>
+        )}
+        {messages.map((m) => (
+          <MessageBubble key={m.id} message={m} ctx={ctx} />
+        ))}
+        {showLive && view && (
+          <LiveAnswer
+            view={view}
+            connection={live.connection}
+            ctx={ctx}
+            onRetry={retry}
+            canRetry={lastUser !== null && !sending}
+          />
+        )}
+        {unanswered && (
+          <div className="grid justify-items-start gap-2 rounded-lg border border-border p-3 text-sm" data-testid="unanswered">
+            <p>This question has no answer.</p>
+            <Button variant="outline" size="sm" onClick={retry}>
+              Retry
+            </Button>
+          </div>
+        )}
+        <div ref={endRef} />
+      </div>
+
+      {sendError && (
+        <div role="alert" className="grid justify-items-start gap-2 rounded-md border border-border bg-muted/40 p-3 text-sm" data-testid="send-error">
+          <p>{sendError}</p>
+          {pending && (
+            <Button variant="outline" size="sm" onClick={() => void send(pending.content, pending)} data-testid="resend">
+              Retry sending
+            </Button>
+          )}
+        </div>
+      )}
+      {cancelError && (
+        <p role="alert" className="text-sm text-destructive" data-testid="cancel-error">
+          We couldn&apos;t cancel that. It may already be finished.
+        </p>
+      )}
+
+      <div ref={draftRef}>
+        <Composer
+          value={draft}
+          onChange={setDraft}
+          onSend={() => void send(draft.trim())}
+          busy={running || sending}
+          onCancel={running ? () => void cancel() : undefined}
+          cancelling={live.cancelling}
+          workspaces={workspaces}
+          scope={scope}
+          onScope={setScopeChoice}
+        />
+      </div>
+    </div>
+  );
+}
+
+function MessageBubble({ message, ctx }: { message: ChatMessage; ctx: { orgSlug: string; workspaces: readonly Workspace[] } }) {
+  if (message.role === "user") {
+    return (
+      <div className="ml-auto max-w-[85%] rounded-lg bg-muted px-3 py-2 text-sm break-words whitespace-pre-wrap" data-testid="user-message">
+        {message.content}
+      </div>
+    );
+  }
+  return (
+    <div className="grid max-w-[95%] gap-2" data-testid="assistant-message" data-run-id={message.run_id ?? ""}>
+      <VerificationBanner verification={message.verification} />
+      <AnswerBody text={message.content} citations={message.citations} ctx={ctx} />
+      <SourceList citations={message.citations} ctx={ctx} />
+    </div>
+  );
+}
+
+function LiveAnswer({
+  view,
+  connection,
+  ctx,
+  onRetry,
+  canRetry,
+}: {
+  view: RunView;
+  connection: Connection;
+  ctx: { orgSlug: string; workspaces: readonly Workspace[] };
+  onRetry: () => void;
+  canRetry: boolean;
+}) {
+  const note = CONNECTION_NOTE[connection];
+  if (view.status === "failed") {
+    return (
+      <div role="alert" className="grid justify-items-start gap-2 rounded-lg border border-border bg-muted/40 p-3 text-sm" data-testid="run-failed" data-code={view.error?.code ?? ""}>
+        <p>{runErrorMessage(view.error?.code)}</p>
+        <Button variant="outline" size="sm" onClick={onRetry} disabled={!canRetry} data-testid="retry-run">
+          Retry
+        </Button>
+      </div>
+    );
+  }
+  if (view.status === "cancelled") {
+    return (
+      <p className="text-sm text-muted-foreground" data-testid="run-cancelled">
+        Cancelled.{" "}
+        <Button variant="ghost" size="sm" onClick={onRetry} disabled={!canRetry}>
+          Ask again
+        </Button>
+      </p>
+    );
+  }
+  const done = view.status === "completed";
+  return (
+    <div className="grid max-w-[95%] gap-2" data-testid="live-answer" data-status={view.status} aria-busy={!done}>
+      {done && <VerificationBanner verification={view.verification} />}
+      {view.text ? (
+        <AnswerBody text={view.text} citations={view.citations} ctx={ctx} />
+      ) : (
+        <p className="text-sm text-muted-foreground" data-testid="run-waiting">
+          Looking through your documents…
+        </p>
+      )}
+      {done && <SourceList citations={view.citations} ctx={ctx} />}
+      {!done && note && (
+        <p role="status" className="text-xs text-muted-foreground" data-testid="connection-note">
+          {note}
+        </p>
+      )}
+    </div>
+  );
+}

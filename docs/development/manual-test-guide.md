@@ -162,6 +162,20 @@ Needs the M03 backend (worker, dispatcher and the status API) running; use `127.
 6. **Keyboard.** Press Tab: the Retry button is reachable and Enter/Space triggers it.
 7. **Tab hidden.** Switch to another browser tab while a file is processing, come back: the page catches up (no extra requests are made while the tab is hidden).
 
+## 5d. Search and chat (M04)
+
+Needs the M04 backend (search API and chat runtime) running, and **LM Studio serving both the embedding model and the chat model** (otherwise search falls back to keywords only and chat ends with "The AI model isn't reachable"). Use `127.0.0.1` links. Make sure at least one document is **Ready** (5c) first.
+
+1. **Search.** Open http://127.0.0.1:3300/o/<org-slug>/search (also in the left menu: **Search**). Type a word that is in your document.
+   **Expect:** after a moment results appear grouped by document, with the matching words highlighted, a **Version n** badge, page numbers for PDFs, and an **Open passage** link per snippet. The address bar now holds `?q=...`: copy the link into another tab and you get the same search.
+2. **Scope and filters.** Pick one workspace in **Where**, a **File type**, and a **Match by** mode; the address bar updates (`ws=`, `type=`, `mode=`). Reload: they stay. Open Search again from the menu: your last workspace is remembered. Stop LM Studio's embedding model and search again: a note says results are **keyword matches only**.
+3. **Open the evidence.** Click **Open passage**. **Expect:** left, the exact passage text (with its heading and pages) and **Previous/Next passage** buttons; right, the document: a PDF opens at that page, a text/markdown file shows the passage highlighted. If a newer version of the document exists you see a note with a link to it. Try the buttons with the keyboard (Tab, Enter).
+4. **Chat.** Open http://127.0.0.1:3300/o/<org-slug>/chat (menu: **Chat**) and ask something your document answers.
+   **Expect:** the answer streams in, then small **[1]** chips appear; clicking a chip opens the evidence viewer on exactly the passage it cites. **Sources** below the answer lists them. Enter sends, Shift+Enter adds a line; the counter shows n/4000; **Send** is disabled while an answer is being written; **Cancel** stops it.
+5. **Not in your documents.** Ask something your documents don't cover. **Expect:** "I couldn't find this in your documents." If part of an answer could not be supported you see "Some statements were removed because they weren't supported by your documents."
+6. **Resume and reconnect.** Ask a long question and reload the page while it is answering: the answer continues. Stop LM Studio mid-answer: you get a plain message with **Retry** (no technical text). The left list keeps your conversations; use the bin icon to delete one (it asks first).
+7. **Privacy.** As **bob**, try alice's chat link: "This conversation isn't available". Search as bob finds only documents in workspaces he can read.
+
 ## 6. Calling the API directly (optional)
 
 Get a token with Dex's password grant, then call any route from the `/docs` list:

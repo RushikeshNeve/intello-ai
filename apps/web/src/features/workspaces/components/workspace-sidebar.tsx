@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
-import { LayoutGridIcon, MenuIcon, XIcon, FolderIcon } from "lucide-react";
+import { FolderIcon, LayoutGridIcon, MenuIcon, MessageSquareIcon, SearchIcon, XIcon } from "lucide-react";
 import { cn } from "cn";
 import { useOrgScope } from "@/features/organizations/components/org-scope";
 import { useWorkspaces } from "../hooks";
@@ -51,6 +51,22 @@ export function WorkspaceSidebar({ initialWorkspaces }: { initialWorkspaces: Wor
             <Link href={base} className={itemClass} aria-current={active === null && pathname === base ? "page" : undefined}>
               <LayoutGridIcon aria-hidden="true" className="size-4" />
               Overview
+            </Link>
+          </li>
+          <li>
+            <Link href={`${base}/search`} className={itemClass} aria-current={pathname === `${base}/search` ? "page" : undefined}>
+              <SearchIcon aria-hidden="true" className="size-4" />
+              Search
+            </Link>
+          </li>
+          <li>
+            <Link
+              href={`${base}/chat`}
+              className={itemClass}
+              aria-current={pathname === `${base}/chat` || pathname.startsWith(`${base}/chat/`) ? "page" : undefined}
+            >
+              <MessageSquareIcon aria-hidden="true" className="size-4" />
+              Chat
             </Link>
           </li>
         </ul>
