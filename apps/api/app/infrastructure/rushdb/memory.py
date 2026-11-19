@@ -17,12 +17,16 @@ import uuid
 from collections import Counter
 from collections.abc import Sequence
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from typing import Final
 
 from app.modules.knowledge.ports import (
     ChunkRecord,
+    ClaimRecord,
     DeleteCounts,
+    EntityRecord,
+    EvidenceRecord,
+    GraphChunk,
     KnowledgeStoreError,
     OrgScope,
     SearchFilters,
@@ -52,6 +56,9 @@ class _Tenant:
     chunks: dict[uuid.UUID, _Stored]
     dimensions: dict[str, int]
     text_index: bool = False
+    claims: dict[uuid.UUID, ClaimRecord] = field(default_factory=dict)
+    evidence: dict[uuid.UUID, EvidenceRecord] = field(default_factory=dict)
+    entities: dict[uuid.UUID, EntityRecord] = field(default_factory=dict)
 
 
 def _tokens(value: str) -> list[str]:
@@ -141,17 +148,23 @@ class InMemoryKnowledgeRepository:
             raise TypeError("flag must be a bool")
         changed = 0
         with self._lock:
-            for stored in self._tenant(scope).chunks.values():
+            tenant = self._tenant(scope)
+            for stored in tenant.chunks.values():
                 if stored.chunk.revision_id == revision_id and stored.published != flag:
                     stored.published = flag
                     changed += 1
+            for cid, claim in list(tenant.claims.items()):
+                if claim.revision_id == revision_id and claim.published != flag:
+                    tenant.claims[cid] = replace(claim, published=flag)
         return changed
 
     def _purge(
         self, scope: OrgScope, *, revision_id: uuid.UUID | None, document_id: uuid.UUID | None
     ) -> DeleteCounts:
         with self._lock:
-            chunks = self._tenant(scope).chunks
+            tenant = self._tenant(scope)
+            chunks = tenant.chunks
+            self._drop_graph(tenant, revision_id=revision_id, document_id=document_id)
             doomed = [
                 cid
                 for cid, s in chunks.items()
@@ -161,6 +174,23 @@ class InMemoryKnowledgeRepository:
             for cid in doomed:
                 del chunks[cid]
         return DeleteCounts(chunks=len(doomed), evidence=0)
+
+    @staticmethod
+    def _drop_graph(
+        tenant: _Tenant, *, revision_id: uuid.UUID | None, document_id: uuid.UUID | None
+    ) -> int:
+        doomed = [
+            cid
+            for cid, c in tenant.claims.items()
+            if (revision_id is not None and c.revision_id == revision_id)
+            or (document_id is not None and c.document_id == document_id)
+        ]
+        for cid in doomed:
+            del tenant.claims[cid]
+        for eid, ev in list(tenant.evidence.items()):
+            if ev.claim_id in doomed or (revision_id is not None and ev.revision_id == revision_id):
+                del tenant.evidence[eid]
+        return len(doomed)
 
     def delete_revision(self, scope: OrgScope, revision_id: uuid.UUID) -> DeleteCounts:
         return self._purge(scope, revision_id=revision_id, document_id=None)
@@ -319,3 +349,106 @@ class InMemoryKnowledgeRepository:
                     fused[cid] = fused.get(cid, 0.0) + 1.0 / (_RRF_K + rank + 1)
             order = sorted(fused, key=lambda cid: (-fused[cid], str(cid)))
             return [self._hit(by_id[cid], fused[cid]) for cid in order[:limit]]
+
+
+class InMemoryGraphRepository(InMemoryKnowledgeRepository):
+    """In-memory ``GraphRepository`` (also a ``KnowledgeRepository``: purge and publish flags
+    cover graph records exactly like the RushDB adapter). For tests only."""
+
+    def __repr__(self) -> str:
+        return "InMemoryGraphRepository()"
+
+    def read_chunks(
+        self, scope: OrgScope, revision_id: uuid.UUID, *, limit: int
+    ) -> list[GraphChunk]:
+        with self._lock:
+            found = [
+                s.chunk
+                for s in self._tenant(scope).chunks.values()
+                if s.chunk.revision_id == revision_id
+            ]
+        found.sort(key=lambda c: c.chunk_index)
+        return [
+            GraphChunk(
+                c.chunk_id,
+                c.chunk_index,
+                c.text,
+                c.workspace_id,
+                c.document_id,
+                c.version_id,
+                c.revision_id,
+            )
+            for c in found[:limit]
+        ]
+
+    def upsert_entities(self, scope: OrgScope, entities: Sequence[EntityRecord]) -> int:
+        for e in entities:
+            if e.org_id != scope.org_id:
+                raise ValueError("entity belongs to a different organization than the scope")
+        with self._lock:
+            tenant = self._tenant(scope)
+            for e in entities:
+                tenant.entities[e.id] = e
+        return len(entities)
+
+    def upsert_claims(
+        self,
+        scope: OrgScope,
+        claims: Sequence[ClaimRecord],
+        evidence: Sequence[EvidenceRecord],
+        *,
+        published: bool,
+    ) -> int:
+        for c in claims:
+            if c.org_id != scope.org_id:
+                raise ValueError("claim belongs to a different organization than the scope")
+        with self._lock:
+            tenant = self._tenant(scope)
+            for c in claims:
+                tenant.claims[c.id] = replace(c, published=published)
+            for ev in evidence:
+                tenant.evidence[ev.id] = ev
+        return len(claims)
+
+    def list_claims(
+        self, scope: OrgScope, revision_id: uuid.UUID, *, verification: str | None = None
+    ) -> list[ClaimRecord]:
+        with self._lock:
+            found = [
+                c
+                for c in self._tenant(scope).claims.values()
+                if c.revision_id == revision_id
+                and (verification is None or c.verification == verification)
+            ]
+        return sorted(found, key=lambda c: str(c.id))
+
+    def list_evidence(self, scope: OrgScope, claim_id: uuid.UUID) -> list[EvidenceRecord]:
+        with self._lock:
+            found = [e for e in self._tenant(scope).evidence.values() if e.claim_id == claim_id]
+        return sorted(found, key=lambda e: str(e.id))
+
+    def list_entities(self, scope: OrgScope, workspace_id: uuid.UUID) -> list[EntityRecord]:
+        with self._lock:
+            found = [
+                e for e in self._tenant(scope).entities.values() if e.workspace_id == workspace_id
+            ]
+        return sorted(found, key=lambda e: str(e.id))
+
+    def delete_graph_revision(self, scope: OrgScope, revision_id: uuid.UUID) -> int:
+        with self._lock:
+            return self._drop_graph(self._tenant(scope), revision_id=revision_id, document_id=None)
+
+    def remap_entity(self, scope: OrgScope, from_id: uuid.UUID, to_id: uuid.UUID) -> int:
+        changed = 0
+        with self._lock:
+            tenant = self._tenant(scope)
+            old = tenant.entities.get(from_id)
+            if old is not None:
+                tenant.entities[from_id] = replace(old, entity_state="merged")
+            for cid, c in list(tenant.claims.items()):
+                subject = to_id if c.subject_id == from_id else c.subject_id
+                obj = to_id if c.object_id == from_id else c.object_id
+                if (subject, obj) != (c.subject_id, c.object_id):
+                    tenant.claims[cid] = replace(c, subject_id=subject, object_id=obj)
+                    changed += 1
+        return changed

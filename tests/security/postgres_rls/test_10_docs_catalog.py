@@ -140,6 +140,9 @@ def test_worker_reachable_relations_are_exactly_the_documented_set(
         "chat_messages",
         "chat_runs",
         "chat_run_events",
+        # M05 graph identity (migration 0008; exact grants: tests/integration/m05_graph)
+        "graph_entities",
+        "entity_merge_candidates",
     }
     with admin_engine.connect() as conn:
         reachable = set(

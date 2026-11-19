@@ -55,6 +55,7 @@ _log = logging.getLogger("ukos.rushdb")
 
 CHUNK_LABEL: Final = "Chunk"
 EVIDENCE_LABEL: Final = "Evidence"
+CLAIM_LABEL: Final = "Claim"
 VECTOR_PROPERTY: Final = "embedding"
 RRF_K: Final = 60
 _PAGE: Final = 500  # list_chunk_ids page size (RushDB commits deletes in pages of 500 as well)
@@ -415,12 +416,21 @@ class RushDbKnowledgeRepository:
         )
 
     def set_published(self, scope: OrgScope, revision_id: uuid.UUID, flag: bool) -> int:
-        """Flip ``published`` on every chunk of the revision that is not already ``flag``."""
+        """Flip ``published`` on every chunk (and graph claim) of the revision; returns chunks."""
         if not isinstance(flag, bool):
             raise TypeError("flag must be a bool")
-        remaining = self._count(scope, {"revision_id": str(revision_id), "published": not flag})
+        changed = self._set_published_label(scope, CHUNK_LABEL, "chunk_id", revision_id, flag)
+        self._set_published_label(scope, CLAIM_LABEL, "claim_id", revision_id, flag)
+        return changed
+
+    def _set_published_label(
+        self, scope: OrgScope, label: str, id_prop: str, revision_id: uuid.UUID, flag: bool
+    ) -> int:
+        remaining = self._count(
+            scope, {"revision_id": str(revision_id), "published": not flag}, label=label
+        )
         changed = 0
-        # Each pass takes the first page of the not-yet-flipped chunks; it shrinks as we flip.
+        # Each pass takes the first page of the not-yet-flipped records; it shrinks as we flip.
         for _ in range(remaining // self._settings.RUSHDB_BATCH_SIZE + 2):
             page = self._execute(
                 scope,
@@ -429,19 +439,19 @@ class RushDbKnowledgeRepository:
                     "query": {
                         "kind": "records",
                         "query": {
-                            "labels": [CHUNK_LABEL],
+                            "labels": [label],
                             "predicate": {"revision_id": str(revision_id), "published": not flag},
-                            "select": {"chunk_id": "chunk_id"},
+                            "select": {id_prop: id_prop},
                             "limit": self._settings.RUSHDB_BATCH_SIZE,
                         },
                     },
                 },
                 what="set_published.list",
             )
-            ids = [str(r["chunk_id"]) for r in page.get("rows", []) if "chunk_id" in r]
+            ids = [str(r[id_prop]) for r in page.get("rows", []) if id_prop in r]
             if not ids:
                 return changed
-            for chunk_id in ids:
+            for record_id in ids:
                 self._execute(
                     scope,
                     {
@@ -449,8 +459,8 @@ class RushDbKnowledgeRepository:
                         "mutation": {
                             "kind": "putRecord",
                             "mode": "merge",
-                            "label": CHUNK_LABEL,
-                            "id": chunk_id,
+                            "label": label,
+                            "id": record_id,
                             "properties": {"published": flag},
                             "options": {},
                         },
@@ -459,9 +469,14 @@ class RushDbKnowledgeRepository:
                     retry_codes=_PUT_RETRY_CODES,
                 )
                 changed += 1
-        if self._count(scope, {"revision_id": str(revision_id), "published": not flag}) > 0:
+        if (
+            self._count(
+                scope, {"revision_id": str(revision_id), "published": not flag}, label=label
+            )
+            > 0
+        ):
             raise KnowledgeStoreError(
-                "rushdb set_published: chunks remain unflipped", code="incomplete"
+                "rushdb set_published: records remain unflipped", code="incomplete"
             )
         return changed
 
@@ -472,14 +487,15 @@ class RushDbKnowledgeRepository:
         return self._purge(scope, {"document_id": str(document_id)})
 
     def _purge(self, scope: OrgScope, predicate: _Json) -> DeleteCounts:
-        """Spike section 3.9 steps 1-2: Evidence first, then Chunks (their relationships go too).
+        """Spike section 3.9 steps 1-3: Evidence, then Claims (M05), then Chunks.
 
-        Claim/Entity orphan sweeps (steps 3-4) belong to the graph milestone, which owns those
-        labels. ``deleteRecords`` is paged and not one transaction, so PostgreSQL denial must come
+        Entities carry no revision/document id and are not swept here (they are only ever reachable
+        through live claims). ``deleteRecords`` is paged and not one transaction, so PostgreSQL
+        denial must come
         first; every step is idempotent and a second call returns zero counts.
         """
         counts: dict[str, int] = {}
-        for label in (EVIDENCE_LABEL, CHUNK_LABEL):
+        for label in (EVIDENCE_LABEL, CLAIM_LABEL, CHUNK_LABEL):
             result = self._execute(
                 scope,
                 {
@@ -493,7 +509,9 @@ class RushDbKnowledgeRepository:
             )
             affected = result.get("affected", 0)
             counts[label] = affected if isinstance(affected, int) else 0
-        return DeleteCounts(chunks=counts[CHUNK_LABEL], evidence=counts[EVIDENCE_LABEL])
+        return DeleteCounts(
+            chunks=counts[CHUNK_LABEL], evidence=counts[EVIDENCE_LABEL], claims=counts[CLAIM_LABEL]
+        )
 
     # --------------------------------------------------------------------------- reads
 
@@ -505,7 +523,7 @@ class RushDbKnowledgeRepository:
             predicate["published"] = published
         return self._count(scope, predicate)
 
-    def _count(self, scope: OrgScope, predicate: _Json) -> int:
+    def _count(self, scope: OrgScope, predicate: _Json, *, label: str = CHUNK_LABEL) -> int:
         result = self._execute(
             scope,
             {
@@ -513,7 +531,7 @@ class RushDbKnowledgeRepository:
                 "query": {
                     "kind": "records",
                     "query": {
-                        "labels": [CHUNK_LABEL],
+                        "labels": [label],
                         "predicate": predicate,
                         "select": {"n": {"$count": "*"}},
                     },
