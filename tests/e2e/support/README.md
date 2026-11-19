@@ -58,3 +58,35 @@ queries) as part of the text, and the fake applies it the same way.
 node tests/e2e/support/embedding-stub.mjs --vectors apps/api/tests/ai/golden/cases.json \
   > apps/api/tests/ai/golden/vectors.json
 ```
+
+## `chat-stub.mjs` - fake OpenAI-compatible chat server
+
+Dependency-free Node (20+) stand-in for LM Studio's chat endpoint, used by the M04 gate
+(M04.02.01). It never logs prompts or answers.
+
+```bash
+PORT=18434 CHAT_SCRIPT='["The warranty is three years [1]."]' node tests/e2e/support/chat-stub.mjs
+# prints: chat-stub listening on http://127.0.0.1:18434 model=google/gemma-3-4b
+```
+
+Point the API/worker at it with `AI_BASE_URL=http://127.0.0.1:18434/v1` (from a container
+`http://host.docker.internal:18434/v1`, start the stub with `HOST=0.0.0.0`). The chat model id is
+`google/gemma-3-4b` (`MODEL` to change; a request for another model gets 404).
+
+| Endpoint | Behaviour |
+| --- | --- |
+| `GET /v1/models` | `{"data":[{"id": MODEL}]}` |
+| `POST /v1/chat/completions` | `stream:true` gives SSE (keepalive comment, role chunk, content deltas of `CHUNK_CHARS` code points, finish chunk, `[DONE]`); otherwise one JSON completion |
+| `GET /health`, `GET /__stats` | liveness; state and counters `{requests, failed, served, aborted}` (`aborted` = client closed mid-stream, i.e. a cancellation) |
+| `POST /__control` | change state at run time (`{"reset":true}`, `fail_next`, `fail_status`, `delay_ms`, `echo_prompt`, `script`) |
+
+Scripted replies: `CHAT_SCRIPT_FILE=path.json` or `CHAT_SCRIPT='<json>'`, or `POST /__control {"script": ...}`.
+A JSON array is used in request order (the last entry repeats). An object
+`{"rules":[{"match":"text in the last user message","reply":R}],"default":R}` picks by the question. `R` is a
+string, `{"text":..., "error_after":N}` (N deltas, then an SSE `error` event) or `{"text":..., "status":500}`.
+With no script the reply is a fixed grounded sentence citing `[1]`.
+
+Modes (env, or the `/__control` key in lower case): `DELAY_MS=n` waits before every delta (slow generation,
+cancel and timeout tests), `FAIL_FIRST=n` makes the next n requests answer `FAIL_STATUS` (default 503),
+`ECHO_PROMPT=1` makes the reply the JSON of the messages the model received, so a test can assert what the prompt
+contained (fences intact, no evidence in the system message).
