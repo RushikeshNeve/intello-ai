@@ -1,0 +1,33 @@
+[
+  {
+    "chunk_id": "00c52919-9bdc-5095-9260-824e00580fcf",
+    "chunk_index": 0,
+    "content_hash": "93885df16942cc35a0d7d1d80459a4c0c64a2163e388df0a2bb0f3b3b0c31ed5",
+    "heading_path": [],
+    "locators": [
+      {
+        "char_end": 19,
+        "char_start": 0,
+        "kind": "line",
+        "line_end": 1,
+        "line_start": 1
+      },
+      {
+        "char_end": 133,
+        "char_start": 21,
+        "kind": "line",
+        "line_end": 4,
+        "line_start": 3
+      },
+      {
+        "char_end": 155,
+        "char_start": 135,
+        "kind": "line",
+        "line_end": 6,
+        "line_start": 6
+      }
+    ],
+    "text": "Fischerei-Protokoll\n\nDieses Dokument ist in UTF-16 mit Byte-Order-Mark gespeichert.\nZweite Zeile mit Umlauten: äöü und dem Zeichen €.\n\nEnde des Protokolls.",
+    "token_estimate": 39
+  }
+]

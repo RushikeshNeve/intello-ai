@@ -1,0 +1,26 @@
+[
+  {
+    "chunk_id": "00c52919-9bdc-5095-9260-824e00580fcf",
+    "chunk_index": 0,
+    "content_hash": "aee7616771c0f562ad12ee93fa0eea5928dee3507224bd928f51e94082baa79c",
+    "heading_path": [],
+    "locators": [
+      {
+        "char_end": 179,
+        "char_start": 0,
+        "kind": "page",
+        "page": 1
+      },
+      {
+        "char_end": 264,
+        "char_start": 181,
+        "kind": "page",
+        "page": 2
+      }
+    ],
+    "page_end": 2,
+    "page_start": 1,
+    "text": "Minutes of the committee meeting. The members reviewed the budget for the coming year and,\nafter a long discussion about the cost of the new library roof, the committee decided to\n\npostpone the vote until the next meeting. The chair thanked everyone for attending.",
+    "token_estimate": 66
+  }
+]

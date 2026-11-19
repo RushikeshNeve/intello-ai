@@ -1,0 +1,55 @@
+{
+  "blocks": [
+    {
+      "block_id": "b0",
+      "kind": "paragraph",
+      "locator": {
+        "char_end": 19,
+        "char_start": 0,
+        "kind": "line",
+        "line_end": 1,
+        "line_start": 1
+      },
+      "text": "Fischerei-Protokoll"
+    },
+    {
+      "block_id": "b1",
+      "kind": "paragraph",
+      "locator": {
+        "char_end": 133,
+        "char_start": 21,
+        "kind": "line",
+        "line_end": 4,
+        "line_start": 3
+      },
+      "text": "Dieses Dokument ist in UTF-16 mit Byte-Order-Mark gespeichert.\nZweite Zeile mit Umlauten: äöü und dem Zeichen €."
+    },
+    {
+      "block_id": "b2",
+      "kind": "paragraph",
+      "locator": {
+        "char_end": 155,
+        "char_start": 135,
+        "kind": "line",
+        "line_end": 6,
+        "line_start": 6
+      },
+      "text": "Ende des Protokolls."
+    }
+  ],
+  "modality": "text",
+  "processor": {
+    "name": "text",
+    "version": "1"
+  },
+  "schema_version": 1,
+  "source": {
+    "byte_size": 324,
+    "content_type": "text/plain",
+    "sha256": "d57a327e842c0ff4eaddd9f98ea1ade8a024cd6869d820e8e49752e58a7c3bfa",
+    "version_id": "22222222-2222-4222-8222-222222222222"
+  },
+  "stats": {
+    "chars": 155
+  }
+}

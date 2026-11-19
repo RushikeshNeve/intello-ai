@@ -1,0 +1,56 @@
+[
+  {
+    "chunk_id": "00c52919-9bdc-5095-9260-824e00580fcf",
+    "chunk_index": 0,
+    "content_hash": "f23f0310b0f734df3e972d4497cfbf9473c694cc4c6b65ea4de38c45a053bb21",
+    "heading_path": [],
+    "locators": [
+      {
+        "char_end": 281,
+        "char_start": 0,
+        "kind": "page",
+        "page": 1
+      }
+    ],
+    "page_end": 1,
+    "page_start": 1,
+    "text": "Annual Orchard Report\nThis report summarises the orchard season. Apples ripened early this year, and the pear harvest\nfollowed in the first week of autumn.\nVolunteers helped with picking. Their effort doubled the amount of fruit collected per day\ncompared with the previous season.",
+    "token_estimate": 71
+  },
+  {
+    "chunk_id": "cafca652-c635-5e48-8ca0-0b17efa9376a",
+    "chunk_index": 1,
+    "content_hash": "1ba9fafbb4caf19ed419e21a479b8a952351cf1ebfbbac96e4428128059183b4",
+    "heading_path": [],
+    "locators": [
+      {
+        "char_end": 525,
+        "char_start": 283,
+        "kind": "page",
+        "page": 2
+      }
+    ],
+    "page_end": 2,
+    "page_start": 2,
+    "text": "Findings\nSoil moisture stayed within the target range for most of the summer. Pest pressure was low and\nno chemical treatment was needed.\nThe east block produced the highest yield. The west block lagged because of late frost damage in\nspring.",
+    "token_estimate": 61
+  },
+  {
+    "chunk_id": "c290e24b-f268-52d7-8df0-40ca75fbd8fa",
+    "chunk_index": 2,
+    "content_hash": "5c887d01ef53f3f11a7ab2b3bc7ec54be521752ae076cdeacaf8bef955711c1d",
+    "heading_path": [],
+    "locators": [
+      {
+        "char_end": 674,
+        "char_start": 527,
+        "kind": "page",
+        "page": 3
+      }
+    ],
+    "page_end": 3,
+    "page_start": 3,
+    "text": "Recommendations\nPlant frost-tolerant varieties in the west block. Extend the volunteer programme and schedule\npicking days earlier in the calendar.",
+    "token_estimate": 37
+  }
+]

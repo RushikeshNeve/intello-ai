@@ -6,11 +6,14 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.20.1",
+    "beautifulsoup4>=4.13.0",
     "boto3>=1.44.3",
+    "charset-normalizer>=3.4.0",
     "fastapi>=0.163.1",
     "httpx>=0.28.1",
     "psycopg[binary]>=3.3.9",
     "pydantic-settings>=2.16.3",
+    "pypdf>=5.0.0",
     "pyjwt[crypto]>=2.15.1",
     "redis>=8.1.0",
     "sqlalchemy>=2.1.8",
@@ -25,12 +28,16 @@ package = false
 line-length = 100
 target-version = "py312"
 src = ["."]
+# Byte-exact fixture inputs (Markdown/HTML/text/PDF); ruff would otherwise reformat embedded code.
+extend-exclude = ["tests/fixtures/ingestion/inputs"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "UP", "S", "BLE", "C4", "SIM", "RUF", "ASYNC", "PT"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "S105", "S106"]
+# Extraction tests deliberately contain look-alike Unicode (Cyrillic, Greek, RTL, emoji, NBSP).
+"tests/**/ingestion/**" = ["RUF001", "RUF002", "RUF003"]
 # DDL is assembled from module constants and a regex-validated role name, never user input.
 "migrations/versions/**" = ["S608"]
 
@@ -58,6 +65,8 @@ addopts = "-ra"
 
 [dependency-groups]
 dev = [
+    "fpdf2>=2.8.0",
+    "hypothesis>=6.100.0",
     "mypy>=2.4.1",
     "pytest>=9.2.0",
     "ruff>=0.17.5",

@@ -1,0 +1,130 @@
+[
+  {
+    "chunk_id": "00c52919-9bdc-5095-9260-824e00580fcf",
+    "chunk_index": 0,
+    "content_hash": "4a3ee591c524b3c7ae7859050386b6e35e8915c89c0585118d56c079d8b4edcc",
+    "heading_path": [
+      "Orchard Report"
+    ],
+    "locators": [
+      {
+        "char_end": 14,
+        "char_start": 0,
+        "kind": "offset",
+        "section_path": [
+          "Orchard Report"
+        ]
+      },
+      {
+        "char_end": 84,
+        "char_start": 16,
+        "kind": "offset",
+        "section_path": [
+          "Orchard Report"
+        ]
+      },
+      {
+        "char_end": 93,
+        "char_start": 86,
+        "kind": "offset",
+        "section_path": [
+          "Orchard Report",
+          "Harvest"
+        ]
+      },
+      {
+        "char_end": 138,
+        "char_start": 95,
+        "kind": "offset",
+        "section_path": [
+          "Orchard Report",
+          "Harvest"
+        ]
+      },
+      {
+        "char_end": 178,
+        "char_start": 140,
+        "kind": "offset",
+        "section_path": [
+          "Orchard Report",
+          "Harvest"
+        ]
+      },
+      {
+        "char_end": 195,
+        "char_start": 180,
+        "kind": "offset",
+        "section_path": [
+          "Orchard Report",
+          "Harvest"
+        ]
+      },
+      {
+        "char_end": 203,
+        "char_start": 197,
+        "kind": "offset",
+        "section_path": [
+          "Orchard Report",
+          "Harvest",
+          "Yields"
+        ]
+      },
+      {
+        "char_end": 253,
+        "char_start": 205,
+        "kind": "offset",
+        "section_path": [
+          "Orchard Report",
+          "Harvest",
+          "Yields"
+        ]
+      },
+      {
+        "char_end": 279,
+        "char_start": 255,
+        "kind": "offset",
+        "section_path": [
+          "Orchard Report",
+          "Harvest",
+          "Yields"
+        ]
+      }
+    ],
+    "text": "Orchard Report\n\nWelcome to the orchard. Trees & shrubs grow here year-round, © 2026.\n\nHarvest\n\nApples ripen first.\nPears follow in autumn.\n\n- Apples\n- Pears\n- Conference\n- Comice\n\n1. Pick\n2. Sort\n\nYields\n\nYield by tree\nTree | Kilos\nApple | 120\nPear | 95\n\nrow 1\n  indented   row 2",
+    "token_estimate": 70
+  },
+  {
+    "chunk_id": "cafca652-c635-5e48-8ca0-0b17efa9376a",
+    "chunk_index": 1,
+    "content_hash": "4f2e653734f7cbdad213ead8bbf055625557ee85ce148ab32e2544a71bd77507",
+    "heading_path": [
+      "Orchard Report",
+      "Harvest",
+      "Yields"
+    ],
+    "locators": [
+      {
+        "char_end": 316,
+        "char_start": 281,
+        "kind": "offset",
+        "section_path": [
+          "Orchard Report",
+          "Harvest",
+          "Yields"
+        ]
+      },
+      {
+        "char_end": 326,
+        "char_start": 318,
+        "kind": "offset",
+        "section_path": [
+          "Orchard Report",
+          "Harvest",
+          "Yields"
+        ]
+      }
+    ],
+    "text": "Plant in spring.\nHarvest in autumn.\n\nThe end.",
+    "token_estimate": 12
+  }
+]

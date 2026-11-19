@@ -1,0 +1,53 @@
+{
+  "blocks": [
+    {
+      "block_id": "b0",
+      "kind": "paragraph",
+      "locator": {
+        "char_end": 281,
+        "char_start": 0,
+        "kind": "page",
+        "page": 1
+      },
+      "text": "Annual Orchard Report\nThis report summarises the orchard season. Apples ripened early this year, and the pear harvest\nfollowed in the first week of autumn.\nVolunteers helped with picking. Their effort doubled the amount of fruit collected per day\ncompared with the previous season."
+    },
+    {
+      "block_id": "b1",
+      "kind": "paragraph",
+      "locator": {
+        "char_end": 525,
+        "char_start": 283,
+        "kind": "page",
+        "page": 2
+      },
+      "text": "Findings\nSoil moisture stayed within the target range for most of the summer. Pest pressure was low and\nno chemical treatment was needed.\nThe east block produced the highest yield. The west block lagged because of late frost damage in\nspring."
+    },
+    {
+      "block_id": "b2",
+      "kind": "paragraph",
+      "locator": {
+        "char_end": 674,
+        "char_start": 527,
+        "kind": "page",
+        "page": 3
+      },
+      "text": "Recommendations\nPlant frost-tolerant varieties in the west block. Extend the volunteer programme and schedule\npicking days earlier in the calendar."
+    }
+  ],
+  "modality": "pdf",
+  "processor": {
+    "name": "pdf",
+    "version": "1"
+  },
+  "schema_version": 1,
+  "source": {
+    "byte_size": 2510,
+    "content_type": "application/pdf",
+    "sha256": "933fc8b39aaec19d8d5525811e3b2002bd97c163ccadef0a4494eb73e8ee18d3",
+    "version_id": "22222222-2222-4222-8222-222222222222"
+  },
+  "stats": {
+    "chars": 674,
+    "pages": 3
+  }
+}
