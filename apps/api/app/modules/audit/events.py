@@ -57,6 +57,8 @@ class AuditEventType(StrEnum):
     DOCUMENT_VERSION_CREATED = "document.version.created"
     DOCUMENT_UPDATED = "document.updated"
     DOCUMENT_DELETED = "document.deleted"
+    # M03 (contract §9): written by the publication transaction when a revision becomes searchable.
+    DOCUMENT_VERSION_INDEXED = "document.version.indexed"
 
 
 class SessionOpener(Protocol):

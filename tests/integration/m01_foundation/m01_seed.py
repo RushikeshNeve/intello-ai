@@ -143,7 +143,60 @@ def seed_tenant(engine: Engine, *, documents: bool = True) -> Tenant:
                     "k": f"org/{org}/doc/pending/{uuid.uuid4()}/original",
                 },
             )
+            _seed_ingestion(conn, org, ws, doc, version)
     return Tenant(org_id=org, owner_id=owner, workspace_id=ws)
+
+
+def _seed_ingestion(
+    conn: Connection, org: uuid.UUID, ws: uuid.UUID, doc: uuid.UUID, version: uuid.UUID
+) -> None:
+    """M03 tables (migration 0005): one revision, job + event, checkpoint, publication, outbox row."""
+    revision, job = uuid.uuid4(), uuid.uuid4()
+    ids = {"r": revision, "j": job, "o": org, "w": ws, "d": doc, "v": version}
+    conn.execute(
+        text(
+            "INSERT INTO knowledge_revisions (id, org_id, workspace_id, document_id, version_id,"
+            " pipeline_version, embedding_space_id, state, chunk_count)"
+            " VALUES (:r, :o, :w, :d, :v, '1', 'eseed', 'published', 1)"
+        ),
+        ids,
+    )
+    conn.execute(
+        text(
+            "INSERT INTO ingestion_jobs (id, org_id, workspace_id, document_id, version_id,"
+            " revision_id, pipeline_version, embedding_space_id)"
+            " VALUES (:j, :o, :w, :d, :v, :r, '1', 'eseed')"
+        ),
+        ids,
+    )
+    conn.execute(
+        text(
+            "INSERT INTO ingestion_job_events (job_id, org_id, workspace_id, document_id,"
+            " version_id, event_type) VALUES (:j, :o, :w, :d, :v, 'queued')"
+        ),
+        ids,
+    )
+    conn.execute(
+        text(
+            "INSERT INTO ingestion_checkpoints (revision_id, stage, org_id, input_fingerprint)"
+            " VALUES (:r, 'extract', :o, 'fp')"
+        ),
+        ids,
+    )
+    conn.execute(
+        text(
+            "INSERT INTO document_publications (document_id, org_id, workspace_id, revision_id,"
+            " version_id, version_number) VALUES (:d, :o, :w, :r, :v, 1)"
+        ),
+        ids,
+    )
+    conn.execute(
+        text(
+            "INSERT INTO outbox_events (org_id, aggregate_type, aggregate_id, event_type, payload)"
+            " VALUES (:o, 'ingestion_job', :j, 'ingestion.job.queued', '{}'::jsonb)"
+        ),
+        ids,
+    )
 
 
 def sqlstate(exc: DBAPIError) -> str | None:

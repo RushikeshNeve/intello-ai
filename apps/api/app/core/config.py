@@ -9,8 +9,10 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.modules.ingestion.ids import compute_embedding_space_id
 
 
 class Settings(BaseSettings):
@@ -45,8 +47,61 @@ class Settings(BaseSettings):
     UPLOAD_MAX_PENDING_PER_USER: int = Field(default=20, ge=1, le=1000)
     DOCUMENT_PURGE_GRACE_DAYS: int = Field(default=7, ge=1, le=3650)
 
+    # Worker role (M03 contract §4): created by migration 0005, used by the dispatcher and Celery
+    # workers only. The API never needs it.
+    POSTGRES_WORKER_USER: str = Field(default="ukos_worker", pattern=r"^[a-z_][a-z0-9_]{0,62}$")
+    POSTGRES_WORKER_PASSWORD: SecretStr | None = None
+    DATABASE_WORKER_URL: SecretStr | None = None
+
+    # Ingestion pipeline (M03 contract §6, §7, §10).
+    INGEST_MAX_ATTEMPTS: int = Field(default=5, ge=1, le=50)
+    INGEST_LEASE_SECONDS: int = Field(default=120, ge=5, le=3600)
+    INGEST_HEARTBEAT_SECONDS: int = Field(default=30, ge=1, le=1800)
+    INGEST_RETRY_BASE_SECONDS: int = Field(default=10, ge=0, le=3600)
+    INGEST_CONCURRENCY: int = Field(default=2, ge=1, le=64)
+    INGEST_TASK_SOFT_LIMIT_SECONDS: int = Field(default=900, ge=10, le=86_400)
+    INGEST_REAP_INTERVAL_SECONDS: int = Field(default=30, ge=1, le=3600)
+    INGEST_RECONCILE_INTERVAL_SECONDS: int = Field(default=300, ge=5, le=86_400)
+    INGEST_MAX_PDF_PAGES: int = Field(default=2000, ge=1, le=100_000)
+    INGEST_MAX_EXTRACT_BYTES: int = Field(default=52_428_800, ge=1024, le=2 * 1024**3)
+    INGEST_MAX_CHUNKS: int = Field(default=20_000, ge=1, le=1_000_000)
+    INGEST_CHUNK_TARGET_CHARS: int = Field(default=1800, ge=200, le=2400)
+    INGEST_CHUNK_OVERLAP_CHARS: int = Field(default=200, ge=0, le=1200)
+    INGEST_EMBED_BATCH_SIZE: int = Field(default=16, ge=1, le=512)
+    OUTBOX_POLL_SECONDS: float = Field(default=1.0, gt=0, le=60)
+
+    # Embedding space identity (M03 contract §7, ADR-020): changing ANY of these five values is a
+    # new embedding space, hence a new revision, a new vector index and re-embedding.
+    AI_EMBEDDING_MODEL: str = Field(default="google/embedding-gemma-300m", min_length=1)
+    AI_EMBEDDING_DIMENSIONS: int = Field(default=768, ge=1, le=8192)
+    AI_EMBEDDING_QUERY_PREFIX: str = "task: search result | query: "
+    AI_EMBEDDING_DOCUMENT_PREFIX: str = "title: none | text: "
+    AI_EMBEDDING_SPEC_VERSION: int = Field(default=1, ge=1)
+
     # Per-dependency timeout for /health/ready, seconds.
     HEALTH_CHECK_TIMEOUT_SECONDS: float = Field(default=2.0, gt=0, le=30)
+
+    @model_validator(mode="after")
+    def _check_ingestion_settings(self) -> Settings:
+        if self.INGEST_HEARTBEAT_SECONDS * 2 > self.INGEST_LEASE_SECONDS:
+            raise ValueError(
+                "INGEST_HEARTBEAT_SECONDS must be at most half of INGEST_LEASE_SECONDS "
+                "(a lease must survive one missed heartbeat)"
+            )
+        if self.INGEST_CHUNK_OVERLAP_CHARS * 2 > self.INGEST_CHUNK_TARGET_CHARS:
+            raise ValueError("INGEST_CHUNK_OVERLAP_CHARS must be at most half of the chunk target")
+        return self
+
+    @property
+    def embedding_space_id(self) -> str:
+        """The embedding space the current settings describe (``eb3ad37f8d916`` by default)."""
+        return compute_embedding_space_id(
+            self.AI_EMBEDDING_MODEL,
+            self.AI_EMBEDDING_DIMENSIONS,
+            self.AI_EMBEDDING_QUERY_PREFIX,
+            self.AI_EMBEDDING_DOCUMENT_PREFIX,
+            self.AI_EMBEDDING_SPEC_VERSION,
+        )
 
     @property
     def cors_origins(self) -> list[str]:
@@ -66,6 +121,13 @@ class Settings(BaseSettings):
     def sqlalchemy_migration_url(self) -> str:
         """DATABASE_MIGRATION_URL with the psycopg 3 driver forced."""
         return to_sqlalchemy_url(self.DATABASE_MIGRATION_URL.get_secret_value())
+
+    @property
+    def sqlalchemy_worker_url(self) -> str | None:
+        """DATABASE_WORKER_URL with the psycopg 3 driver forced (``None`` when not configured)."""
+        if self.DATABASE_WORKER_URL is None:
+            return None
+        return to_sqlalchemy_url(self.DATABASE_WORKER_URL.get_secret_value())
 
 
 def to_libpq_dsn(url: str) -> str:

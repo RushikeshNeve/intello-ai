@@ -38,6 +38,7 @@ CONTRACT_EVENT_TYPES = {
     "document.version.created",
     "document.updated",
     "document.deleted",
+    "document.version.indexed",
 }
 
 

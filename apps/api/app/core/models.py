@@ -510,5 +510,17 @@ ORG_SCOPED_TABLES: Final = (
     "documents",
     "document_versions",
     "upload_sessions",
+    # M03 (migration 0005, docs/architecture/m03-contracts.md §3).
+    "ingestion_jobs",
+    "ingestion_job_events",
+    "ingestion_checkpoints",
+    "knowledge_revisions",
+    "document_publications",
+    "outbox_events",
 )
 RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
+
+# Register the M03 models on ``Base.metadata`` (they live in the ingestion module; imported last
+# because they import ``Base`` from here). Keeps ``Base.metadata.tables == RLS_TABLES`` true for
+# every importer of this module.
+from app.modules.ingestion import models as _ingestion_models  # noqa: E402, F401

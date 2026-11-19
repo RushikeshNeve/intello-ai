@@ -4,6 +4,9 @@ Inputs:
 * ``DATABASE_MIGRATION_URL`` (env) or ``-x db_url=...``: admin-role connection. Required.
 * ``-x app_role=<name>`` or env ``POSTGRES_APP_USER`` (default ``ukos_app``): the least-privilege
   role that receives table grants. It must differ from the migration user.
+* ``-x worker_password=<pw>`` or env ``POSTGRES_WORKER_PASSWORD``, ``-x worker_role=<name>`` or env
+  ``POSTGRES_WORKER_USER`` (default ``ukos_worker``): migration 0005 creates the worker role when it
+  does not exist yet (an existing role keeps its password).
 
 The URL is never logged or echoed (it embeds credentials).
 """
@@ -19,6 +22,7 @@ from sqlalchemy.engine import make_url
 
 from app.core.config import to_sqlalchemy_url
 from app.core.models import Base
+from app.modules.ingestion import models as _ingestion_models  # noqa: F401 - M03 tables in metadata
 
 ROLE_PATTERN = re.compile(r"^[a-z_][a-z0-9_]{0,62}$")
 

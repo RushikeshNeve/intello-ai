@@ -88,11 +88,16 @@ def admin_engine(stack: ComposeProject) -> Iterator[Engine]:
 def migrated(stack: ComposeProject, admin_engine: Engine) -> None:
     cfg = Config(str(API_DIR / "alembic.ini"))
     cfg.set_main_option("script_location", str(API_DIR / "migrations"))
-    previous = {k: os.environ.get(k) for k in ("DATABASE_MIGRATION_URL", "POSTGRES_APP_USER")}
+    previous = {
+        k: os.environ.get(k)
+        for k in ("DATABASE_MIGRATION_URL", "POSTGRES_APP_USER", "POSTGRES_WORKER_PASSWORD")
+    }
     os.environ["DATABASE_MIGRATION_URL"] = _url(stack, app=False).render_as_string(
         hide_password=False
     )
     os.environ["POSTGRES_APP_USER"] = stack.env["POSTGRES_APP_USER"]
+    # Migration 0005 creates the worker role from this password (M03 contract §4).
+    os.environ["POSTGRES_WORKER_PASSWORD"] = stack.env["POSTGRES_WORKER_PASSWORD"]
     try:
         command.upgrade(cfg, "head")
     finally:
