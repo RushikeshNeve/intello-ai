@@ -135,8 +135,8 @@ def _load_json(raw: str) -> dict[str, Any] | None:
 
 
 def _chunk_ref(value: Any, chunks: Sequence[SourceChunk]) -> SourceChunk | None:
-    if len(chunks) == 1:
-        # One excerpt in the batch: any reference (small models answer 0 or omit it) means that excerpt.
+    if len(chunks) == 1 and (value is None or (not isinstance(value, bool) and value in (0, 1))):
+        # One excerpt in the batch: small models answer 0 or omit the reference; it can only mean that excerpt.
         return chunks[0]
     if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= len(chunks):
         return None
