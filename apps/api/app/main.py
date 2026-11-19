@@ -32,6 +32,7 @@ from app.modules.identity.oidc import OidcTokenVerifier
 from app.modules.identity.provisioning import DbUserProvisioner
 from app.modules.ingestion.router import router as ingestion_router
 from app.modules.organizations.router import router as organizations_router
+from app.modules.graph.api import router as graph_router
 from app.modules.retrieval.router import router as retrieval_router
 from app.modules.workspaces.router import router as workspaces_router
 
@@ -100,5 +101,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(documents_router)
     app.include_router(ingestion_router)
     app.include_router(retrieval_router)
+    app.include_router(graph_router)
     app.include_router(ai_policy_router)
     return app
