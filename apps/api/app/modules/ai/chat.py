@@ -61,6 +61,8 @@ from app.modules.ai.verification import (
     abstention,
     verify,
 )
+from app.modules.graph.merge import augment_evidence
+from app.modules.graph.ports_read import ChunkSource, GraphReadRepository
 from app.modules.knowledge.ports import KnowledgeRepository
 from app.modules.retrieval import service as retrieval_service
 from app.modules.retrieval.citations import CitationRef, ResolvedCitation, resolve_citation
@@ -359,6 +361,9 @@ class ChatDeps:
     embedder: EmbeddingProvider | None
     chat_settings: ChatSettings = field(default_factory=ChatSettings)
     model_factory: ModelFactory = default_model_factory
+    # M05 graph-augmented evidence: used only when ``Settings.GRAPH_ENABLED`` and both are set.
+    graph_repo: GraphReadRepository | None = None
+    graph_chunks: ChunkSource | None = None
 
 
 # -- the executor ---------------------------------------------------------------------------
@@ -575,6 +580,37 @@ class RunExecutor:
         with self._session() as session:
             return retrieval_service.finish(session, scope, gathered, top_k=s.CHAT_EVIDENCE_TOP_K)
 
+    def _augment(
+        self, scope: RetrievalScope | None, question: str, evidence: list[Any]
+    ) -> list[Any]:
+        """Graph-found original chunks after the base evidence; any failure keeps the base."""
+        deps = self.deps
+        if (
+            not self.settings.GRAPH_ENABLED
+            or scope is None
+            or deps.graph_repo is None
+            or deps.graph_chunks is None
+        ):
+            return evidence
+        repo, chunks = deps.graph_repo, deps.graph_chunks
+        try:
+            timeout = min(5.0, max(0.1, self._remaining()))
+
+            def work() -> list[Any]:
+                with self._session() as session:
+                    return list(augment_evidence(session, scope, question, evidence, repo, chunks))
+
+            return call_with_timeout(work, timeout)
+        except Exception as exc:
+            if isinstance(exc, RunFenceLost):
+                raise
+            log.warning(
+                "chat run=%s: graph augmentation skipped (%s)",
+                self.claim.run_id,
+                type(exc).__name__,
+            )
+            return evidence
+
     def _run(self) -> RunOutcome:
         data = self._load_input()
         existing = data.existing_event_types
@@ -582,11 +618,12 @@ class RunExecutor:
             self._event("started", {})
         scope = self._resolve_scope(data.snapshot_workspaces)
         result = self._retrieve(scope, data.question)
+        evidence = self._augment(scope, data.question, list(result.evidence))
         if "retrieval" not in existing:
             self._event(
                 "retrieval",
                 {
-                    "evidence_count": len(result.evidence),
+                    "evidence_count": len(evidence),
                     "dropped": result.dropped,
                     "degraded": list(result.degraded),
                 },
@@ -595,13 +632,13 @@ class RunExecutor:
         bundle = (
             build_prompt(
                 data.question,
-                result.evidence,
+                evidence,
                 data.history,
                 budget_tokens=cs.CHAT_CONTEXT_TOKENS,
                 reserve_output_tokens=cs.CHAT_MAX_OUTPUT_TOKENS,
                 history_turns=cs.CHAT_HISTORY_TURNS,
             )
-            if result.evidence
+            if evidence
             else None
         )
         if bundle is None or not bundle.should_call_model or scope is None:

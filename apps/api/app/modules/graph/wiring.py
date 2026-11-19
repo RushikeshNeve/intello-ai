@@ -6,6 +6,7 @@ until it is connected ``get_graph_read_repository`` answers 503 ``graph_unavaila
 from __future__ import annotations
 
 from collections.abc import Sequence
+from functools import lru_cache
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
@@ -26,9 +27,20 @@ def graph_unavailable() -> HTTPException:
     return HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, GRAPH_UNAVAILABLE)
 
 
+@lru_cache(maxsize=1)
+def default_graph_read_repository() -> GraphReadRepository:
+    from app.infrastructure.rushdb.graph import RushDbGraphRepository
+    from app.infrastructure.rushdb.settings import RushDbSettings
+    from app.modules.graph.read_adapter import StoreGraphReadRepository
+
+    return StoreGraphReadRepository(RushDbGraphRepository(RushDbSettings()))
+
+
 def get_graph_read_repository() -> GraphReadRepository:
-    # TODO(coordinator): return the RushDB graph adapter built by M05 agent A here.
-    raise graph_unavailable()
+    try:
+        return default_graph_read_repository()
+    except Exception:  # noqa: BLE001 - index not configured: the routes answer 503
+        raise graph_unavailable() from None
 
 
 class ArtifactChunkSource:

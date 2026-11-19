@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 from typing import Any, Final
 
@@ -85,6 +85,57 @@ _ENTITY_FIELDS: Final = (
     "extractor_version",
     "source_revision_id",
 )
+
+
+_SEARCH_SCAN: Final = 5000  # entities scanned per name search (no proven substring operator)
+
+
+def visible_claim_predicate(workspace_ids: Iterable[uuid.UUID], **extra: Any) -> _Json:
+    """THE predicate of every graph read: authorized workspaces AND published AND verified.
+    (The tenant org is the RushDB scope header; every row is re-checked for ``org_id``.)"""
+    predicate: _Json = {
+        "workspace_id": {"$in": sorted(str(w) for w in workspace_ids)},
+        "published": True,
+        "verification": "verified",
+    }
+    predicate.update(extra)
+    return predicate
+
+
+def _claim_from_row(r: dict[str, Any]) -> ClaimRecord:
+    return ClaimRecord(
+        id=_uuid(r["claim_id"]),
+        org_id=_uuid(r["org_id"]),
+        workspace_id=_uuid(r["workspace_id"]),
+        document_id=_uuid(r["document_id"]),
+        revision_id=_uuid(r["revision_id"]),
+        subject_id=_uuid(r["subject_id"]),
+        predicate=str(r["predicate"]),
+        object_id=_opt_uuid(r.get("object_id")),
+        object_text=r.get("object_text") or None,
+        confidence=float(r.get("confidence", 0.0)),
+        verification=str(r["verification"]),
+        extractor_version=str(r.get("extractor_version", "")),
+        published=bool(r.get("published", False)),
+    )
+
+
+def _entity_from_row(r: dict[str, Any]) -> EntityRecord:
+    try:
+        aliases = json.loads(r.get("aliases") or "[]")
+    except ValueError:
+        aliases = []
+    return EntityRecord(
+        id=_uuid(r["entity_id"]),
+        org_id=_uuid(r["org_id"]),
+        workspace_id=_uuid(r["workspace_id"]),
+        type=str(r["type"]),
+        canonical_name=str(r["canonical_name"]),
+        aliases=[str(a) for a in aliases if isinstance(a, str)],
+        entity_state=str(r["entity_state"]),
+        extractor_version=str(r.get("extractor_version", "")),
+        source_revision_id=_uuid(r["source_revision_id"]),
+    )
 
 
 def _uuid(value: Any) -> uuid.UUID:
@@ -263,6 +314,148 @@ class RushDbGraphRepository(RushDbKnowledgeRepository):
                     entity_state=str(r["entity_state"]),
                     extractor_version=str(r.get("extractor_version", "")),
                     source_revision_id=_uuid(r["source_revision_id"]),
+                )
+            )
+        return out
+
+    # ------------------------------------------- scoped reads (M05.02 read adapter)
+
+    def _read_claims(
+        self, scope: OrgScope, workspace_ids: frozenset[uuid.UUID], extra: _Json, limit: int | None
+    ) -> list[ClaimRecord]:
+        rows = self._rows(
+            scope,
+            CLAIM_LABEL,
+            visible_claim_predicate(workspace_ids, **extra),
+            _CLAIM_FIELDS,
+            what="graph.read_claims",
+            order={"confidence": "desc"},
+            limit=limit,
+        )
+        try:
+            return [_claim_from_row(r) for r in rows if str(r.get("org_id")) == str(scope.org_id)]
+        except (KeyError, TypeError, ValueError):
+            raise KnowledgeStoreError(
+                "rushdb graph.read_claims: malformed record", code="malformed"
+            ) from None
+
+    def read_claims_incident(
+        self,
+        scope: OrgScope,
+        workspace_ids: frozenset[uuid.UUID],
+        entity_ids: Sequence[uuid.UUID],
+        limit: int,
+    ) -> list[ClaimRecord]:
+        """Visible claims whose subject or object is in ``entity_ids`` (best confidence first)."""
+        if not entity_ids or limit < 1:
+            return []
+        ids = {"$in": sorted(str(i) for i in entity_ids)}
+        found: dict[uuid.UUID, ClaimRecord] = {}
+        for prop in ("subject_id", "object_id"):
+            for c in self._read_claims(scope, workspace_ids, {prop: ids}, limit):
+                found[c.id] = c
+        ordered = sorted(found.values(), key=lambda c: (-c.confidence, str(c.id)))
+        return ordered[:limit]
+
+    def read_claim(
+        self, scope: OrgScope, workspace_ids: frozenset[uuid.UUID], claim_id: uuid.UUID
+    ) -> ClaimRecord | None:
+        found = self._read_claims(scope, workspace_ids, {"claim_id": str(claim_id)}, 1)
+        return found[0] if found else None
+
+    def read_entities(
+        self,
+        scope: OrgScope,
+        workspace_ids: frozenset[uuid.UUID],
+        entity_ids: Sequence[uuid.UUID],
+    ) -> list[EntityRecord]:
+        if not entity_ids:
+            return []
+        rows = self._rows(
+            scope,
+            ENTITY_LABEL,
+            {
+                "workspace_id": {"$in": sorted(str(w) for w in workspace_ids)},
+                "entity_id": {"$in": sorted(str(i) for i in entity_ids)},
+            },
+            _ENTITY_FIELDS,
+            what="graph.read_entities",
+        )
+        return [_entity_from_row(r) for r in rows if str(r.get("org_id")) == str(scope.org_id)]
+
+    def search_entities(
+        self,
+        scope: OrgScope,
+        workspace_ids: frozenset[uuid.UUID],
+        q: str,
+        type: str | None,
+        limit: int,
+        after: tuple[str, uuid.UUID] | None,
+    ) -> list[EntityRecord]:
+        """Active entities whose name contains ``q`` (casefold), keyset ``(casefold name, id)``."""
+        predicate: _Json = {
+            "workspace_id": {"$in": sorted(str(w) for w in workspace_ids)},
+            "entity_state": "active",
+        }
+        if type is not None:
+            predicate["type"] = type
+        rows = self._rows(
+            scope,
+            ENTITY_LABEL,
+            predicate,
+            _ENTITY_FIELDS,
+            what="graph.search_entities",
+            limit=_SEARCH_SCAN,
+        )
+        needle = q.casefold()
+        ents = [
+            _entity_from_row(r)
+            for r in rows
+            if str(r.get("org_id")) == str(scope.org_id)
+            and needle in str(r.get("canonical_name", "")).casefold()
+        ]
+        ents.sort(key=lambda e: (e.canonical_name.casefold(), str(e.id)))
+        if after is not None:
+            key = (after[0], str(after[1]))
+            ents = [e for e in ents if (e.canonical_name.casefold(), str(e.id)) > key]
+        return ents[:limit]
+
+    def read_evidence(
+        self,
+        scope: OrgScope,
+        workspace_ids: frozenset[uuid.UUID],
+        claim_ids: Sequence[uuid.UUID],
+    ) -> list[EvidenceRecord]:
+        """Evidence of the VISIBLE claims among ``claim_ids`` only."""
+        if not claim_ids:
+            return []
+        visible = self._read_claims(
+            scope, workspace_ids, {"claim_id": {"$in": sorted(str(c) for c in claim_ids)}}, None
+        )
+        if not visible:
+            return []
+        rows = self._rows(
+            scope,
+            EVIDENCE_LABEL,
+            {"claim_id": {"$in": sorted(str(c.id) for c in visible)}},
+            _EVIDENCE_FIELDS,
+            what="graph.read_evidence",
+        )
+        out: list[EvidenceRecord] = []
+        for r in rows:
+            if str(r.get("org_id")) != str(scope.org_id):
+                continue
+            out.append(
+                EvidenceRecord(
+                    id=_uuid(r["evidence_id"]),
+                    claim_id=_uuid(r["claim_id"]),
+                    org_id=_uuid(r["org_id"]),
+                    workspace_id=_uuid(r["workspace_id"]),
+                    chunk_id=_uuid(r["chunk_id"]),
+                    revision_id=_uuid(r["revision_id"]),
+                    document_id=_uuid(r["document_id"]),
+                    version_id=_uuid(r["version_id"]),
+                    excerpt=str(r.get("excerpt", "")),
                 )
             )
         return out
