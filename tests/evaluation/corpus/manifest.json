@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "name": "ukos-seed",
+  "orgs": [
+    {"id": "org-a", "name": "Org A"},
+    {"id": "org-b", "name": "Org B"}
+  ],
+  "workspaces": [
+    {"id": "org-a/engineering", "org": "org-a"},
+    {"id": "org-a/hr", "org": "org-a"},
+    {"id": "org-a/sales", "org": "org-a"},
+    {"id": "org-b/research", "org": "org-b"}
+  ],
+  "personas": {
+    "viewer-eng": {"org": "org-a", "workspaces": ["org-a/engineering"]},
+    "viewer-hr": {"org": "org-a", "workspaces": ["org-a/hr"]},
+    "viewer-sales": {"org": "org-a", "workspaces": ["org-a/sales"]},
+    "org-admin": {"org": "org-a", "workspaces": ["org-a/engineering", "org-a/hr", "org-a/sales"]},
+    "outsider": {"org": "org-b", "workspaces": ["org-b/research"]},
+    "nobody": {"org": "org-a", "workspaces": []}
+  },
+  "documents": [
+    {"id": "eng-onboarding", "title": "Engineering onboarding", "workspace": "org-a/engineering", "content_type": "text/markdown", "visibility": "workspace", "versions": [{"version": 1, "file": "eng-onboarding.md"}]},
+    {"id": "eng-oncall", "title": "On-call policy", "workspace": "org-a/engineering", "content_type": "text/markdown", "visibility": "workspace", "versions": [{"version": 1, "file": "eng-oncall.md"}]},
+    {"id": "eng-oncall-faq", "title": "On-call FAQ", "workspace": "org-a/engineering", "content_type": "text/plain", "visibility": "workspace", "note": "near-duplicate of eng-oncall", "versions": [{"version": 1, "file": "eng-oncall-faq.txt"}]},
+    {"id": "eng-deploy", "title": "Deployment runbook", "workspace": "org-a/engineering", "content_type": "text/markdown", "visibility": "workspace", "note": "v2 supersedes v1 with changed facts", "versions": [{"version": 1, "file": "eng-deploy.v1.md"}, {"version": 2, "file": "eng-deploy.v2.md"}]},
+    {"id": "eng-db-guide", "title": "Database operations guide", "workspace": "org-a/engineering", "content_type": "text/html", "visibility": "workspace", "versions": [{"version": 1, "file": "eng-db-guide.html"}]},
+    {"id": "eng-security", "title": "Security baseline", "workspace": "org-a/engineering", "content_type": "application/pdf", "visibility": "workspace", "versions": [{"version": 1, "file": "eng-security.pdf"}]},
+    {"id": "eng-incident-2025-03", "title": "Postmortem: database disk exhaustion", "workspace": "org-a/engineering", "content_type": "text/markdown", "visibility": "workspace", "versions": [{"version": 1, "file": "eng-incident-2025-03.md"}]},
+    {"id": "eng-legacy-vpn", "title": "Legacy VPN gateway", "workspace": "org-a/engineering", "content_type": "text/plain", "visibility": "workspace", "deleted": true, "versions": [{"version": 1, "file": "eng-legacy-vpn.txt"}]},
+    {"id": "eng-release-checklist", "title": "Release checklist", "workspace": "org-a/engineering", "content_type": "text/markdown", "visibility": "workspace", "hostile": true, "versions": [{"version": 1, "file": "eng-release-checklist.md"}]},
+    {"id": "eng-staging", "title": "Staging cluster", "workspace": "org-a/engineering", "content_type": "text/plain", "visibility": "workspace", "note": "very short", "versions": [{"version": 1, "file": "eng-staging.txt"}]},
+    {"id": "eng-architecture", "title": "Platform architecture reference", "workspace": "org-a/engineering", "content_type": "text/markdown", "visibility": "workspace", "note": "very long (about 20k characters)", "versions": [{"version": 1, "file": "eng-architecture.md"}]},
+    {"id": "hr-leave", "title": "Leave policy", "workspace": "org-a/hr", "content_type": "text/markdown", "visibility": "workspace", "versions": [{"version": 1, "file": "hr-leave.md"}]},
+    {"id": "hr-leave-faq", "title": "Leave FAQ", "workspace": "org-a/hr", "content_type": "text/plain", "visibility": "workspace", "note": "near-duplicate of hr-leave", "versions": [{"version": 1, "file": "hr-leave-faq.txt"}]},
+    {"id": "hr-benefits", "title": "Employee benefits", "workspace": "org-a/hr", "content_type": "application/pdf", "visibility": "workspace", "versions": [{"version": 1, "file": "hr-benefits.pdf"}]},
+    {"id": "hr-remote", "title": "Remote work policy", "workspace": "org-a/hr", "content_type": "text/html", "visibility": "workspace", "versions": [{"version": 1, "file": "hr-remote.html"}]},
+    {"id": "hr-onboarding", "title": "HR onboarding", "workspace": "org-a/hr", "content_type": "text/markdown", "visibility": "workspace", "versions": [{"version": 1, "file": "hr-onboarding.md"}]},
+    {"id": "hr-salary-bands", "title": "Salary bands 2026", "workspace": "org-a/hr", "content_type": "text/markdown", "visibility": "workspace", "versions": [{"version": 1, "file": "hr-salary-bands.md"}]},
+    {"id": "hr-reise-de", "title": "Reisekostenrichtlinie", "workspace": "org-a/hr", "content_type": "text/plain", "visibility": "workspace", "note": "German with a Spanish line", "versions": [{"version": 1, "file": "hr-reise-de.txt"}]},
+    {"id": "sales-pricing", "title": "Price list", "workspace": "org-a/sales", "content_type": "text/markdown", "visibility": "workspace", "note": "v2 supersedes v1 with changed facts", "versions": [{"version": 1, "file": "sales-pricing.v1.md"}, {"version": 2, "file": "sales-pricing.v2.md"}]},
+    {"id": "sales-playbook", "title": "Sales playbook", "workspace": "org-a/sales", "content_type": "text/markdown", "visibility": "workspace", "versions": [{"version": 1, "file": "sales-playbook.md"}]},
+    {"id": "sales-q3-report", "title": "Q3 2026 sales report", "workspace": "org-a/sales", "content_type": "application/pdf", "visibility": "workspace", "versions": [{"version": 1, "file": "sales-q3-report.pdf"}]},
+    {"id": "sales-customers", "title": "Key customer renewals", "workspace": "org-a/sales", "content_type": "text/markdown", "visibility": "workspace", "versions": [{"version": 1, "file": "sales-customers.md"}]},
+    {"id": "rb-experiments", "title": "Experiment log", "workspace": "org-b/research", "content_type": "text/markdown", "visibility": "workspace", "versions": [{"version": 1, "file": "rb-experiments.md"}]},
+    {"id": "rb-onboarding", "title": "Research onboarding", "workspace": "org-b/research", "content_type": "text/markdown", "visibility": "workspace", "versions": [{"version": 1, "file": "rb-onboarding.md"}]},
+    {"id": "rb-leave", "title": "Research leave policy", "workspace": "org-b/research", "content_type": "text/plain", "visibility": "workspace", "versions": [{"version": 1, "file": "rb-leave.txt"}]},
+    {"id": "rb-roadmap", "title": "Confidential roadmap", "workspace": "org-b/research", "content_type": "text/markdown", "visibility": "workspace", "versions": [{"version": 1, "file": "rb-roadmap.md"}]}
+  ]
+}

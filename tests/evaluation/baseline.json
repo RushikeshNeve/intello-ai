@@ -1,0 +1,24 @@
+{
+  "runs": {
+    "adapters:baseline_retriever|adapters:baseline_answerer": {
+      "corpus_sha256": "7ada7f771c13ffa8c4f5846772a9274f00732b23f8afd95c2b49abd4cfa4a6fe",
+      "dataset_sha256": "3fdf3490b307da5602af48c594e688b4011f90756ca280b712bdedf7e8743ec9",
+      "metrics": {
+        "abstention_precision": 0.8,
+        "abstention_recall": 0.952381,
+        "answer_accuracy": 0.783133,
+        "citation_validity": 1.0,
+        "hit_rate@5": 0.987952,
+        "mrr": 0.937751,
+        "ndcg@10": 0.950498,
+        "recall@10": 0.987952,
+        "recall@5": 0.987952,
+        "updated_fact_correctness": 1.0
+      },
+      "tolerances": {
+        "default": 0.02
+      }
+    }
+  },
+  "schema_version": 1
+}

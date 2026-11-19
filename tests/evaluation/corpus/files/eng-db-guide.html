@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Database operations guide</title></head>
+<body>
+<h1>Database operations guide</h1>
+<p>The primary PostgreSQL cluster is backed up every night at 02:30 UTC. Backups are kept for 35 days.</p>
+<h2>Point-in-time recovery</h2>
+<p>Write-ahead logs are archived continuously, so the database can be restored to any second within the last 7 days. A restore drill is run once per quarter.</p>
+<h2>Migrations</h2>
+<p>Schema migrations must be backwards compatible with the previous release. Destructive migrations need two releases: first stop using the column, then drop it.</p>
+<h2>Connection limits</h2>
+<p>Each service may open at most 20 connections to the primary cluster.</p>
+</body>
+</html>

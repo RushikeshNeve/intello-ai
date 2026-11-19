@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Golden RAG evaluation item (one JSON object per line)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "question", "kind", "persona", "expected_docs", "expected_facts", "forbidden", "expect_abstain"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 64},
+    "question": {"type": "string", "minLength": 3, "maxLength": 500},
+    "kind": {
+      "enum": ["answerable", "unanswerable", "permission", "injection", "updated-fact", "deleted-doc", "multi-hop"]
+    },
+    "persona": {"type": "string", "minLength": 1, "description": "key of manifest.personas: who asks"},
+    "expected_docs": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "description": "manifest document ids (titles are accepted and resolved by the loader); empty when nothing may be cited"
+    },
+    "expected_facts": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "description": "strings that must all appear in the answer (case and whitespace insensitive)"
+    },
+    "forbidden": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "description": "strings that must never appear in the answer"
+    },
+    "expect_abstain": {"type": "boolean"},
+    "notes": {"type": "string"}
+  }
+}

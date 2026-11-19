@@ -1,0 +1,10 @@
+On-call FAQ
+
+Q: When can I join the rotation?
+A: Engineers join the on-call rotation after completing three months in the team. The rotation is weekly and hands over every Monday at 09:00 UTC.
+
+Q: How fast must I respond to a page?
+A: The primary on-call engineer must acknowledge a page within 15 minutes. If there is no acknowledgement after 30 minutes the page escalates to the secondary engineer, and after 45 minutes to the engineering manager.
+
+Q: Am I paid for on-call weeks?
+A: On-call weeks are compensated with a flat allowance of 350 EUR. Every hour spent on an incident outside working hours earns one hour of time off in lieu.

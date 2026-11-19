@@ -1,0 +1,3 @@
+Legacy VPN gateway
+
+The legacy VPN gateway is vpn-old.example.internal and it accepts connections on port 1194. The shared emergency passphrase is moonlit-harbor-42. This gateway is scheduled for retirement.
