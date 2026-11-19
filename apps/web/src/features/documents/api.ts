@@ -12,6 +12,7 @@ import {
   type ApiPath,
   type Fetcher,
 } from "@/features/organizations/api/http";
+import { parseSummaryLoose } from "./ingestion/api";
 import {
   DISPOSITIONS,
   RETENTION_STATUSES,
@@ -104,6 +105,7 @@ export function parseDocument(v: unknown): Document {
     version_count: num(v, "version_count"),
     latest_version: v.latest_version === null || v.latest_version === undefined ? null : parseVersion(v.latest_version),
     permissions: { write: bool(perms, "write"), manage: bool(perms, "manage") },
+    ingestion: parseSummaryLoose(v.ingestion),
   };
 }
 

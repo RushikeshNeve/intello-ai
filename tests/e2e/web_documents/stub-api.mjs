@@ -8,6 +8,11 @@
 //   globex bob=owner, alice=member   bench (alice VIEWER: read-only, can_upload=false) holds 1 doc; vault (bob only) holds 1 secret doc
 //   initech mallory=owner   plans
 //
+// M03.03.04 additions (contract m03 §11): every document carries an ingestion job (default `indexed`);
+//   GET  {doc}/ingestion, POST {doc}/ingestion/retry (write only; 409 while active), GET {doc}/ingestion/events (SSE:
+//   `snapshot` then `job` with id: seq, keep-alive comments). Test control: GET /__ingest/step?doc=ID (queued ->
+//   processing[extract|chunk|embed|index|publish] -> indexed), /__ingest/fail?doc=ID&code=X, /__ingest/state.
+//   acme/papers holds "Pipeline demo" (queued) and "Broken PDF" (failed pdf_unreadable); globex/bench's doc is failed.
 //   GET /__log     every API request: {method, path, caller, status, ...}   GET /__seed   ids   GET /__store_log
 import { createServer } from "node:http";
 import { createPublicKey, createVerify, randomUUID } from "node:crypto";
@@ -22,6 +27,8 @@ const now = () => new Date().toISOString();
 const orgs = new Map();
 const workspaces = new Map();
 const documents = new Map(); // id -> {id, workspace_id, title, created_at, updated_at, deleted, versions: [oldest..newest]}
+const ingestion = new Map(); // doc id -> {state, stage, error_code, attempts, seq, events: [], subs: Set<fn>}
+const STEPS = [["queued", null], ["processing", "extract"], ["processing", "chunk"], ["processing", "embed"], ["processing", "index"], ["processing", "publish"], ["indexed", null]];
 const blobs = new Map(); // version id -> {bytes, content_type}
 
 function seedOrg(slug, name, members, wss) {
@@ -75,6 +82,25 @@ function addDoc(wsId, { title, versions, updatedMinutesAgo }) {
   return doc;
 }
 
+function setIngestion(docId, state, stage = null, error_code = null) {
+  let g = ingestion.get(docId);
+  if (!g) ingestion.set(docId, (g = { state, stage, error_code, attempts: 0, seq: 0, events: [], subs: new Set(), updated_at: now() }));
+  g.state = state;
+  g.stage = stage;
+  g.error_code = error_code;
+  g.updated_at = now();
+  if (state === "queued") g.attempts += 1;
+  const ev = { seq: ++g.seq, state, stage, error_code, at: g.updated_at };
+  g.events.push(ev);
+  for (const fn of g.subs) fn(ev);
+  return g;
+}
+const ingestionSummary = (docId) => {
+  const g = ingestion.get(docId);
+  return g ? { state: g.state, stage: g.stage, updated_at: g.updated_at, error_code: g.error_code } : { state: "none", stage: null, updated_at: null, error_code: null };
+};
+const isActive = (g) => g && (g.state === "queued" || g.state === "processing");
+
 const notes = acme.ws.notes.id;
 export const HOSTILE = "# Meeting notes\n<script>window.__pwned=1</script>\n<img src=x onerror=alert(1)>\n";
 addDoc(notes, { title: "Quarterly report", updatedMinutesAgo: 1, versions: [
@@ -90,6 +116,14 @@ for (let i = 1; i <= 30; i++) {
 }
 const benchDoc = addDoc(globex.ws.bench.id, { title: "Bench readout", updatedMinutesAgo: 5, versions: [{ filename: "readout.txt", type: "text/plain", bytes: Buffer.from("readout\n") }] });
 const vaultDoc = addDoc(globex.ws.vault.id, { title: "Vault Secret Doc", updatedMinutesAgo: 5, versions: [{ filename: "secret.txt", type: "text/plain", bytes: Buffer.from("secret\n") }] });
+
+const papers = acme.ws.papers.id;
+const pipelineDoc = addDoc(papers, { title: "Pipeline demo", updatedMinutesAgo: 1, versions: [{ filename: "demo.txt", type: "text/plain", bytes: Buffer.from("demo\n") }] });
+const brokenDoc = addDoc(papers, { title: "Broken PDF", updatedMinutesAgo: 2, versions: [{ filename: "broken.pdf", type: "application/pdf", bytes: Buffer.from("%PDF-broken") }] });
+for (const dd of documents.values()) setIngestion(dd.id, "indexed");
+setIngestion(pipelineDoc.id, "queued");
+setIngestion(brokenDoc.id, "failed", "extract", "pdf_unreadable");
+setIngestion(benchDoc.id, "failed", "embed", "index_unavailable");
 
 // --- identity ---
 let jwks = null;
@@ -147,6 +181,7 @@ function docOut(doc, w, org, role) {
     version_count: doc.versions.length,
     latest_version: versionOut(doc, latest),
     permissions: perms(role),
+    ingestion: ingestionSummary(doc.id),
   };
 }
 
@@ -187,6 +222,39 @@ function listDocs(url, w, org, role, res, entry) {
   return send(res, 200, { items: page.map((d) => docOut(d, w, org, role)), next_cursor: next, can_upload: perms(role).write }, entry);
 }
 
+function ingestionRoute(req, res, doc, parts, role, entry) {
+  const g = ingestion.get(doc.id);
+  const sub = parts[8];
+  if (parts.length === 8 && req.method === "GET") {
+    return send(res, 200, { ...ingestionSummary(doc.id), attempts: g?.attempts ?? 0, max_attempts: 5, revision_id: g ? "00000000-0000-4000-8000-0000000000aa" : null, published_at: g?.state === "indexed" ? g.updated_at : null, events: g ? g.events.slice(-50) : [] }, entry);
+  }
+  if (sub === "retry" && req.method === "POST") {
+    if (!perms(role).write) return send(res, 403, { detail: "forbidden" }, entry);
+    if (isActive(g)) return send(res, 409, { detail: "conflict" }, entry);
+    setIngestion(doc.id, "queued");
+    return send(res, 202, { job_id: randomUUID() }, entry);
+  }
+  if (sub === "events" && req.method === "GET") {
+    entry.status = 200;
+    res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
+    const snap = { ...ingestionSummary(doc.id), attempts: g?.attempts ?? 0, max_attempts: 5, events: g ? g.events.slice(-50) : [] };
+    res.write(`event: snapshot\ndata: ${JSON.stringify(snap)}\n\n`);
+    const gg = g ?? setIngestion(doc.id, "none");
+    const push = (ev) => res.write(`event: job\nid: ${ev.seq}\ndata: ${JSON.stringify({ ...ev, updated_at: ev.at })}\n\n`);
+    gg.subs.add(push);
+    streams.n += 1;
+    const ka = setInterval(() => res.write(": keep-alive\n\n"), 15_000);
+    req.on("close", () => {
+      clearInterval(ka);
+      gg.subs.delete(push);
+      streams.n -= 1;
+    });
+    return;
+  }
+  return send(res, 404, { detail: "not_found" }, entry);
+}
+const streams = { n: 0 };
+
 async function handle(req, res, url) {
   const auth = req.headers.authorization ?? "";
   const claims = auth.startsWith("Bearer ") ? await verify(auth.slice(7)) : null;
@@ -223,6 +291,7 @@ async function handle(req, res, url) {
   const doc = documents.get(docId);
   if (!doc || doc.workspace_id !== w.id || doc.deleted) return send(res, 404, { detail: "not_found" }, entry);
   if (parts.length === 7 && req.method === "GET") return send(res, 200, docOut(doc, w, org, role), entry);
+  if (d === "ingestion") return ingestionRoute(req, res, doc, parts, role, entry);
   if (d !== "versions") return send(res, 404, { detail: "not_found" }, entry);
   if (parts.length === 8 && req.method === "GET") {
     return send(res, 200, { items: [...doc.versions].reverse().map((v) => versionOut(doc, v)), next_cursor: null }, entry);
@@ -253,12 +322,26 @@ const server = createServer((req, res) => {
   };
   if (url.pathname === "/__log") return json(log);
   if (url.pathname === "/__store_log") return json(storeLog);
+  if (url.pathname === "/__ingest/state") return json({ streams: streams.n, docs: Object.fromEntries([...ingestion].map(([id, g]) => [id, { state: g.state, stage: g.stage, attempts: g.attempts, subs: g.subs.size }])) });
+  if (url.pathname === "/__ingest/step") {
+    const id = url.searchParams.get("doc");
+    const g = ingestion.get(id);
+    const at = g ? STEPS.findIndex(([s, st]) => s === g.state && st === g.stage) : -1;
+    const [state, stage] = STEPS[Math.min(at + 1, STEPS.length - 1)];
+    setIngestion(id, state, stage);
+    return json(ingestionSummary(id));
+  }
+  if (url.pathname === "/__ingest/fail") {
+    const id = url.searchParams.get("doc");
+    setIngestion(id, "failed", url.searchParams.get("stage") ?? "extract", url.searchParams.get("code") ?? "pdf_unreadable");
+    return json(ingestionSummary(id));
+  }
   if (url.pathname === "/__seed") {
     const byTitle = {};
     for (const dd of documents.values()) byTitle[dd.title] = { id: dd.id, workspace_id: dd.workspace_id, versions: dd.versions.map((v) => v.id) };
     return json({
       orgs: { acme: acme.org.id, globex: globex.org.id },
-      workspaces: { notes: notes, bench: globex.ws.bench.id, vault: globex.ws.vault.id },
+      workspaces: { notes: notes, papers: papers, bench: globex.ws.bench.id, vault: globex.ws.vault.id },
       docs: byTitle,
       bench: benchDoc.id,
       vault: vaultDoc.id,

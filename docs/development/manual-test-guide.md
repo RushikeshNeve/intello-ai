@@ -145,6 +145,23 @@ docker exec ukos-postgres-1 psql -U ukos_admin -d ukos -c "SELECT occurred_at, e
 **Please tell me what you see for these two, they are the only parts no automated test could check in a real browser:**
 (a) does the **PDF** appear inline in the viewer? (b) does the **`.txt`** preview show its text? If either fails, "Download" still works, and I'll fix the preview.
 
+## 5c. Processing status (M03)
+
+Needs the M03 backend (worker, dispatcher and the status API) running; use `127.0.0.1` links as in 5b. Do it as **alice** (writer), then as **bob** (viewer).
+
+1. **Upload and watch the library.** Open `http://127.0.0.1:3300/o/<org-slug>/w/<workspace-slug>/documents`, upload a small `.txt` or `.md` file.
+   **Expect:** the new row has a **Status** badge that reads **Queued**, then **Processing (...)** with the current stage, then **Ready**, without reloading the page
+   (the list refreshes itself every 3 seconds while a row is still working, and stops once everything is finished). The state is always written as text, never just a colour.
+2. **Open the document** (click the title). The **Processing** panel on the right shows the same state, a five-step list (Extract, Chunk, Embed, Index, Publish) and a **History**
+   with timestamps (UTC). It updates live. A screen reader announces state changes.
+3. **See a failure.** Upload a file that cannot be processed, e.g. a PDF with no text (a scanned page) or an encrypted PDF.
+   **Expect:** badge **No text found** / **Failed**, and a plain sentence in the panel such as "We couldn't find any text in this file". You should never see raw error codes, ids or technical text.
+4. **Retry.** For a failed document alice sees a **Retry** button. Press it: the button is disabled while it works, the panel says "Processing restarted", and the badge goes back to
+   **Queued**. (If you press it twice you get "already being processed", not an error page.)
+5. **Read-only user.** As **bob** (viewer) open the same failed document: the failure message is there but there is **no Retry button**.
+6. **Keyboard.** Press Tab: the Retry button is reachable and Enter/Space triggers it.
+7. **Tab hidden.** Switch to another browser tab while a file is processing, come back: the page catches up (no extra requests are made while the tab is hidden).
+
 ## 6. Calling the API directly (optional)
 
 Get a token with Dex's password grant, then call any route from the `/docs` list:

@@ -290,6 +290,145 @@ test("content URL through the BFF: inline for the allow-list, forced attachment 
   assert.equal(denied.res.status, 404);
 });
 
+// ---- M03.03.04: processing status (library badges, viewer panel, SSE through the BFF, retry) ----
+const PAPERS = "/o/acme/w/papers/documents";
+const apiDoc = (ws, id) => `/api/v1/orgs/${seed.orgs[ws === seed.workspaces.bench ? "globex" : "acme"]}/workspaces/${ws}/documents/${id}`;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const post = (path, headers = { origin: WEB }) => fetch(WEB + path, { method: "POST", headers: { cookie: `${SESSION_COOKIE}=${session}`, ...headers } });
+
+/** Reads SSE frames from a streaming response; `next()` resolves with the next frame or rejects after `ms`. */
+function sseReader(res) {
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  async function next(ms = 5000) {
+    const deadline = Date.now() + ms;
+    for (;;) {
+      const i = buf.indexOf("\n\n");
+      if (i >= 0) {
+        const raw = buf.slice(0, i);
+        buf = buf.slice(i + 2);
+        const f = { event: "message", id: null, data: "", comment: false };
+        for (const line of raw.split("\n")) {
+          if (line.startsWith(":")) f.comment = true;
+          else if (line.startsWith("event: ")) f.event = line.slice(7);
+          else if (line.startsWith("id: ")) f.id = line.slice(4);
+          else if (line.startsWith("data: ")) f.data += line.slice(6);
+        }
+        return f;
+      }
+      const left = deadline - Date.now();
+      if (left <= 0) throw new Error("timed out waiting for an SSE frame");
+      const chunk = await Promise.race([reader.read(), sleep(left).then(() => ({ timeout: true }))]);
+      if (chunk.timeout) throw new Error("timed out waiting for an SSE frame");
+      if (chunk.done) throw new Error("stream ended");
+      buf += dec.decode(chunk.value, { stream: true });
+    }
+  }
+  return { next, cancel: () => reader.cancel() };
+}
+
+test("library: server-rendered rows carry an accessible status badge (text, not colour only)", async () => {
+  const r = await web(PAPERS, { cookie: session });
+  assert.equal(count(r.html, "ingestion-badge"), 2);
+  assert.match(r.html, /data-testid="ingestion-badge" data-state="queued"[^>]*>.*?Queued</s);
+  assert.match(r.html, /data-state="failed"[^>]*>.*?Failed</s);
+  assert.match(r.html, /<th[^>]*>Status<\/th>/);
+  const notes = await web(LIB, { cookie: session });
+  assert.equal(count(notes.html, "ingestion-badge"), 25);
+  assert.match(notes.html, /data-state="ready"[^>]*>.*?Ready</s);
+});
+
+test("viewer: failed document shows a human message and Retry; raw codes and internal ids never reach the page", async () => {
+  const broken = seed.docs["Broken PDF"];
+  const r = await web(`${PAPERS}/${broken.id}`, { cookie: session });
+  assert.match(r.html, /data-testid="processing-panel"/);
+  assert.match(r.html, /This PDF couldn(&#x27;|')t be read/);
+  assert.match(r.html, /aria-live="polite"/);
+  assert.match(r.html, />Retry</);
+  // Visible text only: the RSC payload in <script> tags carries the stable error code as a prop, the user never sees it.
+  const visible = r.html.replace(/<script[\s\S]*?<\/script>/g, "").replace(/<[^>]+>/g, " ");
+  assert.doesNotMatch(visible, /pdf_unreadable|Traceback|00000000-0000-4000-8000-0000000000aa/);
+  // The timeline / steps render as lists.
+  assert.match(r.html, /data-testid="processing-steps"/);
+});
+
+test("viewer: a read-only caller sees the failure but no Retry button, and the API refuses a forged retry (403)", async () => {
+  const v = await web(`/o/globex/w/bench/documents/${seed.bench}`, { cookie: session });
+  assert.match(v.html, /data-testid="processing-failure"/);
+  assert.match(v.html, /search index was unavailable/);
+  assert.doesNotMatch(v.html, />Retry</);
+  const forged = await post(`${apiDoc(seed.workspaces.bench, seed.bench)}/ingestion/retry`);
+  assert.equal(forged.status, 403);
+  assert.equal(await forged.text(), JSON.stringify({ detail: "forbidden" }));
+  const st = await stubJson("/__ingest/state");
+  assert.equal(st.docs[seed.bench].state, "failed", "the read-only retry changed nothing");
+});
+
+test("SSE through the BFF: streams unbuffered (snapshot, then job events with ids), tears down on client abort", async () => {
+  const pipe = seed.docs["Pipeline demo"];
+  const res = await fetch(WEB + `${apiDoc(seed.workspaces.papers, pipe.id)}/ingestion/events`, {
+    headers: { cookie: `${SESSION_COOKIE}=${session}`, accept: "text/event-stream" },
+  });
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get("content-type"), /^text\/event-stream/);
+  assert.equal(res.headers.get("cache-control"), "no-store");
+  assert.equal(res.headers.get("set-cookie"), null);
+  const sse = sseReader(res);
+  const snap = await sse.next();
+  assert.equal(snap.event, "snapshot");
+  assert.equal(JSON.parse(snap.data).state, "queued");
+  const seen = [];
+  for (let i = 0; i < 6; i++) {
+    await stubJson(`/__ingest/step?doc=${pipe.id}`); // each step must arrive before the next is triggered: not buffered
+    const f = await sse.next();
+    assert.equal(f.event, "job");
+    assert.match(f.id, /^\d+$/);
+    seen.push(JSON.parse(f.data));
+  }
+  assert.deepEqual(seen.map((e) => [e.state, e.stage]), [["processing", "extract"], ["processing", "chunk"], ["processing", "embed"], ["processing", "index"], ["processing", "publish"], ["indexed", null]]);
+  assert.equal((await stubJson("/__ingest/state")).streams, 1);
+  await sse.cancel();
+  for (let i = 0; i < 20 && (await stubJson("/__ingest/state")).streams !== 0; i++) await sleep(100);
+  assert.equal((await stubJson("/__ingest/state")).streams, 0, "closing the browser stream closes the upstream stream (no leak)");
+});
+
+test("SSE and retry are refused without a session (401) and cross-origin retry is refused (403)", async () => {
+  const pipe = seed.docs["Pipeline demo"];
+  const sseNoAuth = await fetch(WEB + `${apiDoc(seed.workspaces.papers, pipe.id)}/ingestion/events`, { headers: { accept: "text/event-stream" } });
+  assert.equal(sseNoAuth.status, 401);
+  await sseNoAuth.text();
+  const broken = seed.docs["Broken PDF"];
+  const evil = await post(`${apiDoc(seed.workspaces.papers, broken.id)}/ingestion/retry`, { origin: "http://evil.invalid" });
+  assert.equal(evil.status, 403);
+  await evil.text();
+  assert.equal((await stubJson("/__ingest/state")).docs[broken.id].state, "failed");
+});
+
+test("retry through the BFF: 202 queues a new job, a second retry is 409, the status endpoint follows", async () => {
+  const broken = seed.docs["Broken PDF"];
+  const path = apiDoc(seed.workspaces.papers, broken.id);
+  const ok = await post(`${path}/ingestion/retry`);
+  assert.equal(ok.status, 202);
+  assert.match((await ok.json()).job_id, /^[0-9a-f-]{36}$/);
+  const again = await post(`${path}/ingestion/retry`);
+  assert.equal(again.status, 409);
+  await again.text();
+  const status = await web(`${path}/ingestion`, { cookie: session });
+  const body = JSON.parse(status.text);
+  assert.equal(body.state, "queued");
+  assert.ok(body.events.length >= 2);
+  // The library now shows the retried document as queued.
+  const lib = await web(PAPERS, { cookie: session });
+  assert.equal([...lib.html.matchAll(/data-state="queued"/g)].length, 1, "Pipeline demo is already indexed by the SSE test; only the retried document is queued");
+  // Drive it to a terminal state so later runs/pages are stable: processing -> failed with an unknown code.
+  await stubJson(`/__ingest/step?doc=${broken.id}`);
+  await stubJson(`/__ingest/fail?doc=${broken.id}&code=db_exploded_at_row_17`);
+  const v = await web(`${PAPERS}/${broken.id}`, { cookie: session });
+  assert.match(v.html, /Something went wrong while processing this file/);
+  assert.doesNotMatch(v.html.replace(/<script[\s\S]*?<\/script>/g, ""), /db_exploded/, "an unknown code is never shown");
+});
+
 test("no tokens, session ids or client secrets in any response the web app produced", () => {
   assert.ok(bodies.length > 20);
   for (const b of bodies) {

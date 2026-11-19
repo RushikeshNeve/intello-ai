@@ -82,6 +82,8 @@ function json(status: number, body: unknown, extraHeaders: Record<string, string
 
 const MAX_BODY_BYTES = 10 * 1024 * 1024;
 const UPSTREAM_TIMEOUT_MS = 30_000;
+/** Server-sent event streams (ingestion status) live up to 5 minutes server-side (m03 §11); then the client reconnects. */
+const STREAM_TIMEOUT_MS = 330_000;
 
 export async function proxyToApi(
   deps: AuthDeps,
@@ -122,7 +124,7 @@ export async function proxyToApi(
       headers: buildUpstreamHeaders(request.headers, token),
       body,
       redirect: "manual",
-      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+      signal: AbortSignal.timeout(request.headers.get("accept")?.includes("text/event-stream") ? STREAM_TIMEOUT_MS : UPSTREAM_TIMEOUT_MS),
     });
   } catch (err) {
     authLog("error", "bff.upstream_unavailable", { reason: errorReason(err) });

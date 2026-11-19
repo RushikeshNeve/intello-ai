@@ -13,6 +13,7 @@ import { documentKeys } from "../keys";
 import { formatBytes } from "@/features/documents/upload/messages";
 import type { Document, Version } from "../types";
 import { DeleteDialog, RenameDialog } from "../library/document-dialogs";
+import { ProcessingPanel } from "../ingestion";
 import { NotAvailable } from "./not-available";
 import { DownloadButton, Preview } from "./preview";
 import { VersionPicker } from "./version-picker";
@@ -129,6 +130,14 @@ export function DocumentViewer({ orgId, workspaceId, libraryPath, document: doc,
               />
             </section>
           )}
+          <ProcessingPanel
+            orgId={orgId}
+            workspaceId={workspaceId}
+            documentId={doc.id}
+            versionRef={latest?.id ?? null}
+            initial={doc.ingestion}
+            canWrite={doc.permissions.write}
+          />
           <VersionPicker versions={versions} selectedId={selected?.id ?? null} documentPath={documentPath} />
         </aside>
       </div>
