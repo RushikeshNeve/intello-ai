@@ -132,6 +132,7 @@ class SnippetOut:
     page_start: int | None
     page_end: int | None
     highlights: list[list[int]]
+    chunk_id: uuid.UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -174,6 +175,7 @@ def group_results(
                     ev.page_start,
                     ev.page_end,
                     highlight_ranges(snippet, terms),
+                    ev.chunk_id,
                 )
             )
         results.append(

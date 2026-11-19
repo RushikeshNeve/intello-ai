@@ -30,6 +30,7 @@ class SearchRequest(BaseModel):
 
 class Snippet(BaseModel):
     evidence_id: str | None = None
+    chunk_id: uuid.UUID | None = None
     text: str
     page_start: int | None = None
     page_end: int | None = None

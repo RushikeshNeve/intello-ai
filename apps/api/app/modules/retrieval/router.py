@@ -181,6 +181,7 @@ def search(
                 snippets=[
                     Snippet(
                         evidence_id=s.evidence_id,
+                        chunk_id=s.chunk_id,
                         text=s.text,
                         page_start=s.page_start,
                         page_end=s.page_end,
