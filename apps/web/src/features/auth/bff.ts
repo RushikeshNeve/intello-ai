@@ -83,8 +83,15 @@ function json(status: number, body: unknown, extraHeaders: Record<string, string
 
 const MAX_BODY_BYTES = 10 * 1024 * 1024;
 const UPSTREAM_TIMEOUT_MS = 30_000;
-/** Server-sent event streams (ingestion status) live up to 5 minutes server-side (m03 §11); then the client reconnects. */
+/** Server-sent event streams (ingestion status, chat run events) live up to 5 minutes server-side (m03 §11); then the client reconnects. */
 const STREAM_TIMEOUT_MS = 330_000;
+
+/** `…/chat/runs/{id}/events` is a stream even if the client forgot `Accept: text/event-stream`. */
+export function isStreamRequest(segments: readonly string[], accept: string | null): boolean {
+  if (accept?.includes("text/event-stream")) return true;
+  const n = segments.length;
+  return n >= 4 && segments[n - 1] === "events" && segments[n - 3] === "runs" && segments[n - 4] === "chat";
+}
 
 export async function proxyToApi(
   deps: AuthDeps,
@@ -125,7 +132,7 @@ export async function proxyToApi(
       headers: buildUpstreamHeaders(request.headers, token),
       body,
       redirect: "manual",
-      signal: AbortSignal.timeout(request.headers.get("accept")?.includes("text/event-stream") ? STREAM_TIMEOUT_MS : UPSTREAM_TIMEOUT_MS),
+      signal: AbortSignal.timeout(isStreamRequest(segments, request.headers.get("accept")) ? STREAM_TIMEOUT_MS : UPSTREAM_TIMEOUT_MS),
     });
   } catch (err) {
     authLog("error", "bff.upstream_unavailable", { reason: errorReason(err) });

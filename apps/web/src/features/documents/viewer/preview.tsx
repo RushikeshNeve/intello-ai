@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { DownloadIcon, FileIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -73,11 +73,13 @@ function TextPreview({
   sizeBytes,
   onExpired,
   onGone,
+  renderText,
 }: {
   url: string;
   sizeBytes: number;
   onExpired: () => void;
   onGone: () => void;
+  renderText?: (text: string) => ReactNode;
 }) {
   const [state, setState] = useState<
     { url: string; status: "loading" } | { url: string; status: "ready"; text: string; truncated: boolean } | { url: string; status: "error" }
@@ -134,7 +136,7 @@ function TextPreview({
         className="max-h-[70vh] overflow-auto rounded-lg border border-border bg-muted/40 p-4 text-sm break-words whitespace-pre-wrap"
         data-testid="preview-text"
       >
-        {current.text}
+        {renderText ? renderText(current.text) : current.text}
       </pre>
     </div>
   );
@@ -174,7 +176,19 @@ export async function readCapped(res: Response, cap: number): Promise<{ text: st
 }
 
 /** Image / PDF source: pinned to the first URL so a background renewal does not reload what is on screen. */
-function PinnedMedia({ kind, url, title, version }: { kind: "pdf" | "image"; url: string; title: string; version: Version }) {
+function PinnedMedia({
+  kind,
+  url,
+  title,
+  version,
+  page,
+}: {
+  kind: "pdf" | "image";
+  url: string;
+  title: string;
+  version: Version;
+  page?: number | null;
+}) {
   const [pinned, setPinned] = useState(url);
   const [failedOnce, setFailedOnce] = useState(false);
   if (kind === "image") {
@@ -196,7 +210,7 @@ function PinnedMedia({ kind, url, title, version }: { kind: "pdf" | "image"; url
   }
   return (
     <iframe
-      src={pinned}
+      src={page && page > 0 ? `${pinned}#page=${page}` : pinned}
       title={`Preview of ${version.original_filename}`}
       sandbox="allow-scripts allow-same-origin"
       referrerPolicy="no-referrer"
@@ -211,16 +225,22 @@ export function Preview({
   version,
   title,
   onGone,
+  pdfPage,
+  renderText,
 }: {
   ids: Ids;
   version: Version;
   title: string;
   /** The version turned out to be gone (404/410 from the API or the store). */
   onGone: () => void;
+  /** PDFs open at this 1-based page (`#page=n`). */
+  pdfPage?: number | null;
+  /** Text previews render through this (the evidence viewer highlights an excerpt); default is the plain text. */
+  renderText?: (text: string) => ReactNode;
 }) {
   const kind = previewKind(version.content_type);
   if (kind === "download") return <DownloadCard ids={ids} version={version} />;
-  return <InlinePreview ids={ids} version={version} title={title} kind={kind} onGone={onGone} />;
+  return <InlinePreview ids={ids} version={version} title={title} kind={kind} onGone={onGone} pdfPage={pdfPage} renderText={renderText} />;
 }
 
 function InlinePreview({
@@ -229,12 +249,16 @@ function InlinePreview({
   title,
   kind,
   onGone,
+  pdfPage,
+  renderText,
 }: {
   ids: Ids;
   version: Version;
   title: string;
   kind: "pdf" | "image" | "text";
   onGone: () => void;
+  pdfPage?: number | null;
+  renderText?: (text: string) => ReactNode;
 }) {
   const { state, refresh } = useContentUrl({ ...ids, versionId: version.id, disposition: "inline" });
   const apiGone = state.status === "error" && (state.code === "not_found" || state.code === "forbidden");
@@ -254,7 +278,7 @@ function InlinePreview({
     return <DownloadCard ids={ids} version={version} note="This file can't be shown in the browser. Download it to view it." />;
   }
   if (kind === "text") {
-    return <TextPreview url={content.url} sizeBytes={version.size_bytes} onExpired={refresh} onGone={onGone} />;
+    return <TextPreview url={content.url} sizeBytes={version.size_bytes} onExpired={refresh} onGone={onGone} renderText={renderText} />;
   }
-  return <PinnedMedia key={version.id} kind={kind} url={content.url} title={title} version={version} />;
+  return <PinnedMedia key={version.id} kind={kind} url={content.url} title={title} version={version} page={pdfPage} />;
 }

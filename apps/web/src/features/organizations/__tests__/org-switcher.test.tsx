@@ -199,6 +199,8 @@ describe("workspace navigation", () => {
     const links = within(navEl).getAllByRole("link");
     expect(links.map((l) => [l.textContent, l.getAttribute("href"), l.getAttribute("aria-current")])).toEqual([
       ["Overview", "/o/acme", null],
+      ["Search", "/o/acme/search", null],
+      ["Chat", "/o/acme/chat", null],
       ["Acme Notes", "/o/acme/w/notes", null],
       ["Acme Papers", "/o/acme/w/papers", "page"],
     ]);
