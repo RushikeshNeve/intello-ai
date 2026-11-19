@@ -1,0 +1,9 @@
+{
+  "queries_scored": 29,
+  "metrics": {
+    "recall@5": 1.0,
+    "recall@10": 1.0,
+    "mrr": 0.9741,
+    "ndcg@10": 0.9761
+  }
+}

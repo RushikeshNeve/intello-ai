@@ -40,6 +40,7 @@ CONTRACT_EVENT_TYPES = {
     "document.deleted",
     "document.version.indexed",
     "document.ingestion.retried",
+    "search.performed",
 }
 
 
