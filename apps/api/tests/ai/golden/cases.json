@@ -1,0 +1,26 @@
+{
+ "cases": [
+  {
+   "dimensions": 64,
+   "texts": [
+    "The quick brown fox jumps over the lazy dog",
+    "A fast brown fox leaps over a sleepy dog",
+    "task: search result | query: how do I rotate an API key?",
+    "title: none | text: Rotate API keys every 90 days; revoke the old key after 24 hours.",
+    "Repeat repeat REPEAT words words",
+    "Invoice #4711 was paid on 2026-03-14 (EUR 1,299.50).",
+    "Café résumé naïve façade — Über straße",
+    "東京は日本の首都です Tokyo",
+    "!!! ??? ---",
+    "snake_case_identifier and CamelCaseIdentifier"
+   ]
+  },
+  {
+   "dimensions": 768,
+   "texts": [
+    "title: none | text: Webhook signatures are verified with an HMAC over the raw body.",
+    "task: search result | query: webhook signature verification"
+   ]
+  }
+ ]
+}
