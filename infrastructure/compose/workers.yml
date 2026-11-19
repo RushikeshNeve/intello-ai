@@ -1,0 +1,130 @@
+# Universal Knowledge OS — ingestion workers (M03.01.02-.04; docs/architecture/m03-contracts.md §5, §6, §10)
+#
+# `dispatcher`: the transactional-outbox publisher + lease reaper + reconcile sweeper (one instance is
+# enough; more are safe: rows are locked with SKIP LOCKED). `worker`: the Celery worker for the
+# `ingest` and `maintenance` queues. Both use the API image, connect to PostgreSQL as the
+# least-privilege `ukos_worker` role, and publish NO host ports. Redis is a broker only.
+#
+# Depends on postgres/redis (data.yml) and `api-migrate` (apps.yml), so a standalone run includes all three:
+#
+#   docker compose -p ukos-platform --env-file infrastructure/env/.env.example \
+#     -f infrastructure/compose/data.yml -f infrastructure/compose/apps.yml \
+#     -f infrastructure/compose/workers.yml up -d --build --wait
+#
+# One-time backfill of documents uploaded before M03 (profile `tools`, never started by `up`):
+#   docker compose --profile tools run --rm backfill [--dry-run]
+
+x-worker-environment: &worker-environment
+  UKOS_ENV: ${UKOS_ENV:-local}
+  UKOS_LOG_LEVEL: ${UKOS_LOG_LEVEL:-info}
+  DATABASE_WORKER_URL: ${DATABASE_WORKER_URL:?DATABASE_WORKER_URL is required}
+  CELERY_BROKER_URL: ${CELERY_BROKER_URL:?CELERY_BROKER_URL is required}
+  # Object storage, knowledge index and the local embedding server (read by their adapters).
+  S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-http://objectstore:9000}
+  S3_REGION: ${S3_REGION:-us-east-1}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?S3_ACCESS_KEY_ID is required}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?S3_SECRET_ACCESS_KEY is required}
+  S3_BUCKET_ORIGINALS: ${S3_BUCKET_ORIGINALS:-ukos-originals}
+  S3_BUCKET_ARTIFACTS: ${S3_BUCKET_ARTIFACTS:-ukos-artifacts}
+  S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
+  RUSHDB_URL: ${RUSHDB_URL:-http://rushdb:3000}
+  RUSHDB_TOKEN: ${RUSHDB_TOKEN:?RUSHDB_TOKEN is required}
+  AI_BASE_URL: ${AI_BASE_URL:-http://host.docker.internal:1234/v1}
+  AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-google/embedding-gemma-300m}
+  AI_EMBEDDING_DIMENSIONS: ${AI_EMBEDDING_DIMENSIONS:-768}
+  AI_EMBEDDING_QUERY_PREFIX: "${AI_EMBEDDING_QUERY_PREFIX:-task: search result | query: }"
+  AI_EMBEDDING_DOCUMENT_PREFIX: "${AI_EMBEDDING_DOCUMENT_PREFIX:-title: none | text: }"
+  AI_EMBEDDING_SPEC_VERSION: ${AI_EMBEDDING_SPEC_VERSION:-1}
+  # Ingestion (contract §10).
+  INGEST_MAX_ATTEMPTS: ${INGEST_MAX_ATTEMPTS:-5}
+  INGEST_LEASE_SECONDS: ${INGEST_LEASE_SECONDS:-120}
+  INGEST_HEARTBEAT_SECONDS: ${INGEST_HEARTBEAT_SECONDS:-30}
+  INGEST_RETRY_BASE_SECONDS: ${INGEST_RETRY_BASE_SECONDS:-10}
+  INGEST_CONCURRENCY: ${INGEST_CONCURRENCY:-2}
+  INGEST_TASK_SOFT_LIMIT_SECONDS: ${INGEST_TASK_SOFT_LIMIT_SECONDS:-900}
+  INGEST_REAP_INTERVAL_SECONDS: ${INGEST_REAP_INTERVAL_SECONDS:-30}
+  INGEST_RECONCILE_INTERVAL_SECONDS: ${INGEST_RECONCILE_INTERVAL_SECONDS:-300}
+  INGEST_MAX_PDF_PAGES: ${INGEST_MAX_PDF_PAGES:-2000}
+  INGEST_MAX_EXTRACT_BYTES: ${INGEST_MAX_EXTRACT_BYTES:-52428800}
+  INGEST_MAX_CHUNKS: ${INGEST_MAX_CHUNKS:-20000}
+  INGEST_CHUNK_TARGET_CHARS: ${INGEST_CHUNK_TARGET_CHARS:-1800}
+  INGEST_CHUNK_OVERLAP_CHARS: ${INGEST_CHUNK_OVERLAP_CHARS:-200}
+  INGEST_EMBED_BATCH_SIZE: ${INGEST_EMBED_BATCH_SIZE:-16}
+  OUTBOX_POLL_SECONDS: ${OUTBOX_POLL_SECONDS:-1}
+  OUTBOX_BATCH_SIZE: ${OUTBOX_BATCH_SIZE:-50}
+  INGEST_PIPELINE_RUNNER: ${INGEST_PIPELINE_RUNNER:-app.modules.ingestion.pipeline:build_pipeline_runner}
+  INGEST_DELETE_HANDLER: ${INGEST_DELETE_HANDLER:-app.modules.knowledge.deletion:build_document_deleted_handler}
+  INGEST_RECONCILE_HANDLER: ${INGEST_RECONCILE_HANDLER:-app.modules.knowledge.publication:build_reconcile_handler}
+
+services:
+  worker:
+    build:
+      context: ../../apps/api
+    command:
+      - celery
+      - -A
+      - app.workers.celery_app
+      - worker
+      - -Q
+      - ingest,maintenance
+      - --concurrency=${INGEST_CONCURRENCY:-2}
+      - --loglevel=${UKOS_LOG_LEVEL:-info}
+      - --without-gossip
+      - --without-mingle
+      - --hostname=worker@%h
+    # The local embedding server (LM Studio, DC-011) runs on the host.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment: *worker-environment
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.workers.celery_app inspect ping -d worker@$$HOSTNAME -t 8"]
+      interval: 20s
+      timeout: 15s
+      retries: 5
+      start_period: 30s
+    stop_grace_period: 90s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api-migrate:
+        condition: service_completed_successfully
+
+  dispatcher:
+    build:
+      context: ../../apps/api
+    command: ["python", "-m", "app.workers.dispatcher"]
+    environment: *worker-environment
+    healthcheck:
+      test: ["CMD", "python", "-m", "app.workers.dispatcher", "--check"]
+      interval: 15s
+      timeout: 8s
+      retries: 4
+      start_period: 15s
+    stop_grace_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api-migrate:
+        condition: service_completed_successfully
+
+  # One-time operator tool (contract §11): needs the admin URL to DISCOVER candidates (read only);
+  # writes go through the worker role. Not started by `up` (profile `tools`).
+  backfill:
+    build:
+      context: ../../apps/api
+    command: ["python", "-m", "app.workers.backfill"]
+    profiles: ["tools"]
+    environment:
+      <<: *worker-environment
+      DATABASE_MIGRATION_URL: ${DATABASE_MIGRATION_URL:?DATABASE_MIGRATION_URL is required}
+    healthcheck:
+      disable: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api-migrate:
+        condition: service_completed_successfully
