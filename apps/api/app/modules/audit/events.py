@@ -61,6 +61,8 @@ class AuditEventType(StrEnum):
     DOCUMENT_VERSION_INDEXED = "document.version.indexed"
     # M03.03.04: a user re-queued a dead/unsupported ingestion job.
     DOCUMENT_INGESTION_RETRIED = "document.ingestion.retried"
+    # M04: a search was performed (counts only, never the query text).
+    SEARCH_PERFORMED = "search.performed"
 
 
 class SessionOpener(Protocol):

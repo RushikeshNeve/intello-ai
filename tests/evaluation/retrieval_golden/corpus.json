@@ -1,0 +1,65 @@
+{
+  "description": "Synthetic offline retrieval corpus (original text). Workspace A and B live in one org.",
+  "documents": [
+    {"id": "d01", "ws": "A", "title": "Vacation Policy", "chunks": [
+      "Full-time employees accrue 1.5 vacation days per month. Unused vacation days carry over up to ten days into the next calendar year.",
+      "Vacation requests must be submitted at least two weeks in advance through the HR portal and approved by the direct manager."]},
+    {"id": "d02", "ws": "B", "title": "Vacation Policy Draft", "chunks": [
+      "Full-time employees accrue 1.5 vacation days per month. Unused vacation days carry over up to ten days into the next calendar year.",
+      "Draft note: contractors are not entitled to paid vacation."]},
+    {"id": "d03", "ws": "A", "title": "Expense Reimbursement", "chunks": [
+      "Submit expense reports within thirty days. Receipts are required for any expense above twenty five dollars.",
+      "Mileage is reimbursed at the standard federal rate. Meals during travel are capped at sixty dollars per day."]},
+    {"id": "d04", "ws": "A", "title": "Incident Response Runbook", "chunks": [
+      "When a production incident is declared, the on-call engineer becomes incident commander and opens a dedicated chat channel.",
+      "After mitigation, a blameless postmortem must be published within five business days with action items and owners."]},
+    {"id": "d05", "ws": "A", "title": "Kubernetes Upgrade Guide", "chunks": [
+      "Upgrade the control plane first, then drain and upgrade each worker node one at a time. Verify pod disruption budgets before draining.",
+      "Rollback requires restoring etcd from the snapshot taken before the upgrade began."]},
+    {"id": "d06", "ws": "A", "title": "Password Rotation Standard", "chunks": [
+      "Service account passwords rotate every ninety days. Human passwords are replaced by passkeys and no longer expire.",
+      "Secrets are stored in the vault and never committed to source control."]},
+    {"id": "d07", "ws": "B", "title": "Onboarding Checklist", "chunks": [
+      "On day one the new hire receives a laptop, badge and accounts. The buddy schedules a welcome lunch.",
+      "Within the first week the manager reviews the thirty sixty ninety day plan with the new hire."]},
+    {"id": "d08", "ws": "B", "title": "Quarterly OKR Planning", "chunks": [
+      "Objectives are set each quarter by team leads. Key results must be measurable and limited to three per objective.",
+      "Mid-quarter check ins score progress from zero to one; scores above point seven are considered successful."]},
+    {"id": "d09", "ws": "A", "title": "Data Retention Policy", "chunks": [
+      "Customer data is retained for seven years after contract end. Backups are deleted after thirty five days.",
+      "Legal hold overrides deletion schedules until the hold is lifted by counsel."]},
+    {"id": "d10", "ws": "B", "title": "Customer Refund Procedure", "chunks": [
+      "Refunds within fourteen days of purchase are approved automatically. Later requests require supervisor approval.",
+      "Refunds are issued to the original payment method within five business days."]},
+    {"id": "d11", "ws": "A", "title": "On-Call Rotation", "chunks": [
+      "The on-call rotation changes every Monday at nine in the morning. Engineers may swap shifts using the scheduling tool.",
+      "Primary on-call acknowledges pages within five minutes; the secondary takes over after fifteen minutes without acknowledgement."]},
+    {"id": "d12", "ws": "A", "title": "Backup and Restore", "chunks": [
+      "Database backups run nightly and are copied to a second region. Restore drills are performed every quarter.",
+      "A restore is considered successful only when checksum verification and application smoke tests pass."]},
+    {"id": "d13", "ws": "B", "title": "Security Awareness Training", "chunks": [
+      "All staff complete phishing awareness training annually. Reports of suspicious email go to the security mailbox.",
+      "Simulated phishing campaigns run monthly and results are shared in aggregate only."]},
+    {"id": "d14", "ws": "B", "title": "Vendor Risk Assessment", "chunks": [
+      "New vendors handling personal data require a security questionnaire and a signed data processing agreement.",
+      "High risk vendors are reassessed every year; low risk vendors every two years."]},
+    {"id": "d15", "ws": "B", "title": "Product Launch Checklist", "chunks": [
+      "Before launch confirm documentation, pricing page, support readiness and legal review are complete.",
+      "Launch day includes a go no go meeting and a staged rollout to ten percent of users."]},
+    {"id": "d16", "ws": "A", "title": "API Rate Limits", "chunks": [
+      "The public API allows one hundred requests per minute per key. Exceeding the limit returns status 429 with a retry after header.",
+      "Enterprise customers can request higher limits through their account manager."]},
+    {"id": "d17", "ws": "A", "title": "Release Management", "chunks": [
+      "Releases are cut every two weeks from the main branch after the regression suite passes. Hotfixes follow an expedited path.",
+      "Feature flags decouple deployment from release so risky features can be disabled instantly."]},
+    {"id": "d18", "ws": "B", "title": "Travel Booking Guidelines", "chunks": [
+      "Book flights at least fourteen days ahead and choose economy class for trips under six hours. Hotels must be booked through the corporate portal.",
+      "Expense meals and mileage following the reimbursement policy."]},
+    {"id": "d19", "ws": "A", "title": "Parental Leave", "chunks": [
+      "Primary caregivers receive sixteen weeks of paid parental leave; secondary caregivers receive six weeks.",
+      "Leave may be taken in one block or split across the first twelve months."]},
+    {"id": "d20", "ws": "B", "title": "Architecture Review Notes", "chunks": [
+      "The team decided to adopt event sourcing for the billing service and to keep the catalog service on a relational database.",
+      "Open question: whether to migrate the message broker to a managed offering before the next quarter."]}
+  ]
+}
