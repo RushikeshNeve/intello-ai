@@ -37,6 +37,9 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     "chat_messages": {"SELECT", "INSERT"},
     "chat_runs": {"SELECT", "INSERT"},
     "chat_run_events": {"SELECT"},
+    # M05 (migration 0008): the API only reads; review columns are UPDATE-granted per column.
+    "graph_entities": {"SELECT"},
+    "entity_merge_candidates": {"SELECT"},
 }
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 TRIVIAL = {"true", "(true)", "1 = 1", "(1 = 1)"}

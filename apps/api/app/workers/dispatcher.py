@@ -46,6 +46,7 @@ from app.workers.celery_app import (
     QUEUE_MAINTENANCE,
     TASK_CHAT_RUN,
     TASK_DELETE_DOCUMENT,
+    TASK_GRAPH_EXTRACT,
     TASK_RECONCILE,
     TASK_RUN_JOB,
 )
@@ -124,6 +125,25 @@ ROUTES: Final[Mapping[str, Callable[[OutboxRow], Delivery]]] = {
 }
 
 
+def _graph_extract(row: OutboxRow) -> Delivery:
+    document_id = row.payload.get("document_id", row.aggregate_id)
+    return Delivery(
+        TASK_GRAPH_EXTRACT,
+        QUEUE_MAINTENANCE,
+        (
+            str(row.org_id),
+            _uuid(document_id, "document_id"),
+            _uuid(row.payload.get("revision_id"), "revision_id"),
+        ),
+    )
+
+
+# M05: events that ALSO fan out to a second task (the graph build; optional, never blocks).
+EXTRA_ROUTES: Final[Mapping[str, Callable[[OutboxRow], Delivery]]] = {
+    EVENT_REVISION_PUBLISHED: _graph_extract,
+}
+
+
 def celery_publisher(app: Any = None) -> Publisher:
     """Publisher over the Celery app (``send_task`` by name; no task module is imported)."""
     from kombu.exceptions import KombuError
@@ -191,7 +211,12 @@ class Dispatcher:
                     route = self.routes.get(row.event_type)
                     if route is None:
                         raise PoisonEvent("unknown_event_type")
-                    self.publish(route(row))
+                    delivery = route(row)
+                    extra = EXTRA_ROUTES.get(row.event_type)
+                    extra_delivery = extra(row) if extra is not None else None
+                    self.publish(delivery)
+                    if extra_delivery is not None:
+                        self.publish(extra_delivery)
                 except PoisonEvent as exc:
                     conn.execute(
                         text("SELECT outbox_mark_failed(:i, :e, :r)"),

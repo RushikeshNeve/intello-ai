@@ -13,7 +13,16 @@ from sqlalchemy.exc import DBAPIError
 from app.core.models import RLS_TABLES
 from app.modules.ingestion.models import INGESTION_TABLES
 
-M04_CHAT_TABLES = {"ai_policies", "chat_threads", "chat_messages", "chat_runs", "chat_run_events"}
+M04_CHAT_TABLES = {
+    "ai_policies",
+    "chat_threads",
+    "chat_messages",
+    "chat_runs",
+    "chat_run_events",
+    # M05 (migration 0008): exact grants in tests/integration/m05_graph.
+    "graph_entities",
+    "entity_merge_candidates",
+}
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 SEARCH_PATH = ["search_path=pg_catalog, public, pg_temp"]
 DEFINER_FUNCTIONS = {

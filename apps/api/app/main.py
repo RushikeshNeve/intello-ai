@@ -28,6 +28,7 @@ from app.core.security import (
 )
 from app.modules.ai.policy_router import router as ai_policy_router
 from app.modules.documents import router as documents_router
+from app.modules.graph.router_review import router as graph_review_router
 from app.modules.identity.oidc import OidcTokenVerifier
 from app.modules.identity.provisioning import DbUserProvisioner
 from app.modules.ingestion.router import router as ingestion_router
@@ -101,4 +102,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(ingestion_router)
     app.include_router(retrieval_router)
     app.include_router(ai_policy_router)
+    app.include_router(graph_review_router)
     return app

@@ -19,7 +19,8 @@ from sqlalchemy.exc import DBAPIError, IntegrityError
 from app.core.models import ORG_SCOPED_TABLES, RLS_TABLES, Base
 from app.modules.ai.models_db import CHAT_TABLES
 
-HEAD = "0007_chat_and_ai_policy"
+HEAD = "0008_graph"
+M04_REVISION = "0007_chat_and_ai_policy"
 PREVIOUS = "0006_ingestion_requeue"
 FUNCTIONS = {
     "chat_claim_run",
@@ -53,7 +54,8 @@ def _functions(engine: Engine) -> set[str]:
 def test_head_is_0007(alembic_config: Config) -> None:
     script = ScriptDirectory.from_config(alembic_config)
     assert script.get_heads() == [HEAD]
-    assert script.get_revision(HEAD).down_revision == PREVIOUS
+    assert script.get_revision(HEAD).down_revision == M04_REVISION
+    assert script.get_revision(M04_REVISION).down_revision == PREVIOUS
 
 
 def test_models_are_registered_and_org_scoped() -> None:

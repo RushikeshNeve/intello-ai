@@ -555,19 +555,21 @@ def test_set_published_fails_loudly_if_the_store_ignores_the_flip(scope: OrgScop
 # ------------------------------------------------------------------------------- purge
 
 
-def test_deletes_remove_evidence_then_chunks_by_revision_or_document(
+def test_deletes_remove_evidence_claims_then_chunks_by_revision_or_document(
     fake: FakeRushDb, scope: OrgScope
 ) -> None:
     repo, _ = make_repo(fake)
     rev, doc = uuid.uuid4(), uuid.uuid4()
     counts = repo.delete_revision(scope, rev)
-    assert (counts.chunks, counts.evidence) == (2, 2)
+    assert (counts.chunks, counts.evidence, counts.claims) == (2, 2, 2)
     repo.delete_document(scope, doc)
     deletes = [o["mutation"]["query"] for o in fake.operations]
     assert [(d["labels"], d["predicate"]) for d in deletes] == [
         (["Evidence"], {"revision_id": str(rev)}),
+        (["Claim"], {"revision_id": str(rev)}),
         (["Chunk"], {"revision_id": str(rev)}),
         (["Evidence"], {"document_id": str(doc)}),
+        (["Claim"], {"document_id": str(doc)}),
         (["Chunk"], {"document_id": str(doc)}),
     ]
 
