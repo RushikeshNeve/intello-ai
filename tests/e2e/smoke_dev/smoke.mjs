@@ -214,6 +214,52 @@ if (process.env.GRAPH === "1") {
   const v3 = f3.find((f) => f.event === "verification")?.json;
   out("graph chat answer", `${v3?.status} :: ${JSON.stringify(d3?.answer_text ?? "").slice(0, 160)}`);
 }
+if (process.env.M07 === "1") {
+  // M07: memory approval gate + privacy + invalidation on delete; bounded research run with a cited report
+  const ev = { chunk_id: top.snippets[0].chunk_id, document_id: top.document_id, version_id: top.version_id };
+  const sug = await web(`/api/v1/orgs/${O}/memory/suggestions`, { session: alice, method: "POST", json: { statement: "The Kestrel-9 gateway has a seven year limited warranty.", kind: "fact", workspace_id: W, evidence: [ev] } });
+  out("memory suggestion", `${sug.status} state=${sug.body?.state}`);
+  assert.equal(sug.status, 201, sug.text);
+  assert.equal(sug.body.state, "suggested");
+  const approvedBefore = await web(`/api/v1/orgs/${O}/memory?state=approved`, { session: alice });
+  assert.ok(!approvedBefore.body.items.some((m) => m.id === sug.body.id), "a suggestion is not an approved memory");
+  const other = await web(`/api/v1/orgs/${O}/memory/${sug.body.id}`, { session: mallory });
+  out("outsider memory read", String(other.status));
+  assert.equal(other.status, 404);
+  const appr = await web(`/api/v1/orgs/${O}/memory/${sug.body.id}/approve`, { session: alice, method: "POST" });
+  out("memory approve", `${appr.status} state=${appr.body?.state}`);
+  assert.equal(appr.body?.state, "approved");
+  const det = await web(`/api/v1/orgs/${O}/memory/${sug.body.id}`, { session: alice });
+  out("memory evidence", JSON.stringify(det.body?.evidence?.map((e) => e.evidence_status)));
+
+  const rs = await web(`/api/v1/orgs/${O}/research`, { session: alice, method: "POST", json: { question: "What do the documents say about the Kestrel-9 gateway?", workspace_ids: [W] } });
+  assert.equal(rs.status, 202, rs.text);
+  let rd = null; const tr = Date.now();
+  while (Date.now() - tr < 240_000) {
+    rd = (await web(`/api/v1/orgs/${O}/research/${rs.body.id}`, { session: alice })).body;
+    if (["completed", "failed", "cancelled"].includes(rd?.state)) break;
+    await sleep(3000);
+  }
+  out("research", `${rd?.state} in ${((Date.now() - tr) / 1000).toFixed(0)}s, steps=${rd?.steps?.length}, err=${rd?.error_code ?? "-"}`);
+  assert.equal(rd?.state, "completed", "research completed");
+  const stmts = rd.report?.sections?.flatMap((s) => s.statements) ?? [];
+  out("research report", `${rd.report?.sections?.length} section(s), ${stmts.length} statement(s), all cited=${stmts.every((s) => s.citations?.length >= 1)}`);
+  assert.ok(stmts.length >= 1 && stmts.every((s) => s.citations?.length >= 1), "every statement cited");
+  const exp = await web(`/api/v1/orgs/${O}/research/${rs.body.id}/export?format=md`, { session: alice });
+  out("research export", `${exp.status}, html-free=${!/<[a-z!][^>]*>/i.test(exp.text)}`);
+  assert.equal(exp.status, 200);
+  const rOut = await web(`/api/v1/orgs/${O}/research/${rs.body.id}`, { session: mallory });
+  out("outsider research read", String(rOut.status));
+  assert.equal(rOut.status, 404);
+
+  const del = await web(`${wsPath}/documents/${top.document_id}`, { session: alice, method: "DELETE" });
+  out("delete evidence document", String(del.status));
+  assert.ok([200, 202, 204].includes(del.status));
+  let inv = null;
+  for (let i = 0; i < 20; i++) { inv = (await web(`/api/v1/orgs/${O}/memory/${sug.body.id}`, { session: alice })).body; if (inv?.state === "invalidated") break; await sleep(1500); }
+  out("memory after delete", `${inv?.state} (${inv?.invalidated_reason ?? "-"})`);
+  assert.equal(inv?.state, "invalidated");
+}
 if (process.env.M06 === "1") {
   // M06: CSV through the pipeline, safe URL capture, GitHub source sync + revoke (needs outbound internet)
   const csv = Buffer.from("product,region,units\nKestrel-9,EMEA,120\nKestrel-9,APAC,75\nAurora,EMEA,40\n", "utf8");

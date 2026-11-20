@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-11-19 · **Current milestone:** M06 complete (smoke gate PASSED) → M07 (memory/research/UX) in progress
+**Updated:** 2026-11-19 · **Current milestone:** M07 complete (smoke gate PASSED) → M08 (lean hardening, baseline tag only; NOT a release) next, then M09 UI revamp, M10 production deployment
 **Source of truth:** this Git repository. Notion mirror: **not synchronized** (no Notion integration in this session).
 
 ## Summary
@@ -14,9 +14,9 @@
 | M04 Search & grounded chat | 13 | **13** | 0 | **PASSED** (lean smoke on the live stack with real LM Studio), 2026-11-19 |
 | M05 Graph & GraphRAG | 11 | **11** | 0 | **PASSED** (lean smoke on the live stack with real LM Studio), 2026-11-19 |
 | M06 Connectors & formats | 11 | **11** | 0 | **PASSED** (lean smoke on the live stack), 2026-11-20 |
-| M07 Memory, research, UX | 11 | 0 | 0 | blocked on M06 gate |
+| M07 Memory, research, UX | 11 | **11** | 0 | **PASSED** (lean smoke on the live stack), 2026-11-20 |
 | M08 Security, eval, release | 12 | 0 | 0 | blocked on M07 gate |
-| **Total** | **108** | **85** | **0** | |
+| **Total** | **108** | **96** | **0** | |
 
 ## M00 exit gate (definition in `DEPENDENCY_GRAPH.md`, DC-007)
 
@@ -105,3 +105,6 @@ Smoke `node tests/e2e/smoke_dev/smoke.mjs` on the dev stack: upload → ready �
 
 ## M06 gate (lean, 2026-11-20)
 `GRAPH=1 M06=1 node tests/e2e/smoke_dev/smoke.mjs` on the dev stack: CSV upload → ready → searchable; URL capture blocks 169.254.169.254 (422) and captures https://example.com → ready; GitHub source `octocat/Hello-World` sync succeeded (1 active item); outsider 404; revoke → state revoked, token wiped. Not exercised live: webhook (needs `CONNECTOR_ENCRYPTION_KEY`), token connectors, OCR/audio engines (disabled-by-default contracts only), repo locators on a code file through the pipeline. See `TEST_DEBT.md`. Note: first LM Studio call after idle can time out (cold model load); rerun succeeds.
+
+## M07 gate (lean, 2026-11-20)
+`GRAPH=1 M07=1 M06=1 node tests/e2e/smoke_dev/smoke.mjs`: memory suggestion is not approved until approved (outsider 404), evidence ok; research run completed in 9 s (14 steps, 6 sections, 10 statements all cited, export HTML-free, outsider 404); deleting the evidence document invalidated the memory (`evidence_deleted`); M05/M06 steps still pass. Counts on main: API unit 2074, web unit 500, RLS 2013 (agent-reported), m07_backend 13. Release policy and M10 plan: `REMAINING_PLAN.md`.
