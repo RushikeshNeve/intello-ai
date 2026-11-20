@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-11-19 · **Current milestone:** M07 complete (smoke gate PASSED) → M08 (lean hardening, baseline tag only; NOT a release) next, then M09 UI revamp, M10 production deployment
+**Updated:** 2026-11-20 · **Current milestone:** M08 complete (acceptance 9/9, tag baseline-m08) → M09 UI revamp in progress, M10 production deployment
 **Source of truth:** this Git repository. Notion mirror: **not synchronized** (no Notion integration in this session).
 
 ## Summary
@@ -15,7 +15,7 @@
 | M05 Graph & GraphRAG | 11 | **11** | 0 | **PASSED** (lean smoke on the live stack with real LM Studio), 2026-11-19 |
 | M06 Connectors & formats | 11 | **11** | 0 | **PASSED** (lean smoke on the live stack), 2026-11-20 |
 | M07 Memory, research, UX | 11 | **11** | 0 | **PASSED** (lean smoke on the live stack), 2026-11-20 |
-| M08 Security, eval, release | 12 | 0 | 0 | blocked on M07 gate |
+| M08 Security, eval, release | 12 | 12 | 0 | complete 2026-11-20 (lean; deferred depth in TEST_DEBT) |
 | **Total** | **108** | **96** | **0** | |
 
 ## M00 exit gate (definition in `DEPENDENCY_GRAPH.md`, DC-007)

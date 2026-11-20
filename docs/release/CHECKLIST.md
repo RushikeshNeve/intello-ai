@@ -42,3 +42,10 @@ step that needs the Linux runner or compose was NOT run in this task. Honest sta
 | mypy strict, full unit suite (`pytest tests`) | NOT RUN (needs the Linux runner; Docker down). Run: `bash scripts/ci/run_local.sh api` |
 | Dependency audit | NOT RUN (needs network/runner): `bash scripts/ci/run_local.sh audit` |
 | Acceptance `tests/e2e/acceptance/run.sh` | NOT RUN to completion: the first start failed when the Docker engine died mid-build. Syntax checked (`bash -n`, `node --check`); the flows are untested against a live stack. Run it and record the result here before tagging |
+
+
+## Gate run 2026-11-20 (main @ 7d57084)
+- Unit suite 2084 passed; strict mypy clean (302 files); ruff clean.
+- Full-stack acceptance (`tests/e2e/acceptance/run.sh`): **PASSED, 9 flows** (sign-in, upload, search, grounded chat, graph, memory, research, CSV path, deletion), own compose project, stub models.
+- Backup/restore rehearsal, load and fault injection: see `docs/ops/`.
+- Dependency audit: not yet run (`run_local.sh audit`); tracked in TEST_DEBT.
