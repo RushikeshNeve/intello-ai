@@ -35,3 +35,6 @@ Not part of the original M00–M08 plan. Build ALL functionality first (M04–M0
 
 **Recommended path (to confirm with the user):** one always-free VM (e.g. Oracle Cloud Always Free ARM, up to 24 GB RAM) running the SAME Docker Compose stack incl. RushDB/Postgres/Redis/object store/Dex/worker, Caddy/TLS in front, web on the same VM or Vercel; Render then only as a front for stateless pieces if wanted. Alternative: split across Render (API/web) + Neon + R2 + external VM for worker/RushDB.
 M10 tasks: (1) target decision + cost/limit sheet, (2) prod config hygiene (no host.docker.internal; env-driven; secrets), (3) prod images + healthchecks, (4) data-service mapping + migrations runner, (5) inference provider + policy + re-embed plan, (6) TLS/domain/CORS/cookie + shared session store, (7) CI/CD deploy + rollback, (8) prod backups + monitoring, (9) production smoke test + free-tier limit handling (cold starts, pauses), (10) public-release checklist.
+
+## Next phase (M11 to M17)
+Approved roadmap features are split into agent-sized tasks in `docs/execution/NEXT_PHASE_PLAN.md`.
