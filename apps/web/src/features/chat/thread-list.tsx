@@ -39,7 +39,7 @@ export function ThreadList({ orgId, orgSlug, activeThreadId }: { orgId: string; 
   }
 
   return (
-    <nav aria-label="Conversations" className="grid content-start gap-3" data-testid="thread-list">
+    <nav aria-label="Conversations" className="grid content-start gap-3 rounded-card border border-border bg-card p-3 shadow-card" data-testid="thread-list">
       <Link href={base} className={buttonVariants({ variant: "outline" })} data-testid="new-chat">
         <PlusIcon aria-hidden="true" />
         New chat
@@ -67,7 +67,7 @@ export function ThreadList({ orgId, orgSlug, activeThreadId }: { orgId: string; 
               <Link
                 href={`${base}/${encodeURIComponent(t.id)}`}
                 aria-current={t.id === activeThreadId ? "page" : undefined}
-                className="min-w-0 flex-1 truncate rounded-md px-2 py-1.5 text-sm outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring aria-[current=page]:bg-accent aria-[current=page]:font-medium"
+                className="focus-ring min-w-0 flex-1 truncate rounded-control px-2.5 py-1.5 text-sm hover:bg-accent aria-[current=page]:bg-info-soft aria-[current=page]:font-semibold aria-[current=page]:text-brand-blue"
                 data-testid="thread-link"
               >
                 {threadTitle(t)}

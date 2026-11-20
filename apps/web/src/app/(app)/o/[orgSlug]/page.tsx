@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { PageHeader } from "@/components/ui/page-header";
 import { ROLE_LABEL } from "@/features/organizations/api/orgs";
 import { getOrgWorkspaces, resolveOrgScope } from "@/features/organizations/server";
 import { SessionRedirect } from "@/features/shell/session-redirect";
@@ -30,14 +31,7 @@ async function OrgOverview({ params }: { params: Promise<{ orgSlug: string }> })
   }
   return (
     <div className="mx-auto grid max-w-4xl gap-6">
-      <div className="grid gap-1">
-        <h1 tabIndex={-1} className="text-2xl font-semibold tracking-tight outline-none" data-testid="org-heading">
-          {org.name}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Organization · your role: {ROLE_LABEL[org.role]}
-        </p>
-      </div>
+      <PageHeader eyebrow="Organization" title={org.name} titleTestId="org-heading" description={`Your role: ${ROLE_LABEL[org.role]}`} />
       <WorkspaceOverview initialWorkspaces={workspaces.data} />
     </div>
   );

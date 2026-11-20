@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type DragEvent } from "react";
+import { UploadCloudIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "cn";
@@ -95,12 +96,15 @@ export function DocumentUploader({ orgId, workspaceId, documentId, disabled, onU
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
         className={cn(
-          "flex flex-col items-center gap-2 rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm transition-colors motion-reduce:transition-none",
-          dragging && "border-primary bg-muted",
+          "flex flex-col items-center gap-2 rounded-card border-2 border-dashed border-input bg-card px-4 py-8 text-center text-sm transition-colors motion-reduce:transition-none",
+          dragging && "border-brand-blue bg-info-soft",
           disabled && "opacity-60",
         )}
       >
-        <p className="text-muted-foreground">
+        <span aria-hidden="true" className="grid size-10 place-items-center rounded-full bg-info-soft text-brand-blue">
+          <UploadCloudIcon className="size-5" />
+        </span>
+        <p className="text-text-secondary">
           {disabled
             ? "You don't have permission to upload here."
             : documentId
@@ -132,7 +136,7 @@ export function DocumentUploader({ orgId, workspaceId, documentId, disabled, onU
       </div>
 
       {items.length > 0 && (
-        <ul className="divide-y divide-border rounded-xl border border-border" aria-label="Uploads">
+        <ul className="divide-y divide-border rounded-card border border-border bg-card" aria-label="Uploads">
           {items.map((i) => (
             <li key={i.id} className="space-y-1.5 px-3 py-2.5 text-sm">
               <div className="flex items-center justify-between gap-3">

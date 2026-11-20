@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { typeLabel } from "@/features/documents/format";
+import { FileTypeBadge, ScopeBadge, StatusBadge } from "@/components/ui/badges";
+import { SurfaceCard } from "@/components/ui/surface";
 import { documentHref, evidenceHref } from "@/features/evidence/links";
 import type { SearchResult, SearchSnippet } from "./api";
 import { segmentText } from "./highlight";
@@ -10,7 +11,7 @@ export function HighlightedSnippet({ text, ranges }: { text: string; ranges: rea
     <>
       {segmentText(text, ranges).map((seg, i) =>
         seg.mark ? (
-          <mark key={i} className="rounded-sm bg-yellow-200 px-0.5 text-foreground dark:bg-yellow-500/40">
+          <mark key={i} className="rounded-sm bg-warning-soft px-0.5 font-semibold text-foreground">
             {seg.text}
           </mark>
         ) : (
@@ -26,7 +27,8 @@ export function pageLabel(s: Pick<SearchSnippet, "page_start" | "page_end">): st
   return s.page_end !== null && s.page_end !== s.page_start ? `pp. ${s.page_start}–${s.page_end}` : `p. ${s.page_start}`;
 }
 
-export function SearchResultCard({
+/** One ranked document with its matching passages. The scope badge is always "workspace": results are workspace documents. */
+export function SearchResultRow({
   result,
   orgSlug,
   workspaceName,
@@ -37,19 +39,23 @@ export function SearchResultCard({
 }) {
   const docLink = documentHref(orgSlug, result.workspace_slug, result.document_id, result.version_id);
   return (
-    <li className="grid gap-2 rounded-lg border border-border p-4" data-testid="search-result" data-document-id={result.document_id}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <h3 className="text-base font-medium break-words">
-          <Link href={docLink} className="underline-offset-2 hover:underline" data-testid="result-title">
-            {result.title}
-          </Link>
-        </h3>
-        <span className="rounded-full border border-border px-2 py-0.5 text-xs" data-testid="version-badge">
-          Version {result.version_number}
-        </span>
-        <span className="text-xs text-muted-foreground">
-          {typeLabel(result.content_type)} · {workspaceName}
-        </span>
+    <SurfaceCard as="li" className="grid gap-3 p-4" data-testid="search-result" data-document-id={result.document_id}>
+      <div className="flex items-start gap-3">
+        <FileTypeBadge type={result.content_type} className="mt-0.5 shrink-0" />
+        <div className="grid min-w-0 gap-1">
+          <h3 className="text-card-title font-semibold break-words text-brand-indigo dark:text-foreground">
+            <Link href={docLink} className="focus-ring rounded underline-offset-2 hover:underline" data-testid="result-title">
+              {result.title}
+            </Link>
+          </h3>
+          <div className="flex flex-wrap items-center gap-1.5 text-meta text-text-secondary">
+            <span data-testid="version-badge">
+              <StatusBadge tone="neutral">Version {result.version_number}</StatusBadge>
+            </span>
+            <ScopeBadge scope="workspace" />
+            <span>{workspaceName}</span>
+          </div>
+        </div>
       </div>
       <ul className="grid gap-2">
         {result.snippets.map((s, i) => {
@@ -63,13 +69,13 @@ export function SearchResultCard({
             page: s.page_start,
           });
           return (
-            <li key={`${s.evidence_id ?? "s"}-${i}`} className="grid gap-1 rounded-md bg-muted/30 p-3 text-sm" data-testid="search-snippet">
+            <li key={`${s.evidence_id ?? "s"}-${i}`} className="grid gap-1 rounded-control border border-border-subtle bg-canvas p-3 text-sm" data-testid="search-snippet">
               <p className="break-words whitespace-pre-wrap">
                 <HighlightedSnippet text={s.text} ranges={s.highlights} />
               </p>
-              <p className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
+              <p className="flex flex-wrap items-center gap-x-3 text-meta text-text-secondary">
                 {page && <span data-testid="snippet-page">{page}</span>}
-                <Link href={href} className="underline underline-offset-2 hover:text-foreground" data-testid="snippet-evidence-link">
+                <Link href={href} className="focus-ring rounded font-medium text-brand-blue underline underline-offset-2" data-testid="snippet-evidence-link">
                   Open passage
                   <span className="sr-only">
                     {" "}
@@ -82,6 +88,9 @@ export function SearchResultCard({
           );
         })}
       </ul>
-    </li>
+    </SurfaceCard>
   );
 }
+
+/** Back-compat name. */
+export const SearchResultCard = SearchResultRow;

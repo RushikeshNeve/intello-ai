@@ -3,8 +3,12 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { SearchIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState, ErrorState } from "@/components/ui/states";
+import { cn } from "cn";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,7 +16,7 @@ import { useApiFetcher } from "@/lib/query/provider";
 import { useWorkspaces } from "@/features/workspaces/hooks";
 import type { Workspace } from "@/features/workspaces/api";
 import { MAX_QUERY_LENGTH, SEARCH_MODES, degradedMessage, search, toSearchErrorCode, type SearchErrorCode, type SearchMode } from "./api";
-import { SearchResultCard } from "./search-results";
+import { SearchResultRow } from "./search-results";
 import {
   ALL_SCOPE,
   MODE_LABELS,
@@ -24,7 +28,6 @@ import {
   toSearchParams,
   toSearchRequest,
   type SearchState,
-  type TypeFilter,
 } from "./url-state";
 
 export const SEARCH_DEBOUNCE_MS = 300;
@@ -146,30 +149,51 @@ export function SearchPage({ orgId, orgSlug, initialWorkspaces }: SearchPageProp
 
   return (
     <div className="mx-auto grid max-w-4xl gap-5" data-testid="search-page">
-      <div className="grid gap-1">
-        <h1 tabIndex={-1} className="text-2xl font-semibold tracking-tight outline-none">
-          Search
-        </h1>
-        <p className="text-sm text-muted-foreground">Find passages across the documents you can read.</p>
-      </div>
+      <PageHeader eyebrow="Knowledge" title="Universal Search" description="Find passages across the documents you can read." />
 
       <form role="search" onSubmit={submit} className="grid gap-3" data-testid="search-form">
         <div className="grid gap-1.5">
-          <Label htmlFor="search-q">Search your documents</Label>
+          <Label htmlFor="search-q" className="sr-only">
+            Search your documents
+          </Label>
           <div className="flex gap-2">
-            <Input
-              id="search-q"
-              type="search"
-              value={qInput}
-              maxLength={MAX_QUERY_LENGTH}
-              autoComplete="off"
-              autoFocus
-              placeholder="Ask about a topic, a name, a phrase…"
-              onChange={(e) => setQInput(e.target.value)}
-              className="flex-1"
-            />
-            <Button type="submit">Search</Button>
+            <div className="relative flex-1">
+              <SearchIcon aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-secondary" />
+              <Input
+                id="search-q"
+                type="search"
+                value={qInput}
+                maxLength={MAX_QUERY_LENGTH}
+                autoComplete="off"
+                autoFocus
+                placeholder="Ask about a topic, a name, a phrase…"
+                onChange={(e) => setQInput(e.target.value)}
+                className="h-11 rounded-card pl-9 text-base"
+              />
+            </div>
+            <Button type="submit" className="h-11 px-5">
+              Search
+            </Button>
           </div>
+        </div>
+        <div role="group" aria-label="File type" className="flex flex-wrap gap-1.5" data-testid="search-type-tabs">
+          {TYPE_FILTERS.map((t) => {
+            const active = state.type === t.value;
+            return (
+              <button
+                key={t.value}
+                type="button"
+                aria-pressed={active}
+                onClick={() => go({ ...state, type: t.value }, "push")}
+                className={cn(
+                  "focus-ring h-8 rounded-full border px-3 text-sm font-medium transition-colors",
+                  active ? "border-brand-indigo bg-brand-indigo text-white dark:border-primary dark:bg-primary dark:text-primary-foreground" : "border-border bg-card text-text-secondary hover:bg-muted",
+                )}
+              >
+                {t.label}
+              </button>
+            );
+          })}
         </div>
         <div className="flex flex-wrap items-end gap-3">
           <div className="grid gap-1">
@@ -182,16 +206,6 @@ export function SearchPage({ orgId, orgSlug, initialWorkspaces }: SearchPageProp
                 </option>
               ))}
               {unknownScope && state.ws && <option value={state.ws}>{state.ws} (not available)</option>}
-            </Select>
-          </div>
-          <div className="grid gap-1">
-            <Label htmlFor="search-type">File type</Label>
-            <Select id="search-type" value={state.type} onChange={(e) => go({ ...state, type: e.target.value as TypeFilter }, "push")}>
-              {TYPE_FILTERS.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
             </Select>
           </div>
           <div className="grid gap-1">
@@ -213,49 +227,54 @@ export function SearchPage({ orgId, orgSlug, initialWorkspaces }: SearchPageProp
         </p>
       )}
 
-      <p role="status" aria-live="polite" className="min-h-5 text-sm text-muted-foreground" data-testid="search-live">
+      <p role="status" aria-live="polite" className="min-h-5 text-sm text-text-secondary" data-testid="search-live">
         {announcement}
       </p>
 
       <section aria-label="Search results" aria-busy={loading} className="grid gap-3" data-testid="search-results">
         {!request ? (
-          <p className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground" data-testid="search-idle">
-            Type a few words to search. Results stay with this page&apos;s link, so you can share or bookmark a search.
-          </p>
+          <div data-testid="search-idle">
+            <EmptyState
+              icon={<SearchIcon className="size-5" />}
+              title="Search your knowledge"
+              description="Type a few words to search. Results stay with this page's link, so you can share or bookmark a search."
+            />
+          </div>
         ) : errorCode ? (
-          <div role="alert" className="grid justify-items-start gap-3 rounded-lg border border-border p-4" data-testid="search-error" data-code={errorCode}>
-            <p className="text-sm">{ERROR_COPY[errorCode]}</p>
-            {errorCode !== "invalid" && errorCode !== "not_found" && (
-              <Button variant="outline" onClick={() => void query.refetch()}>
-                Try again
-              </Button>
-            )}
+          <div data-testid="search-error" data-code={errorCode}>
+            <ErrorState
+              title="Search didn't work"
+              description={ERROR_COPY[errorCode]}
+              onRetry={errorCode !== "invalid" && errorCode !== "not_found" ? () => void query.refetch() : undefined}
+            />
           </div>
         ) : !data ? (
           <div role="status" aria-label="Searching" className="grid gap-3" data-testid="search-loading">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-28 w-full rounded-card" />
+            <Skeleton className="h-28 w-full rounded-card" />
           </div>
         ) : (
           <>
             {degraded && (
-              <p role="note" className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm" data-testid="search-degraded">
+              <p role="note" className="rounded-control border border-border bg-warning-soft px-3 py-2 text-sm" data-testid="search-degraded">
                 {degraded}
               </p>
             )}
             {data.results.length === 0 ? (
-              <div className="grid gap-1 rounded-lg border border-dashed border-border p-6 text-sm" data-testid="search-empty">
-                <p className="font-medium">{searchedAnywhere ? "No matching passages" : "Nothing to search yet"}</p>
-                <p className="text-muted-foreground">
-                  {searchedAnywhere
-                    ? "Try different words, a broader scope, or a different file type."
-                    : "You don't have access to any workspaces with documents yet."}
-                </p>
+              <div data-testid="search-empty">
+                <EmptyState
+                  title={searchedAnywhere ? "No matching passages" : "Nothing to search yet"}
+                  description={
+                    searchedAnywhere
+                      ? "Try different words, a broader scope, or a different file type."
+                      : "You don't have access to any workspaces with documents yet."
+                  }
+                />
               </div>
             ) : (
               <ol className={loading ? "grid gap-3 opacity-60" : "grid gap-3"} data-testid="search-list">
                 {data.results.map((r) => (
-                  <SearchResultCard key={`${r.document_id}:${r.version_id}`} result={r} orgSlug={orgSlug} workspaceName={workspaceName(r.workspace_id, r.workspace_slug)} />
+                  <SearchResultRow key={`${r.document_id}:${r.version_id}`} result={r} orgSlug={orgSlug} workspaceName={workspaceName(r.workspace_id, r.workspace_slug)} />
                 ))}
               </ol>
             )}

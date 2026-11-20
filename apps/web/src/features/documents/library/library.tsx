@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { cn } from "cn";
 import { useApiFetcher } from "@/lib/query/provider";
 import { DocumentUploader } from "@/features/documents/upload";
 import { deleteDocument, listDocuments, renameDocument, toDocumentErrorCode } from "../api";
@@ -180,7 +181,7 @@ export function Library({ orgId, workspaceId, basePath, initial }: LibraryProps)
       <form
         role="search"
         aria-label="Filter documents"
-        className="flex flex-wrap items-end gap-3"
+        className="flex flex-wrap items-end gap-3 rounded-card border border-border bg-card p-3 shadow-card sm:p-4"
         onSubmit={(e: FormEvent) => {
           e.preventDefault();
           if (qInput.trim() !== state.q) go(withFilter(state, { q: qInput.trim() }), "replace");
@@ -197,15 +198,24 @@ export function Library({ orgId, workspaceId, basePath, initial }: LibraryProps)
             onChange={(e) => setQInput(e.target.value)}
           />
         </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="doc-type">File type</Label>
-          <Select id="doc-type" value={state.type} onChange={(e) => go(withFilter(state, { type: e.target.value as TypeFilter }))}>
-            {TYPE_FILTERS.map((t) => (
-              <option key={t.value} value={t.value}>
+        <div role="group" aria-label="File type" className="flex w-full flex-wrap gap-1.5" data-testid="library-type-tabs">
+          {TYPE_FILTERS.map((t) => {
+            const active = state.type === t.value;
+            return (
+              <button
+                key={t.value}
+                type="button"
+                aria-pressed={active}
+                onClick={() => go(withFilter(state, { type: t.value as TypeFilter }))}
+                className={cn(
+                  "focus-ring h-8 rounded-full border px-3 text-sm font-medium transition-colors",
+                  active ? "border-brand-indigo bg-brand-indigo text-white dark:border-primary dark:bg-primary dark:text-primary-foreground" : "border-border bg-card text-text-secondary hover:bg-muted",
+                )}
+              >
                 {t.label}
-              </option>
-            ))}
-          </Select>
+              </button>
+            );
+          })}
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="doc-sort">Sort by</Label>
@@ -232,7 +242,7 @@ export function Library({ orgId, workspaceId, basePath, initial }: LibraryProps)
       </form>
 
       {notice && (
-        <p role="status" className="rounded-md bg-muted px-3 py-2 text-sm" data-testid="cursor-notice">
+        <p role="status" className="rounded-control bg-info-soft px-3 py-2 text-sm text-info" data-testid="cursor-notice">
           {notice}
         </p>
       )}
@@ -241,7 +251,7 @@ export function Library({ orgId, workspaceId, basePath, initial }: LibraryProps)
         <h2 id="doc-results-heading" ref={resultsRef} tabIndex={-1} className="sr-only outline-none">
           Document results
         </h2>
-        <p role="status" aria-live="polite" className="text-xs text-muted-foreground" data-testid="results-live">
+        <p role="status" aria-live="polite" className="text-meta text-text-secondary" data-testid="results-live">
           {live}
           <span className="sr-only"> {message}</span>
         </p>

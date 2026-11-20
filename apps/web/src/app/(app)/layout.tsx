@@ -1,5 +1,6 @@
 import { Suspense, type ReactNode } from "react";
 import { QueryProvider } from "@/lib/query/provider";
+import { ToastProvider } from "@/components/ui/toast";
 import { RouteFocus } from "@/features/shell/route-focus";
 
 /** Signed-in app: one TanStack Query client per browser tab (ADR-047), focus management on navigation. */
@@ -10,7 +11,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <Suspense fallback={null}>
         <RouteFocus />
       </Suspense>
-      {children}
+      <ToastProvider>{children}</ToastProvider>
     </QueryProvider>
   );
 }

@@ -23,7 +23,7 @@ import { useOrgScope } from "./org-scope";
  * orgs (`menuitemradio`, `aria-checked` on the current one). Keyboard: Enter/Space/ArrowDown opens,
  * arrows move, Enter selects, Escape closes and returns focus to the trigger (Base UI Menu).
  */
-export function OrgSwitcher({ goHome }: { goHome?: () => void }) {
+export function OrgSwitcher({ goHome, className }: { goHome?: () => void; className?: string }) {
   const { displayedOrg, orgs, switchOrg } = useOrgScope();
   const router = useRouter();
 
@@ -31,7 +31,7 @@ export function OrgSwitcher({ goHome }: { goHome?: () => void }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         data-testid="org-switcher"
-        className={cn(buttonVariants({ variant: "outline" }), "h-9 max-w-[16rem] gap-2 px-2.5")}
+        className={cn(buttonVariants({ variant: "outline" }), "h-9 max-w-[16rem] gap-2 px-2.5", className)}
       >
         <Building2Icon aria-hidden="true" />
         <span className="sr-only">Current organization: </span>
