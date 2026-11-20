@@ -2,6 +2,7 @@ import { Suspense, type ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/features/auth/server";
 import { loginUrl } from "@/features/organizations/api/http";
+import { CommandPalette } from "@/features/palette/command-palette";
 import { OrgScopeProvider, ScopedContent } from "@/features/organizations/components/org-scope";
 import { OrgSwitcher } from "@/features/organizations/components/org-switcher";
 import { getOrgWorkspaces, resolveOrgScope } from "@/features/organizations/server";
@@ -50,7 +51,15 @@ async function OrgShell({ params, children }: { params: Promise<{ orgSlug: strin
 
   return (
     <OrgScopeProvider org={org} orgs={orgs}>
-      <AppHeader userLabel={userLabel} scope={<OrgSwitcher />} />
+      <AppHeader
+        userLabel={userLabel}
+        scope={
+          <>
+            <OrgSwitcher />
+            <CommandPalette />
+          </>
+        }
+      />
       <ScopedContent>
         <div className="flex flex-1 flex-col md:flex-row" data-org-scope={org.id}>
           <WorkspaceSidebar initialWorkspaces={workspaces.data} />

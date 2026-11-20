@@ -129,3 +129,9 @@
     @apply font-sans;
   }
 }
+/* M07.03.03: reduced motion (media query + the `reduce-motion` class set by the theme toggle) and narrow-screen safety. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+.reduce-motion *, .reduce-motion *::before, .reduce-motion *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+main { overflow-wrap: anywhere; min-width: 0; }

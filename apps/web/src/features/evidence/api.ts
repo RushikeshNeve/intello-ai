@@ -14,6 +14,7 @@ export type EvidenceChunk = {
   title: string | null;
   prev_chunk_id: string | null;
   next_chunk_id: string | null;
+  locators: Locator[];
 };
 
 function nullableInt(v: unknown): number | null {
@@ -21,6 +22,32 @@ function nullableInt(v: unknown): number | null {
 }
 function nullableId(v: unknown): string | null {
   return typeof v === "string" && v ? v : null;
+}
+
+/** `Locator` from `ingestion/contracts.py` (kinds `page|offset|line|cell|time`); only the fields the viewers use. */
+export type Locator = {
+  kind: string;
+  line_start: number | null;
+  line_end: number | null;
+  sheet: string | null;
+  row_start: number | null;
+  row_end: number | null;
+  col_start: number | null;
+  col_end: number | null;
+};
+
+export function parseLocators(v: unknown): Locator[] {
+  if (!Array.isArray(v)) return [];
+  return v.filter(isRecord).map((l) => ({
+    kind: typeof l.kind === "string" ? l.kind : "offset",
+    line_start: nullableInt(l.line_start),
+    line_end: nullableInt(l.line_end),
+    sheet: typeof l.sheet === "string" ? l.sheet : null,
+    row_start: nullableInt(l.row_start),
+    row_end: nullableInt(l.row_end),
+    col_start: nullableInt(l.col_start),
+    col_end: nullableInt(l.col_end),
+  }));
 }
 
 export function parseChunk(v: unknown): EvidenceChunk {
@@ -36,6 +63,7 @@ export function parseChunk(v: unknown): EvidenceChunk {
     title: typeof v.title === "string" ? v.title : null,
     prev_chunk_id: nullableId(neighbors.prev_chunk_id),
     next_chunk_id: nullableId(neighbors.next_chunk_id),
+    locators: parseLocators(v.locators),
   };
 }
 

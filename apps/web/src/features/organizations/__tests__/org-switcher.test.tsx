@@ -201,6 +201,8 @@ describe("workspace navigation", () => {
       ["Overview", "/o/acme", null],
       ["Search", "/o/acme/search", null],
       ["Chat", "/o/acme/chat", null],
+      ["Memory", "/o/acme/memory", null],
+      ["Research", "/o/acme/research", null],
       ["Acme Notes", "/o/acme/w/notes", null],
       ["Acme Papers", "/o/acme/w/papers", "page"],
     ]);

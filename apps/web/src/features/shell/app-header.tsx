@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { ThemeToggle } from "@/features/theme/theme-toggle";
 import { SignOutButton } from "@/features/auth/components/auth-controls";
 
 /** Top bar: brand, optional scope controls (the org switcher), the signed-in user and sign-out. */
@@ -21,6 +22,7 @@ export function AppHeader({ userLabel, scope }: { userLabel: string; scope?: Rea
         </Link>
         {scope}
         <div className="ml-auto flex items-center gap-3">
+          <ThemeToggle />
           <span className="hidden text-sm text-muted-foreground sm:inline" data-testid="session-user">
             {userLabel}
           </span>

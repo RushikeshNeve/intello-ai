@@ -11,6 +11,7 @@ import { useApiFetcher } from "@/lib/query/provider";
 import type { Version } from "@/features/documents/types";
 import { Preview } from "@/features/documents/viewer/preview";
 import { getChunk, toEvidenceErrorCode, type EvidenceErrorCode } from "./api";
+import { CellView, LineView } from "./locator-views";
 import { HighlightedText } from "./highlighted-text";
 import { documentHref, evidenceHref } from "./links";
 
@@ -152,14 +153,22 @@ export function EvidenceViewer({ orgId, orgSlug, workspaceId, workspaceRef, docu
                   {chunk.heading_path.join(" › ")}
                 </p>
               )}
-              <blockquote
-                tabIndex={0}
-                aria-label="Passage text"
-                className="max-h-[65vh] overflow-auto rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed break-words whitespace-pre-wrap"
-                data-testid="evidence-text"
-              >
-                {chunk.text}
-              </blockquote>
+              {(() => {
+                const line = chunk.locators.find((l) => l.kind === "line" && l.line_start !== null);
+                const cell = chunk.locators.find((l) => l.kind === "cell");
+                if (line) return <LineView text={chunk.text} startLine={line.line_start!} highlight={{ start: line.line_start!, end: line.line_end ?? line.line_start! }} />;
+                if (cell) return <CellView text={chunk.text} locator={cell} />;
+                return (
+                  <blockquote
+                    tabIndex={0}
+                    aria-label="Passage text"
+                    className="max-h-[65vh] overflow-auto rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed break-words whitespace-pre-wrap"
+                    data-testid="evidence-text"
+                  >
+                    {chunk.text}
+                  </blockquote>
+                );
+              })()}
             </>
           ) : null}
         </section>
