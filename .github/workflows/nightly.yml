@@ -1,0 +1,63 @@
+# Slow suites that start their own docker compose projects (Postgres with the real role/RLS setup, Redis, RushDB,
+# Dex, RustFS). GitHub-hosted ubuntu runners have Docker, so these run natively there; they are too slow and too
+# heavy for every pull request. Nightly + manual. No secrets: every credential is an example placeholder.
+name: nightly
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+    inputs:
+      acceptance:
+        description: "Also run the full-stack acceptance suite"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  db-integration:
+    name: DB / RLS integration + security suites
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          - ../../tests/security
+          - ../../tests/integration/m01_foundation ../../tests/integration/m01_tenancy ../../tests/integration/m01_identity ../../tests/integration/m01_grants ../../tests/integration/m01_audit
+          - ../../tests/integration/m02_foundation ../../tests/integration/m02_catalog ../../tests/integration/m02_storage ../../tests/integration/m02_upload
+          - ../../tests/integration/m03_foundation ../../tests/integration/m03_pipeline ../../tests/integration/m03_runtime ../../tests/integration/m03_status ../../tests/integration/m03_embeddings ../../tests/integration/m03_rushdb
+          - ../../tests/integration/m04_chat ../../tests/integration/m04_gateway ../../tests/integration/m04_persistence ../../tests/integration/m04_retrieval
+          - ../../tests/integration/m05_graph ../../tests/integration/m05_graph_api ../../tests/integration/m05_integration
+          - ../../tests/integration/m06_connectors ../../tests/integration/m07_backend
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: apps/api/uv.lock
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: uv sync --frozen
+      - name: run the suite (the fixtures start and remove their own compose project)
+        run: uv run python -m pytest -q -p no:cacheprovider ${{ matrix.suite }}
+
+  acceptance:
+    name: full-stack acceptance (stub embeddings + scripted chat)
+    if: github.event_name == 'schedule' || inputs.acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: host.docker.internal for the stub servers on the runner
+        run: echo "172.17.0.1 host.docker.internal" | sudo tee -a /etc/hosts
+      - run: bash tests/e2e/acceptance/run.sh

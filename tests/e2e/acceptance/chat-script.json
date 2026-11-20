@@ -1,0 +1,21 @@
+{
+  "rules": [
+    {
+      "match": "How long is the warranty of the Kestrel-9 gateway?",
+      "reply": "The Kestrel-9 telemetry gateway ships with a seven year limited warranty [1]."
+    },
+    {
+      "match": "What do the documents say about the Kestrel-9 gateway?",
+      "reply": "{\"subqueries\": [\"Kestrel-9 warranty period\"]}"
+    },
+    {
+      "match": "Kestrel-9 warranty period",
+      "reply": "The Kestrel-9 telemetry gateway ships with a seven year limited warranty [1]."
+    },
+    {
+      "match": "Priya Raman works for Northwind Labs",
+      "reply": "{\"entities\":[{\"name\":\"Priya Raman\",\"type\":\"person\",\"chunk\":1},{\"name\":\"Northwind Labs\",\"type\":\"organization\",\"chunk\":1},{\"name\":\"Kestrel-9 project\",\"type\":\"project\",\"chunk\":1}],\"relations\":[{\"subject\":\"Priya Raman\",\"predicate\":\"works_for\",\"object\":\"Northwind Labs\",\"chunk\":1},{\"subject\":\"Northwind Labs\",\"predicate\":\"owns\",\"object\":\"Kestrel-9 project\",\"chunk\":1}]}"
+    }
+  ],
+  "default": "{\"entities\":[],\"relations\":[]}"
+}

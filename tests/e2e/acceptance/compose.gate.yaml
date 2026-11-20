@@ -1,0 +1,14 @@
+# Used only by tests/e2e/acceptance/run.sh (explicit -f list, so the root compose.override.yaml is not loaded).
+# Same purpose as the root override: api and worker wait for the bucket/CORS one-shot (which also lets
+# `docker compose up --wait` exit 0), and the worker waits for the knowledge index.
+services:
+  api:
+    depends_on:
+      objectstore-init:
+        condition: service_completed_successfully
+  worker:
+    depends_on:
+      objectstore-init:
+        condition: service_completed_successfully
+      rushdb:
+        condition: service_healthy
