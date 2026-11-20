@@ -252,10 +252,11 @@ class SearchHit:
 
 @dataclass(frozen=True, slots=True)
 class DeleteCounts:
-    """What a purge removed. ``evidence`` is 0 until the graph (M05) writes Evidence records."""
+    """What a purge removed (``evidence`` and ``claims`` are the M05 graph records)."""
 
     chunks: int
     evidence: int = 0
+    claims: int = 0
 
 
 # ------------------------------------------------------------------------------------ port
@@ -345,3 +346,110 @@ def vector_index_name(embedding_space_id: str) -> str:
 
 
 TEXT_INDEX_NAME: Final = "chunk-text"
+
+
+# ------------------------------------------------------------------------- graph (M05)
+
+
+@dataclass(frozen=True, slots=True)
+class GraphChunk:
+    """A chunk as read back for extraction (the index is rebuildable from artifacts)."""
+
+    chunk_id: uuid.UUID
+    chunk_index: int
+    text: str
+    workspace_id: uuid.UUID
+    document_id: uuid.UUID
+    version_id: uuid.UUID
+    revision_id: uuid.UUID
+
+
+@dataclass(frozen=True, slots=True)
+class EntityRecord:
+    id: uuid.UUID
+    org_id: uuid.UUID
+    workspace_id: uuid.UUID
+    type: str
+    canonical_name: str
+    aliases: Sequence[str]
+    entity_state: str
+    extractor_version: str
+    source_revision_id: uuid.UUID
+
+
+@dataclass(frozen=True, slots=True)
+class ClaimRecord:
+    id: uuid.UUID
+    org_id: uuid.UUID
+    workspace_id: uuid.UUID
+    document_id: uuid.UUID
+    revision_id: uuid.UUID
+    subject_id: uuid.UUID
+    predicate: str
+    object_id: uuid.UUID | None
+    object_text: str | None
+    confidence: float
+    verification: str  # "verified" | "unverified"
+    extractor_version: str
+    published: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class EvidenceRecord:
+    id: uuid.UUID
+    claim_id: uuid.UUID
+    org_id: uuid.UUID
+    workspace_id: uuid.UUID
+    chunk_id: uuid.UUID
+    revision_id: uuid.UUID
+    document_id: uuid.UUID
+    version_id: uuid.UUID
+    excerpt: str
+
+
+@runtime_checkable
+class GraphRepository(Protocol):
+    """Graph projection store (RushDB ``Entity``/``Claim``/``Evidence``), same tenant rules as
+    :class:`KnowledgeRepository`: a scope from :func:`validated_org_scope`, deterministic ids,
+    merge writes. Claims are flagged ``published`` together with their revision's chunks
+    (``KnowledgeRepository.set_published``); ``delete_revision``/``delete_document`` remove them.
+
+    Layout notes for readers (traversal): relationships are stored as properties, not RushDB edges:
+    ``Claim.subject_id``, ``Claim.object_id`` (absent for a literal ``object_text``) and
+    ``Evidence.claim_id``; ``Entity.aliases`` is a JSON-encoded list of strings.
+    """
+
+    def read_chunks(
+        self, scope: OrgScope, revision_id: uuid.UUID, *, limit: int
+    ) -> list[GraphChunk]:
+        """Chunks of the revision ordered by ``chunk_index`` (at most ``limit``)."""
+        ...
+
+    def upsert_entities(self, scope: OrgScope, entities: Sequence[EntityRecord]) -> int: ...
+
+    def upsert_claims(
+        self,
+        scope: OrgScope,
+        claims: Sequence[ClaimRecord],
+        evidence: Sequence[EvidenceRecord],
+        *,
+        published: bool,
+    ) -> int:
+        """Write claims (with the given ``published`` flag) and their evidence; returns claims."""
+        ...
+
+    def list_claims(
+        self, scope: OrgScope, revision_id: uuid.UUID, *, verification: str | None = None
+    ) -> list[ClaimRecord]: ...
+
+    def list_evidence(self, scope: OrgScope, claim_id: uuid.UUID) -> list[EvidenceRecord]: ...
+
+    def list_entities(self, scope: OrgScope, workspace_id: uuid.UUID) -> list[EntityRecord]: ...
+
+    def delete_graph_revision(self, scope: OrgScope, revision_id: uuid.UUID) -> int:
+        """Remove only the claims/evidence of a revision (chunks stay); returns claims removed."""
+        ...
+
+    def remap_entity(self, scope: OrgScope, from_id: uuid.UUID, to_id: uuid.UUID) -> int:
+        """After an accepted merge: mark ``from_id`` merged and point its claims at ``to_id``."""
+        ...

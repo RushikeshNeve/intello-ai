@@ -7,7 +7,7 @@ no I/O, no network, no clocks, no randomness. Failures are ``ProcessingError`` w
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Final, Protocol
+from typing import Any, Final, Protocol
 
 from app.modules.ingestion.chunking import normalize_block_text
 from app.modules.ingestion.contracts import (
@@ -86,7 +86,16 @@ class SectionTracker:
         return tuple(title for _, title in self._stack)
 
 
-_LOCATOR_KIND = {"pdf": "page", "text": "line", "markdown": "line", "html": "offset"}
+_LOCATOR_KIND = {
+    "pdf": "page",
+    "text": "line",
+    "markdown": "line",
+    "html": "offset",
+    "spreadsheet": "cell",
+    "code": "line",
+    "image": "offset",
+    "audio": "time",
+}
 
 
 class DocumentBuilder:
@@ -117,6 +126,7 @@ class DocumentBuilder:
         line_end: int | None = None,
         section_path: tuple[str, ...] = (),
         level: int | None = None,
+        extra: dict[str, Any] | None = None,
     ) -> None:
         """Normalize ``text`` and append it as a block (dropped when it normalizes to nothing)."""
         text = normalize_block_text(text, kind)
@@ -145,18 +155,33 @@ class DocumentBuilder:
                     line_start=line_start,
                     line_end=line_end,
                     section_path=list(section_path) if section_path else None,
+                    **(extra or {}),
                 ),
             )
         )
         self._position = end + len(STREAM_SEPARATOR)
 
-    def build(self, *, pages: int | None = None) -> ExtractedDocument:
+    def build(
+        self,
+        *,
+        pages: int | None = None,
+        processor_version: str = PROCESSOR_VERSION,
+        language: str | None = None,
+        confidence: float | None = None,
+        duration_seconds: float | None = None,
+    ) -> ExtractedDocument:
         if not self._blocks:
             raise ProcessingError("no_text_extracted", detail="no extractable text")
         return ExtractedDocument(
             modality=self._modality,
             source=self._source,
-            processor=ProcessorInfo(name=self._name, version=PROCESSOR_VERSION),
+            processor=ProcessorInfo(name=self._name, version=processor_version),
+            language=language,
             blocks=self._blocks,
-            stats=Stats(pages=pages, chars=self._position - len(STREAM_SEPARATOR)),
+            stats=Stats(
+                pages=pages,
+                chars=self._position - len(STREAM_SEPARATOR),
+                confidence=confidence,
+                duration_seconds=duration_seconds,
+            ),
         )

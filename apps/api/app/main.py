@@ -30,10 +30,13 @@ from app.modules.ai.chat_router import router as chat_router
 from app.modules.ai.policy_router import router as ai_policy_router
 from app.modules.connectors.router import router as connectors_router
 from app.modules.connectors.router import webhook_router as connectors_webhook_router
+from app.modules.connectors.url_capture import router as url_capture_router
 from app.modules.documents import router as documents_router
 from app.modules.graph.api import router as graph_router
+from app.modules.graph.router_review import router as graph_review_router
 from app.modules.identity.oidc import OidcTokenVerifier
 from app.modules.identity.provisioning import DbUserProvisioner
+from app.modules.ingestion.capabilities_router import router as capabilities_router
 from app.modules.ingestion.router import router as ingestion_router
 from app.modules.organizations.router import router as organizations_router
 from app.modules.retrieval.router import router as retrieval_router
@@ -103,10 +106,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(workspaces_router)
     app.include_router(documents_router)
     app.include_router(ingestion_router)
+    app.include_router(capabilities_router)
+    app.include_router(url_capture_router)
     app.include_router(retrieval_router)
     app.include_router(graph_router)
     app.include_router(ai_policy_router)
     app.include_router(chat_router)
     app.include_router(connectors_router)
     app.include_router(connectors_webhook_router)
+    app.include_router(graph_review_router)
     return app

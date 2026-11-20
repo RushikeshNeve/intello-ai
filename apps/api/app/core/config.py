@@ -116,6 +116,14 @@ class Settings(BaseSettings):
     CONNECTOR_SYNC_MAX_FILES_PER_RUN: int = Field(default=500, ge=1, le=100_000)
     CONNECTOR_SCHEDULER_INTERVAL_SECONDS: int = Field(default=30, ge=1, le=3600)
     GITHUB_API_BASE_URL: str = Field(default="https://api.github.com", min_length=8)
+    # Knowledge graph (M05 contract §7). The build task is a no-op while GRAPH_ENABLED is false.
+    GRAPH_ENABLED: bool = False
+    GRAPH_ROUTER_MODE: Literal["auto", "off", "force"] = "auto"
+    GRAPH_MAX_CHUNKS_PER_REVISION: int = Field(default=400, ge=1, le=100_000)
+    GRAPH_MAX_ENTITIES_PER_CHUNK: int = Field(default=12, ge=1, le=100)
+    GRAPH_EXTRACT_BATCH_CHUNKS: int = Field(default=6, ge=1, le=50)
+    GRAPH_TRAVERSAL_MAX_DEPTH: int = Field(default=2, ge=1, le=4)
+    GRAPH_MAX_NODES: int = Field(default=50, ge=1, le=500)
 
     # Per-dependency timeout for /health/ready, seconds.
     HEALTH_CHECK_TIMEOUT_SECONDS: float = Field(default=2.0, gt=0, le=30)

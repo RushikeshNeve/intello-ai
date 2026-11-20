@@ -44,6 +44,7 @@ CONTRACT_EVENT_TYPES = {
     "org.ai_policy.updated",
     "chat.run.created",
     "chat.thread.deleted",
+    "graph.merge.decided",
 }
 
 

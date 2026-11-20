@@ -11,14 +11,18 @@ from app.modules.ingestion.contracts import (
     ProcessingError,
     SourceInfo,
 )
+from app.modules.ingestion.processors.audio import extract_audio, extract_video
 from app.modules.ingestion.processors.base import (
     DEFAULT_LIMITS,
     PROCESSOR_VERSION,
     Limits,
     ProcessorFn,
 )
+from app.modules.ingestion.processors.code import CODE_CONTENT_TYPES, extract_code
+from app.modules.ingestion.processors.csv_xlsx import extract_csv, extract_xlsx
 from app.modules.ingestion.processors.html import extract_html
 from app.modules.ingestion.processors.markdown import extract_markdown
+from app.modules.ingestion.processors.ocr import extract_image
 from app.modules.ingestion.processors.pdf import extract_pdf
 from app.modules.ingestion.processors.text import extract_text
 
@@ -46,6 +50,21 @@ _TEXT = Processor("text", PROCESSOR_VERSION, "text", extract_text)
 _MARKDOWN = Processor("markdown", PROCESSOR_VERSION, "markdown", extract_markdown)
 _HTML = Processor("html", PROCESSOR_VERSION, "html", extract_html)
 
+_CSV = Processor("csv", PROCESSOR_VERSION, "spreadsheet", extract_csv)
+_XLSX = Processor("xlsx", PROCESSOR_VERSION, "spreadsheet", extract_xlsx)
+_CODE = Processor("code", PROCESSOR_VERSION, "code", extract_code)
+_IMAGE = Processor("ocr", PROCESSOR_VERSION, "image", extract_image)
+_AUDIO = Processor("transcript", PROCESSOR_VERSION, "audio", extract_audio)
+_VIDEO = Processor("video", PROCESSOR_VERSION, "audio", extract_video)
+
+XLSX_CONTENT_TYPE: Final = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+IMAGE_CONTENT_TYPES: Final = ("image/png", "image/jpeg")
+AUDIO_CONTENT_TYPES: Final = (
+    "audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/mp4", "audio/x-m4a",
+    "audio/ogg", "audio/webm", "audio/flac",
+)  # fmt: skip
+VIDEO_CONTENT_TYPES: Final = ("video/mp4", "video/webm", "video/quicktime")
+
 _REGISTRY: Final[dict[str, Processor]] = {
     "application/pdf": _PDF,
     "text/plain": _TEXT,
@@ -53,6 +72,12 @@ _REGISTRY: Final[dict[str, Processor]] = {
     "text/x-markdown": _MARKDOWN,
     "text/html": _HTML,
     "application/xhtml+xml": _HTML,
+    "text/csv": _CSV,
+    XLSX_CONTENT_TYPE: _XLSX,
+    **dict.fromkeys(CODE_CONTENT_TYPES, _CODE),
+    **dict.fromkeys(IMAGE_CONTENT_TYPES, _IMAGE),
+    **dict.fromkeys(AUDIO_CONTENT_TYPES, _AUDIO),
+    **dict.fromkeys(VIDEO_CONTENT_TYPES, _VIDEO),
 }
 SUPPORTED_CONTENT_TYPES: Final[frozenset[str]] = frozenset(_REGISTRY)
 

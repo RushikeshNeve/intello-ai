@@ -17,6 +17,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from sqlalchemy import func, select
@@ -73,8 +74,14 @@ def ingest_bytes(
     document_id: uuid.UUID | None = None,
     request_id: str | None = None,
     audit_metadata: dict[str, object] | None = None,
+    actor_user_id: uuid.UUID | None = None,
+    on_stored: Callable[[str], None] | None = None,
 ) -> RemoteIngestResult:
-    """New document (``document_id`` None) or the next version of ``document_id``."""
+    """New document (``document_id`` None) or the next version of ``document_id``.
+
+    ``actor_user_id`` is the audit actor (None for a worker). ``on_stored`` receives the object key
+    right after the bytes are written so a caller owning the transaction can delete the object
+    if the commit later fails."""
     settings = get_settings()
     if stored_bytes(session, org_id) + len(data) > settings.ORG_STORAGE_QUOTA_BYTES:
         raise QuotaExceeded
@@ -96,6 +103,8 @@ def ingest_bytes(
         content_type=content_type,
         sha256_b64=base64.b64encode(digest.digest()).decode("ascii"),
     )
+    if on_stored is not None:
+        on_stored(key)
     synthetic = upload_service.SessionRow(
         id=uuid.uuid4(),
         org_id=org_id,
@@ -133,7 +142,7 @@ def ingest_bytes(
             if new_document
             else AuditEventType.DOCUMENT_VERSION_CREATED
         ),
-        actor_user_id=None,
+        actor_user_id=actor_user_id,
         org_id=org_id,
         target_type=upload_service.TARGET_DOCUMENT,
         target_id=str(doc_id),

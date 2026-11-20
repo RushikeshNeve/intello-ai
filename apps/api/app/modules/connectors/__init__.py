@@ -1,1 +1,1 @@
-"""Connectors (M06): discover and fetch remote items, feed them through the upload path."""
+"""Connectors and safe outbound capture (M06): remote item discovery/fetch and URL capture."""

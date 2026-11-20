@@ -29,6 +29,7 @@ from app.workers import chat_tasks  # noqa: F401 - registers the ``chat.run`` ta
 from app.workers.celery_app import (
     TASK_CONNECTOR_SYNC,
     TASK_DELETE_DOCUMENT,
+    TASK_GRAPH_EXTRACT,
     TASK_RECONCILE,
     TASK_RUN_JOB,
     celery_app,
@@ -182,6 +183,12 @@ def reconcile(org_id: str, document_id: str) -> None:
     get_runtime().reconcile_handler.handle(uuid.UUID(org_id), uuid.UUID(document_id))
 
 
+def graph_extract_revision(org_id: str, document_id: str, revision_id: str) -> str:
+    from app.modules.graph.tasks import run_default
+
+    return run_default(org_id, document_id, revision_id)
+
+
 _maintenance_options: dict[str, Any] = {
     "acks_late": True,
     "reject_on_worker_lost": True,
@@ -209,3 +216,6 @@ delete_document_task = celery_app.task(name=TASK_DELETE_DOCUMENT, **_maintenance
 )
 reconcile_task = celery_app.task(name=TASK_RECONCILE, **_maintenance_options)(reconcile)
 sync_source_task = celery_app.task(name=TASK_CONNECTOR_SYNC, **_maintenance_options)(sync_source)
+graph_extract_task = celery_app.task(name=TASK_GRAPH_EXTRACT, **_maintenance_options)(
+    graph_extract_revision
+)

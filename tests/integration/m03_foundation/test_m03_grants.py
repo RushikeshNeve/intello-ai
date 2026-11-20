@@ -13,7 +13,16 @@ from sqlalchemy.exc import DBAPIError
 from app.core.models import RLS_TABLES
 from app.modules.ingestion.models import INGESTION_TABLES
 
-M04_CHAT_TABLES = {"ai_policies", "chat_threads", "chat_messages", "chat_runs", "chat_run_events"}
+M04_CHAT_TABLES = {
+    "ai_policies",
+    "chat_threads",
+    "chat_messages",
+    "chat_runs",
+    "chat_run_events",
+    # M05 (migration 0008): exact grants in tests/integration/m05_graph.
+    "graph_entities",
+    "entity_merge_candidates",
+}
 # M06 (migration 0009): the sync task runs as the worker; exact grants: rls test_18.
 M06_TABLES = {"sources", "connector_accounts", "source_syncs", "source_items"}
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")

@@ -550,6 +550,9 @@ ORG_SCOPED_TABLES: Final = (
     "connector_accounts",
     "source_syncs",
     "source_items",
+    # M05 (migration 0008, docs/architecture/m05-contracts.md §3).
+    "graph_entities",
+    "entity_merge_candidates",
 )
 RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
 
@@ -558,4 +561,5 @@ RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
 # every importer of this module.
 from app.modules.ai import models_db as _ai_models  # noqa: E402, F401
 from app.modules.connectors import models as _connector_models  # noqa: E402, F401
+from app.modules.graph import models as _graph_models  # noqa: E402, F401
 from app.modules.ingestion import models as _ingestion_models  # noqa: E402, F401

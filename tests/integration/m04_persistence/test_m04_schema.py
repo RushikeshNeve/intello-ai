@@ -20,7 +20,8 @@ from app.core.models import ORG_SCOPED_TABLES, RLS_TABLES, Base
 from app.modules.ai.models_db import CHAT_TABLES
 
 M04_HEAD = "0007_chat_and_ai_policy"
-HEAD = "0009_connectors"  # M06 sits on top of 0007
+M05_HEAD = "0008_graph"
+HEAD = "0009_connectors"  # M06 sits on top of 0008
 PREVIOUS = "0006_ingestion_requeue"
 FUNCTIONS = {
     "chat_claim_run",
@@ -55,7 +56,8 @@ def test_head_is_0007(alembic_config: Config) -> None:
     script = ScriptDirectory.from_config(alembic_config)
     assert script.get_heads() == [HEAD]
     assert script.get_revision(M04_HEAD).down_revision == PREVIOUS
-    assert script.get_revision(HEAD).down_revision == M04_HEAD
+    assert script.get_revision(M05_HEAD).down_revision == M04_HEAD
+    assert script.get_revision(HEAD).down_revision == M05_HEAD
 
 
 def test_models_are_registered_and_org_scoped() -> None:

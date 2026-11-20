@@ -34,7 +34,12 @@ from app.modules.ingestion import artifacts as art
 from app.modules.ingestion.artifacts import ArtifactStore
 from app.modules.ingestion.checkpoints import StageRunner, fence
 from app.modules.ingestion.chunking import chunk_document
-from app.modules.ingestion.contracts import Chunk, ProcessingError, SourceInfo
+from app.modules.ingestion.contracts import (
+    UNSUPPORTED_CODES,
+    Chunk,
+    ProcessingError,
+    SourceInfo,
+)
 from app.modules.ingestion.processors import Limits, extract
 from app.modules.ingestion.runner_types import (
     ClaimedJob,
@@ -146,7 +151,7 @@ class DefaultPipelineRunner:
         except (RetryableJobError, PermanentJobError):
             raise
         except ProcessingError as exc:
-            if exc.code == "unsupported_type":
+            if exc.code in UNSUPPORTED_CODES:
                 self._mark_failed(claim, ctx)
                 return PipelineResult("unsupported", exc.code)
             if exc.code == "no_text_extracted":

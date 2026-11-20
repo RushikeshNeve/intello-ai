@@ -71,6 +71,8 @@ class AuditEventType(StrEnum):
     SOURCE_CREATED = "source.created"
     SOURCE_SYNC_REQUESTED = "source.sync.requested"
     SOURCE_REVOKED = "source.revoked"
+    # M05: a workspace editor accepted or rejected an entity merge candidate (ids only).
+    GRAPH_MERGE_DECIDED = "graph.merge.decided"
 
 
 class SessionOpener(Protocol):

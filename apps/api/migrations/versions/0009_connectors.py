@@ -26,7 +26,7 @@ Contract: docs/architecture/m06-contracts.md section 2.
 * The outbox CHECK is extended with ``source.sync.requested``.
 
 Revision ID: 0009_connectors
-Revises: 0007_chat_and_ai_policy
+Revises: 0008_graph
 Create Date: 2026-11-19
 """
 
@@ -39,7 +39,7 @@ from collections.abc import Sequence
 from alembic import context, op
 
 revision: str = "0009_connectors"
-down_revision: str | None = "0007_chat_and_ai_policy"
+down_revision: str | None = "0008_graph"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

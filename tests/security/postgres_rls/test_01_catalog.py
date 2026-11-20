@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import pytest
-from app.core.models import ORG_SCOPED_TABLES, RLS_TABLES
 from rls_world import World
 from sqlalchemy import Engine, text
+
+from app.core.models import ORG_SCOPED_TABLES, RLS_TABLES
 
 EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     "users": {"SELECT", "INSERT", "UPDATE"},
@@ -42,6 +43,9 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     "connector_accounts": {"SELECT", "INSERT"},
     "source_syncs": {"SELECT", "INSERT"},
     "source_items": {"SELECT"},
+    # M05 (migration 0008): the API only reads; review columns are UPDATE-granted per column.
+    "graph_entities": {"SELECT"},
+    "entity_merge_candidates": {"SELECT"},
 }
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 TRIVIAL = {"true", "(true)", "1 = 1", "(1 = 1)"}
@@ -231,7 +235,7 @@ def test_force_rls_restricts_a_non_superuser_owner(admin_engine: Engine, world: 
                 conn.execute(text(f"ALTER TABLE {table} OWNER TO rls_probe_owner"))
             conn.execute(text("SET LOCAL ROLE rls_probe_owner"))
             for table in RLS_TABLES:
-                n = conn.execute(text(f"SELECT count(*) FROM {table}")).scalar_one()  # noqa: S608
+                n = conn.execute(text(f"SELECT count(*) FROM {table}")).scalar_one()
                 assert n == 0, f"owner sees {n} rows of {table} without context"
             conn.execute(
                 text("SELECT set_config('app.current_org_id', :o, true)"),
@@ -240,7 +244,7 @@ def test_force_rls_restricts_a_non_superuser_owner(admin_engine: Engine, world: 
             for table in ORG_SCOPED_TABLES:
                 col = "id" if table == "organizations" else "org_id"
                 other = conn.execute(
-                    text(f"SELECT count(*) FROM {table} WHERE {col} IS DISTINCT FROM :o"),  # noqa: S608
+                    text(f"SELECT count(*) FROM {table} WHERE {col} IS DISTINCT FROM :o"),
                     {"o": world.a.org_id},
                 ).scalar_one()
                 assert other == 0, table
