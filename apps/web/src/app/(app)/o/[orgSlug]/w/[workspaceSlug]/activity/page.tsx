@@ -1,8 +1,12 @@
-import { PlaceholderScreen } from "@/features/shell/placeholder";
+import { ActivityApp } from "@/features/activity";
+import { WorkspaceScopePage } from "@/features/settings/scope-page";
 
 export const metadata = { title: "Activity" };
 
-/** Placeholder: replaced by the owning redesign track (see docs/execution/FRONTEND_REDESIGN_STATUS.md). */
-export default function Page() {
-  return <PlaceholderScreen title="Activity" description="Processing jobs and recent changes in this workspace." />;
+export default function Page({ params }: PageProps<"/o/[orgSlug]/w/[workspaceSlug]/activity">) {
+  return (
+    <WorkspaceScopePage params={params} segment="activity">
+      {({ org, workspace }) => <ActivityApp org={org} workspace={workspace} />}
+    </WorkspaceScopePage>
+  );
 }
