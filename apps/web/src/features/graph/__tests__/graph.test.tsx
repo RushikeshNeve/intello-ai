@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { fakeFetcher, jsonResponse, renderWithQuery } from "@/features/organizations/__tests__/helpers";
 import { ApiError } from "@/features/organizations/api/http";
 import { parseClaimDetail, parseNeighborhood, toGraphErrorCode } from "../api";
 import { GraphExplorer } from "../graph-explorer";
 import { NODE_CAP, collapseNode, layout, mergeNeighborhood, moveFocus, startGraph } from "../model";
-import { ProvenancePanel } from "../provenance-panel";
+import { GraphInspector } from "../graph-inspector";
+import { GraphListFallback } from "../graph-list-fallback";
+import { nodeTone } from "../node-style";
 
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
@@ -142,10 +144,42 @@ describe("explorer", () => {
   });
 });
 
-describe("provenance panel", () => {
+describe("graph inspector", () => {
+  const props = { orgId: IDS.org, orgSlug: "acme", workspaceId: IDS.ws, workspaceRef: "notes", onClose: () => {} };
   it("answers a missing claim with a calm message", async () => {
     const { fetcher } = fakeFetcher({});
-    renderWithQuery(<ProvenancePanel orgId={IDS.org} orgSlug="acme" workspaceId={IDS.ws} workspaceRef="notes" claimId="gone" onClose={() => {}} />, { fetcher });
+    renderWithQuery(<GraphInspector {...props} claimId="gone" />, { fetcher });
     expect(await screen.findByText(/no longer available/)).toBeTruthy();
+  });
+
+  it("shows claim provenance with evidence links, and a node summary with its relationships", async () => {
+    const { fetcher } = fakeFetcher(routes());
+    const { unmount } = renderWithQuery(<GraphInspector {...props} claimId="c1" />, { fetcher });
+    expect((await screen.findByTestId("provenance-claim")).textContent).toMatch(/Atlas depends on Garnet/);
+    expect(screen.getByRole("link", { name: /Runbook/ }).getAttribute("href")).toContain("/evidence?v=v1&chunk=ch1");
+    unmount();
+    const onSelectClaim = vi.fn();
+    renderWithQuery(<GraphInspector {...props} claimId={null} node={node("r", "Atlas")} nodeEdges={[edge("c1", "r", "a")]} nameOf={(id) => (id === "r" ? "Atlas" : "Garnet")} onSelectClaim={onSelectClaim} />, { fetcher });
+    await userEvent.click(screen.getByTestId("inspector-edge"));
+    expect(onSelectClaim).toHaveBeenCalledWith("c1");
+  });
+});
+
+describe("list fallback", () => {
+  it("lists every node and edge the canvas shows (parity) and wires its actions", async () => {
+    const state = startGraph(node("r", "Atlas"), nh([node("a", "Garnet")], [edge("e1", "r", "a")]));
+    const [onExpand, onCollapse, onShowSource] = [vi.fn(), vi.fn(), vi.fn()];
+    render(<GraphListFallback state={state} onExpand={onExpand} onCollapse={onCollapse} onShowSource={onShowSource} />);
+    expect(within(screen.getByTestId("graph-nodes-table")).getAllByRole("row")).toHaveLength(Object.keys(state.nodes).length + 1);
+    expect(within(screen.getByTestId("graph-edges-table")).getAllByRole("row")).toHaveLength(Object.keys(state.edges).length + 1);
+    await userEvent.click(screen.getByRole("button", { name: /Expand Garnet/ }));
+    expect(onExpand).toHaveBeenCalledWith("a");
+    await userEvent.click(screen.getByRole("button", { name: /Collapse Atlas/ }));
+    expect(onCollapse).toHaveBeenCalledWith("r");
+    await userEvent.click(screen.getByRole("button", { name: /Show source/ }));
+    expect(onShowSource).toHaveBeenCalledWith("e1");
+  });
+  it("maps node types to brand tones, violet for synthesis", () => {
+    expect([nodeTone("synthesis"), nodeTone("document"), nodeTone("whatever")]).toEqual(["violet", "teal", "blue"]);
   });
 });

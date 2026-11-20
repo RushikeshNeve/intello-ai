@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { PageHeader } from "@/components/ui/page-header";
 import { GraphExplorer } from "@/features/graph";
 import { resolveWorkspaceScope } from "@/features/organizations/server";
 import { SessionRedirect } from "@/features/shell/session-redirect";
@@ -25,16 +26,18 @@ async function GraphLoader({ params }: { params: Promise<{ orgSlug: string; work
   }
   const { workspace, org } = scope.data;
   return (
-    <div className="mx-auto grid max-w-5xl gap-4">
-      <div className="grid gap-1">
-        <Link href={path} className="text-xs text-muted-foreground underline">
-          {workspace.name}
-        </Link>
-        <h1 tabIndex={-1} className="text-2xl font-semibold tracking-tight outline-none" data-testid="graph-heading">
-          Knowledge graph
-        </h1>
-        <p className="text-sm text-muted-foreground">Explore how people, products and policies in this workspace connect, and where each connection comes from.</p>
-      </div>
+    <div className="grid gap-5">
+      <PageHeader
+        eyebrow="Relationships, made visible"
+        title="Knowledge graph"
+        titleTestId="graph-heading"
+        description="Explore how people, products and policies in this workspace connect, and where each connection comes from."
+        actions={
+          <Link href={path} className="focus-ring rounded-control border border-border bg-card px-3 py-1.5 text-sm font-medium hover:bg-muted">
+            {workspace.name}
+          </Link>
+        }
+      />
       <GraphExplorer orgId={org.id} orgSlug={orgSlug} workspaceId={workspace.id} workspaceRef={workspace.slug} />
     </div>
   );

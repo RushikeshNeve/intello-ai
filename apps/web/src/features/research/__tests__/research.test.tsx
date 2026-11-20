@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { fakeFetcher, jsonResponse, renderWithQuery, ORG_A, ws } from "@/features/organizations/__tests__/helpers";
 import { makeQueryClient } from "@/lib/query/provider";
 import { DEFAULT_LIMITS, exportUrl, parseSession, pollInterval, POLL_MS } from "../api";
 import { loweredLimits, ResearchHome } from "../research-home";
+import { ResearchBriefCard } from "../research-brief-card";
 import { ResearchSessionView } from "../session-view";
 
 const push = vi.fn();
@@ -112,6 +113,7 @@ describe("ResearchHome", () => {
     client.setDefaultOptions({ queries: { retry: false } });
     renderWithQuery(<ResearchHome orgId="o1" orgSlug="acme" workspaces={[WS]} />, { fetcher: api.fetcher, client });
     expect((await screen.findByTestId("research-link")).getAttribute("href")).toBe("/o/acme/research/r0");
+    await userEvent.click(screen.getByTestId("research-new"));
     await userEvent.type(screen.getByTestId("research-question"), "Why?");
     await userEvent.selectOptions(screen.getByTestId("research-scope"), WS.id);
     const lim = screen.getByTestId("limit-max_subqueries");
@@ -120,5 +122,23 @@ describe("ResearchHome", () => {
     await userEvent.click(screen.getByTestId("research-start"));
     await waitFor(() => expect(push).toHaveBeenCalledWith("/o/acme/research/r9"));
     expect(JSON.parse(api.calls.find((c) => c.method === "POST")!.body!)).toEqual({ question: "Why?", workspace_ids: [WS.id], limits: { max_subqueries: 3 } });
+  });
+});
+
+describe("ResearchBriefCard", () => {
+  const item = (state: string) => ({ id: "r1", question: "What changed?", state: state as never, created_at: "2026-11-02T10:00:00Z" });
+  it("labels each state (terminal and in flight) and links to the session", () => {
+    const { unmount } = render(<ResearchBriefCard item={item("running")} href="/o/acme/research/r1" />);
+    expect(screen.getByText("Researching")).toBeTruthy();
+    expect(screen.getByTestId("research-card").textContent).toMatch(/Still running/);
+    expect(screen.getByTestId("research-link").getAttribute("href")).toBe("/o/acme/research/r1");
+    unmount();
+    for (const [state, label] of [["completed", "Completed"], ["failed", "Failed"], ["cancelled", "Cancelled"]] as const) {
+      const r = render(<ResearchBriefCard item={item(state)} href="/x" />);
+      expect(screen.getByText(label)).toBeTruthy();
+      expect(screen.getByTestId("research-card").textContent).toMatch(/Open the report/);
+      expect(screen.getByText("2026-11-02")).toBeTruthy();
+      r.unmount();
+    }
   });
 });

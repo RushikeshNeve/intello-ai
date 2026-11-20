@@ -6,11 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SearchIcon } from "lucide-react";
+import { SurfaceCard } from "@/components/ui/surface";
+import { StatusBadge } from "@/components/ui/badges";
 import { useApiFetcher } from "@/lib/query/provider";
 import { getNeighborhood, searchEntities, toGraphErrorCode, type EntityHit, type GraphErrorCode } from "./api";
 import { GraphCanvas } from "./graph-canvas";
 import { collapseNode, layout, mergeNeighborhood, moveFocus, startGraph, type ArrowKey, type GraphState } from "./model";
-import { ProvenancePanel } from "./provenance-panel";
+import { GraphInspector } from "./graph-inspector";
+import { GraphListFallback } from "./graph-list-fallback";
+import { nodeTone, TONE_DOT_CLASS, type NodeTone } from "./node-style";
 
 const ERROR_COPY: Record<GraphErrorCode, string> = {
   not_found: "Nothing was found here, or you don't have access.",
@@ -107,32 +112,40 @@ export function GraphExplorer({ orgId, orgSlug, workspaceId, workspaceRef }: Gra
   };
   const searchError = hits.error ? toGraphErrorCode(hits.error) : null;
   const shownError = error ?? searchError;
-  const nodeList = state ? Object.values(state.nodes) : [];
-  const edgeList = state ? Object.values(state.edges) : [];
   const name = (id: string) => state?.nodes[id]?.name ?? "?";
+  const selected = focusedId && state ? (state.nodes[focusedId] ?? null) : null;
+  const selectedEdges = selected && state ? Object.values(state.edges).filter((e) => e.subject_id === selected.id || e.object_id === selected.id) : [];
+  const nodeCount = state ? Object.keys(state.nodes).length : 0;
+  const edgeCount = state ? Object.keys(state.edges).length : 0;
+  const legend: NodeTone[] = state ? Array.from(new Set(Object.values(state.nodes).map((n) => nodeTone(n.type)))) : [];
+  const toneLabel: Record<NodeTone, string> = { blue: "Concepts", teal: "Documents and products", indigo: "People and projects", violet: "Synthesis" };
 
   return (
     <div className="grid gap-4" data-testid="graph-explorer">
       <form onSubmit={onSubmit} className="flex flex-wrap items-end gap-2" role="search">
-        <div className="grid gap-1">
+        <div className="grid min-w-0 flex-1 gap-1 sm:max-w-md">
           <Label htmlFor="graph-q">Find an entity</Label>
-          <Input id="graph-q" value={text} onChange={(e) => setText(e.target.value)} maxLength={200} placeholder="A person, product, policy..." />
+          <div className="relative">
+            <SearchIcon aria-hidden="true" className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-text-secondary" />
+            <Input id="graph-q" className="pl-8" value={text} onChange={(e) => setText(e.target.value)} maxLength={200} placeholder="A person, product, policy..." />
+          </div>
         </div>
         <Button type="submit">Search</Button>
       </form>
 
       {shownError ? (
-        <p role="status" data-testid="graph-error">
+        <p role="status" data-testid="graph-error" className="rounded-control bg-warning-soft px-3 py-2 text-sm text-warning">
           {ERROR_COPY[shownError]}
         </p>
       ) : null}
       {hits.isFetching ? <Skeleton className="h-10 w-full" /> : null}
-      {hits.data && hits.data.items.length === 0 ? <p role="status">No entities match. Try fewer or different words.</p> : null}
+      {hits.data && hits.data.items.length === 0 ? <p role="status" className="text-sm text-text-secondary">No entities match. Try fewer or different words.</p> : null}
       {hits.data && hits.data.items.length > 0 ? (
         <ul aria-label="Matching entities" className="flex flex-wrap gap-2">
           {hits.data.items.map((h) => (
             <li key={h.id}>
               <Button type="button" variant="outline" onClick={() => void open(h)} disabled={busy}>
+                <span aria-hidden="true" className={`size-2 rounded-full ${TONE_DOT_CLASS[nodeTone(h.type)]}`} />
                 {h.name} <span className="ml-1 text-xs text-muted-foreground">{h.type}</span>
               </Button>
             </li>
@@ -140,80 +153,68 @@ export function GraphExplorer({ orgId, orgSlug, workspaceId, workspaceRef }: Gra
         </ul>
       ) : null}
 
+      {!state && !hits.data && !shownError ? (
+        <SurfaceCard className="text-sm text-text-secondary" data-testid="graph-intro">
+          Search for a person, product or policy to open a bounded neighborhood of connected knowledge, then expand nodes to follow relationships.
+        </SurfaceCard>
+      ) : null}
+
       {state ? (
         <>
           {state.truncated ? (
-            <p role="status" data-testid="graph-truncated">
+            <p role="status" data-testid="graph-truncated" className="rounded-control bg-warning-soft px-3 py-2 text-sm text-warning">
               This neighborhood is truncated, narrow your search to see the rest.
             </p>
           ) : null}
-          <p className="text-xs text-muted-foreground">
-            Arrow keys move between nodes, Enter expands a node, Escape collapses it. A table version follows the graph.
-          </p>
-          <div ref={canvasRef} onKeyDown={onKeyDown} data-testid="graph-keys">
-            <GraphCanvas state={state} focusedId={focusedId} onNodeClick={(id) => { setFocusedId(id); void expand(id); }} onEdgeClick={setClaimId} />
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+            <div className="grid min-w-0 content-start gap-3">
+              <SurfaceCard className="grid gap-3 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusBadge tone="info">Relationships</StatusBadge>
+                  <span className="ml-auto text-meta text-text-secondary" data-testid="graph-counts">
+                    {nodeCount} node{nodeCount === 1 ? "" : "s"} · {edgeCount} relationship{edgeCount === 1 ? "" : "s"}
+                  </span>
+                </div>
+                <p className="text-meta text-text-secondary">Arrow keys move between nodes, Enter expands a node, Escape collapses it. A table version follows the graph.</p>
+                <div ref={canvasRef} onKeyDown={onKeyDown} data-testid="graph-keys">
+                  <GraphCanvas state={state} focusedId={focusedId} onNodeClick={(id) => { setFocusedId(id); setClaimId(null); void expand(id); }} onEdgeClick={setClaimId} />
+                </div>
+                <ul aria-label="Legend" className="flex flex-wrap gap-3 text-meta text-text-secondary">
+                  {legend.map((t) => (
+                    <li key={t} className="flex items-center gap-1.5">
+                      <span aria-hidden="true" className={`size-2.5 rounded-full ${TONE_DOT_CLASS[t]}`} />
+                      {toneLabel[t]}
+                    </li>
+                  ))}
+                </ul>
+              </SurfaceCard>
+              <GraphListFallback
+                state={state}
+                selectedId={focusedId}
+                onSelectNode={(id) => { setFocusedId(id); setClaimId(null); }}
+                onExpand={(id) => void expand(id)}
+                onCollapse={collapse}
+                onShowSource={setClaimId}
+              />
+            </div>
+            <div className="min-w-0 max-lg:order-first">
+              {claimId || selected ? (
+                <GraphInspector
+                  orgId={orgId}
+                  orgSlug={orgSlug}
+                  workspaceId={workspaceId}
+                  workspaceRef={workspaceRef}
+                  claimId={claimId}
+                  node={selected}
+                  nodeEdges={selectedEdges}
+                  nameOf={name}
+                  onSelectClaim={setClaimId}
+                  onClose={() => (claimId ? setClaimId(null) : setFocusedId(null))}
+                />
+              ) : null}
+            </div>
           </div>
-          <section aria-labelledby="graph-table-h" className="grid gap-2">
-            <h2 id="graph-table-h" className="text-base font-medium">
-              Table view
-            </h2>
-            <table className="w-full text-sm" data-testid="graph-nodes-table">
-              <caption className="sr-only">Entities in view</caption>
-              <thead>
-                <tr>
-                  <th scope="col" className="text-left">Entity</th>
-                  <th scope="col" className="text-left">Type</th>
-                  <th scope="col" className="text-left">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {nodeList.map((n) => {
-                  const isOpen = state.expanded.includes(n.id);
-                  return (
-                    <tr key={n.id}>
-                      <th scope="row" className="text-left font-normal">{n.name}</th>
-                      <td>{n.type}</td>
-                      <td>
-                        <button type="button" className="underline" onClick={() => (isOpen ? collapse(n.id) : void expand(n.id))}>
-                          {isOpen ? "Collapse" : "Expand"}<span className="sr-only"> {n.name}</span>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            <table className="w-full text-sm" data-testid="graph-edges-table">
-              <caption className="sr-only">Connections in view</caption>
-              <thead>
-                <tr>
-                  <th scope="col" className="text-left">From</th>
-                  <th scope="col" className="text-left">Relation</th>
-                  <th scope="col" className="text-left">To</th>
-                  <th scope="col" className="text-left">Source</th>
-                </tr>
-              </thead>
-              <tbody>
-                {edgeList.map((e) => (
-                  <tr key={e.id}>
-                    <td>{name(e.subject_id)}</td>
-                    <td>{e.predicate.replaceAll("_", " ")}</td>
-                    <td>{name(e.object_id)}</td>
-                    <td>
-                      <button type="button" className="underline" onClick={() => setClaimId(e.claim_id)}>
-                        Show source<span className="sr-only"> of {name(e.subject_id)} {e.predicate} {name(e.object_id)}</span>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
         </>
-      ) : null}
-
-      {claimId ? (
-        <ProvenancePanel orgId={orgId} orgSlug={orgSlug} workspaceId={workspaceId} workspaceRef={workspaceRef} claimId={claimId} onClose={() => setClaimId(null)} />
       ) : null}
     </div>
   );
