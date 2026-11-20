@@ -9,3 +9,5 @@
 - Security: PK-collision existence oracle; 24 ruff + 4 mypy findings in old security tests; 56 older style findings (M08.03.01).
 - Retry button shown for `unsupported` files (decide in M06).
 - M05 integration: no HTTP-stub web e2e for the graph explorer (React Flow canvas is stubbed in vitest; real-browser pass of canvas keyboard focus and edge click pending); entity name search scans up to 5000 active entities per request in RushDB (no proven substring operator), revisit with a native prefix/contains filter.
+
+- M07 web (memory/research/palette/locator viewers/theme): no HTTP e2e suite; covered by vitest with stub APIs only. Gap: live BFF forwarding of `/api/v1/orgs/*/memory*` and `research*` (generic proxy, verified by reading bff.ts only), real-browser palette/focus-trap and 320 px layout checks.

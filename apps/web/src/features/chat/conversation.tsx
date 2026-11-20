@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useApiFetcher } from "@/lib/query/provider";
 import type { Workspace } from "@/features/workspaces/api";
 import { createThread, getThread, startRun, toChatErrorCode, type ChatMessage, type ThreadDetail } from "./api";
+import { RememberButton } from "@/features/memory/remember-button";
 import { AnswerBody, SourceList, VerificationBanner } from "./answer-view";
 import { Composer } from "./composer";
 import { chatKeys, newIdempotencyKey } from "./keys";
@@ -210,7 +211,7 @@ export function Conversation({ orgId, orgSlug, workspaces, threadId, stream }: C
           </p>
         )}
         {messages.map((m) => (
-          <MessageBubble key={m.id} message={m} ctx={ctx} />
+          <MessageBubble key={m.id} message={m} ctx={ctx} orgId={orgId} />
         ))}
         {showLive && view && (
           <LiveAnswer
@@ -265,7 +266,7 @@ export function Conversation({ orgId, orgSlug, workspaces, threadId, stream }: C
   );
 }
 
-function MessageBubble({ message, ctx }: { message: ChatMessage; ctx: { orgSlug: string; workspaces: readonly Workspace[] } }) {
+function MessageBubble({ message, ctx, orgId }: { message: ChatMessage; ctx: { orgSlug: string; workspaces: readonly Workspace[] }; orgId: string }) {
   if (message.role === "user") {
     return (
       <div className="ml-auto max-w-[85%] rounded-lg bg-muted px-3 py-2 text-sm break-words whitespace-pre-wrap" data-testid="user-message">
@@ -278,6 +279,7 @@ function MessageBubble({ message, ctx }: { message: ChatMessage; ctx: { orgSlug:
       <VerificationBanner verification={message.verification} />
       <AnswerBody text={message.content} citations={message.citations} ctx={ctx} />
       <SourceList citations={message.citations} ctx={ctx} />
+      <RememberButton orgId={orgId} orgSlug={ctx.orgSlug} answer={message.content} citations={message.citations} />
     </div>
   );
 }
