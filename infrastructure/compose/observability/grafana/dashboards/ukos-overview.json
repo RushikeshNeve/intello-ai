@@ -1,0 +1,41 @@
+{
+  "uid": "ukos-overview",
+  "title": "Intelo AI - overview",
+  "tags": ["ukos"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": {"from": "now-30m", "to": "now"},
+  "panels": [
+    {"id": 1, "type": "timeseries", "title": "API request latency p50 / p95 / p99 (all routes)", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+     "datasource": {"type": "prometheus", "uid": "ukos-prom"}, "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+     "targets": [
+       {"refId": "A", "legendFormat": "p50", "expr": "histogram_quantile(0.50, sum by (le) (rate(ukos_http_request_duration_seconds_bucket[1m])))"},
+       {"refId": "B", "legendFormat": "p95", "expr": "histogram_quantile(0.95, sum by (le) (rate(ukos_http_request_duration_seconds_bucket[1m])))"},
+       {"refId": "C", "legendFormat": "p99", "expr": "histogram_quantile(0.99, sum by (le) (rate(ukos_http_request_duration_seconds_bucket[1m])))"}]},
+    {"id": 2, "type": "timeseries", "title": "API p95 latency by route template", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+     "datasource": {"type": "prometheus", "uid": "ukos-prom"}, "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+     "targets": [{"refId": "A", "legendFormat": "{{method}} {{route}}", "expr": "histogram_quantile(0.95, sum by (le, method, route) (rate(ukos_http_request_duration_seconds_bucket[1m])))"}]},
+    {"id": 3, "type": "timeseries", "title": "API requests per second and 5xx error rate", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+     "datasource": {"type": "prometheus", "uid": "ukos-prom"}, "fieldConfig": {"defaults": {}, "overrides": []},
+     "targets": [
+       {"refId": "A", "legendFormat": "requests/s", "expr": "sum(rate(ukos_http_request_duration_seconds_count[1m]))"},
+       {"refId": "B", "legendFormat": "5xx/s", "expr": "sum(rate(ukos_http_request_duration_seconds_count{status=\"5xx\"}[1m]))"},
+       {"refId": "C", "legendFormat": "4xx/s", "expr": "sum(rate(ukos_http_request_duration_seconds_count{status=\"4xx\"}[1m]))"}]},
+    {"id": 4, "type": "timeseries", "title": "Queue depth (Celery messages waiting)", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+     "datasource": {"type": "prometheus", "uid": "ukos-prom"}, "fieldConfig": {"defaults": {}, "overrides": []},
+     "targets": [{"refId": "A", "legendFormat": "{{queue}}", "expr": "max by (queue) (ukos_queue_depth)"}]},
+    {"id": 5, "type": "timeseries", "title": "Run durations p95: ingestion (ingest.run_job), chat (chat.run), research (research.run)", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+     "datasource": {"type": "prometheus", "uid": "ukos-prom"}, "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+     "targets": [{"refId": "A", "legendFormat": "{{task}}", "expr": "histogram_quantile(0.95, sum by (le, task) (rate(ukos_task_duration_seconds_bucket{task=~\"ingest.run_job|chat.run|research.run\"}[5m])))"}]},
+    {"id": 6, "type": "timeseries", "title": "Task throughput and error rate (outcome != success)", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+     "datasource": {"type": "prometheus", "uid": "ukos-prom"}, "fieldConfig": {"defaults": {}, "overrides": []},
+     "targets": [
+       {"refId": "A", "legendFormat": "ok {{task}}", "expr": "sum by (task) (rate(ukos_task_duration_seconds_count{outcome=\"success\"}[1m]))"},
+       {"refId": "B", "legendFormat": "failed {{task}}", "expr": "sum by (task) (rate(ukos_task_duration_seconds_count{outcome!=\"success\"}[1m]))"}]},
+    {"id": 7, "type": "timeseries", "title": "Outbox rows dispatched per second (by task)", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+     "datasource": {"type": "prometheus", "uid": "ukos-prom"}, "fieldConfig": {"defaults": {}, "overrides": []},
+     "targets": [{"refId": "A", "legendFormat": "{{task}}", "expr": "sum by (task) (rate(ukos_outbox_dispatched_total[1m]))"}]}
+  ]
+}

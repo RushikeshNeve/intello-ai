@@ -20,6 +20,12 @@ class Settings(BaseSettings):
 
     UKOS_ENV: Literal["local", "test", "ci"] = "local"
     UKOS_LOG_LEVEL: Literal["debug", "info", "warning", "error"] = "info"
+    # Observability (M08.02.04). Tracing is off by default; JSON logs never carry content.
+    UKOS_LOG_FORMAT: Literal["json", "text"] = "json"
+    OTEL_ENABLED: bool = False
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://otel-collector:4318"
+    # Internal Prometheus listener (0 = off). Never published on a host port by the compose files.
+    METRICS_PORT: int = Field(default=0, ge=0, le=65535)
 
     DATABASE_URL: SecretStr = SecretStr("postgresql+psycopg://ukos_app@127.0.0.1:5532/ukos")
     # Admin-role connection used only by Alembic (never by the request path; RLS bypass risk).

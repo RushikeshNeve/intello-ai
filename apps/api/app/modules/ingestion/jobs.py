@@ -16,6 +16,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.core.tracing import with_trace
 from app.modules.ingestion.ids import PIPELINE_VERSION, revision_id_for
 from app.modules.ingestion.models import (
     AGGREGATE_DOCUMENT,
@@ -99,7 +100,7 @@ def enqueue_ingestion(
             aggregate_type=AGGREGATE_INGESTION_JOB,
             aggregate_id=job_id,
             event_type=EVENT_JOB_QUEUED,
-            payload={"job_id": str(job_id)},
+            payload=with_trace({"job_id": str(job_id)}),
         )
     )
     return job_id

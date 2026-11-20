@@ -1,0 +1,78 @@
+# Intelo AI (UKOS) - optional observability stack (M08.02.04). OFF by default.
+#
+# Not part of the root `include:` list (the api/worker/dispatcher service names would collide). Use it as an
+# overlay on top of the root compose, with the profile:
+#
+#   docker compose -f compose.yaml -f compose.override.yaml -f infrastructure/compose/observability.yml \
+#     --profile observability up -d
+#
+# What it does: (1) turns tracing and the internal metrics listener ON for api, worker and dispatcher
+# (OTEL_ENABLED=true, METRICS_PORT=9464, set the variables to override); (2) adds otel-collector, Jaeger,
+# Prometheus and Grafana (profile `observability`, never started by a plain `up`).
+# Metrics ports are `expose`d on the compose network only, never published on the host. Without this overlay
+# nothing changes: OTEL_ENABLED defaults to false and METRICS_PORT to 0 in the application settings.
+# Host UIs (127.0.0.1 only): Grafana 3320 (admin / $GRAFANA_ADMIN_PASSWORD), Jaeger 16686, Prometheus 9390.
+
+x-obs-env: &obs-env
+  OTEL_ENABLED: ${OTEL_ENABLED:-true}
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+  METRICS_PORT: ${METRICS_PORT:-9464}
+  UKOS_LOG_FORMAT: ${UKOS_LOG_FORMAT:-json}
+
+services:
+  api:
+    environment: *obs-env
+    expose: ["9464"]
+
+  dispatcher:
+    environment: *obs-env
+    expose: ["9464"]
+
+  worker:
+    environment:
+      <<: *obs-env
+      # prefork children write their metrics here; the main process serves the aggregate
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prom
+    tmpfs: ["/tmp/prom"]
+    expose: ["9464"]
+
+  otel-collector:
+    image: ${OTEL_COLLECTOR_IMAGE:-otel/opentelemetry-collector:0.116.1}
+    profiles: ["observability"]
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    depends_on: [jaeger]
+
+  jaeger:
+    image: ${JAEGER_IMAGE:-jaegertracing/all-in-one:1.65.0}
+    profiles: ["observability"]
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "${UKOS_BIND_HOST:-127.0.0.1}:${JAEGER_HOST_PORT:-16686}:16686"
+
+  prometheus:
+    image: ${PROMETHEUS_IMAGE:-prom/prometheus:v3.1.0}
+    profiles: ["observability"]
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=7d"]
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "${UKOS_BIND_HOST:-127.0.0.1}:${PROMETHEUS_HOST_PORT:-9390}:9090"
+
+  grafana:
+    image: ${GRAFANA_IMAGE:-grafana/grafana:11.4.0}
+    profiles: ["observability"]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-change-me-grafana}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "${UKOS_BIND_HOST:-127.0.0.1}:${GRAFANA_HOST_PORT:-3320}:3000"
+    depends_on: [prometheus, jaeger]

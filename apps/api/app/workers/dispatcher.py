@@ -27,12 +27,13 @@ import threading
 import time
 import uuid
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Final
 
 from sqlalchemy import Engine, text
 
+from app.core import tracing
 from app.modules.ai import chat_repo
 from app.modules.connectors.models import EVENT_SOURCE_SYNC_REQUESTED
 from app.modules.ingestion.models import (
@@ -96,6 +97,8 @@ class Delivery:
     task: str
     queue: str
     args: tuple[str, ...]
+    # Celery message headers: the correlation context (traceparent, request_id, org) of M08.02.04.
+    headers: Mapping[str, str] = field(default_factory=dict)
 
 
 Publisher = Callable[[Delivery], None]
@@ -182,7 +185,12 @@ def celery_publisher(app: Any = None) -> Publisher:
 
     def publish(delivery: Delivery) -> None:
         try:
-            client.send_task(delivery.task, args=list(delivery.args), queue=delivery.queue)
+            client.send_task(
+                delivery.task,
+                args=list(delivery.args),
+                queue=delivery.queue,
+                headers=dict(delivery.headers) or None,
+            )
         except (KombuError, OSError, ConnectionError) as exc:
             raise BrokerUnavailable(type(exc).__name__) from exc
 
@@ -240,12 +248,14 @@ class Dispatcher:
                     route = self.routes.get(row.event_type)
                     if route is None:
                         raise PoisonEvent("unknown_event_type")
-                    delivery = route(row)
+                    headers = tracing.celery_headers(row.payload, row.org_id)
+                    delivery = replace(route(row), headers=headers)
                     extra = EXTRA_ROUTES.get(row.event_type)
-                    extra_delivery = extra(row) if extra is not None else None
+                    extra_delivery = replace(extra(row), headers=headers) if extra else None
                     self.publish(delivery)
                     if extra_delivery is not None:
                         self.publish(extra_delivery)
+                    tracing.record_dispatch(delivery.task, headers)
                 except PoisonEvent as exc:
                     conn.execute(
                         text("SELECT outbox_mark_failed(:i, :e, :r)"),
@@ -434,9 +444,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.check:
         return 0 if health_ok(settings) else 1
 
-    logging.basicConfig(
-        level=settings.UKOS_LOG_LEVEL.upper(),
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    tracing.setup_process(
+        settings, "dispatcher", queue_depth_url=settings.CELERY_BROKER_URL.get_secret_value()
     )
     dispatcher = Dispatcher(get_worker_engine(settings), settings, celery_publisher())
 
