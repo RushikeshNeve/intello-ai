@@ -28,7 +28,7 @@ if [[ "${STACK_MODE:-0}" == "1" ]]; then source "$OPS_ROOT/scripts/ops/stack.sh"
 ops_init "$OPS_PROJECT"
 if [[ "${STACK_MODE:-0}" == "1" ]]; then dc() { "${STACK_COMPOSE[@]}" "$@"; }
 else dc() { docker compose -p "$OPS_PROJECT" --project-directory "$OPS_ROOT" --env-file "$ENV_FILE" "$@"; }; fi
-WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
+WORK="$(host_path "$(mktemp -d)")"; trap 'rm -rf "$WORK"' EXIT
 mj() { node "$OPS_ROOT/scripts/ops/manifest.mjs" "$@"; }
 want() { node -e "const m=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));console.log(eval('m.'+process.argv[2]))" "$BACKUP/manifest.json" "$1"; }
 
