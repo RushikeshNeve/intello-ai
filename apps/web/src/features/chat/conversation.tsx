@@ -92,6 +92,7 @@ export function Conversation({ orgId, orgSlug, workspaces, threadId, stream, onC
   useEffect(() => {
     try {
       const q = new URLSearchParams(window.location.search).get("q");
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time client-only prefill; reading the URL during render would mismatch server HTML
       if (q) setDraft((cur) => cur || q.slice(0, MAX_MESSAGE_LENGTH));
     } catch {
       /* no URL access: ignore */
