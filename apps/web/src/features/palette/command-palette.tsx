@@ -82,12 +82,13 @@ export function PaletteView({ ctx, navigate }: { ctx: PaletteCtx; navigate?: (hr
       <button
         type="button"
         onClick={show}
-        className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="focus-ring inline-flex h-9 items-center gap-2 rounded-control border border-border bg-background px-2.5 text-sm text-text-secondary hover:bg-muted sm:w-56 min-[1101px]:w-72"
         aria-label="Open command palette"
         data-testid="palette-trigger"
       >
-        <SearchIcon aria-hidden="true" className="size-3.5" />
-        <span className="hidden sm:inline">Ctrl K</span>
+        <SearchIcon aria-hidden="true" className="size-4 shrink-0" />
+        <span className="hidden flex-1 truncate text-left sm:inline">Search or jump to...</span>
+        <kbd className="hidden rounded border border-border bg-muted px-1.5 text-meta sm:inline">Ctrl K</kbd>
       </button>
       {open && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-[10vh]" onMouseDown={(e) => e.target === e.currentTarget && hide()} data-testid="palette-overlay">

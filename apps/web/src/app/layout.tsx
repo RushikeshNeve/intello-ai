@@ -3,8 +3,10 @@ import "./globals.css";
 import { THEME_INIT_SCRIPT } from "@/features/theme/theme";
 
 export const metadata: Metadata = {
-  title: "Universal Knowledge OS",
-  description: "Local-first knowledge management.",
+  title: { default: "Intello", template: "%s | Intello" },
+  description: "Intello AI: a knowledge workspace that answers from your own sources, with evidence.",
+  // Canonical brand mark (public/brand). The monochrome file is for contexts that need a single colour.
+  icons: { icon: [{ url: "/brand/intello-prism.svg", type: "image/svg+xml" }] },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { makeQueryClient } from "@/lib/query/provider";
 import { queryKeys } from "@/lib/query/keys";
-import { OrgScopeProvider, ScopedContent } from "../components/org-scope";
-import { OrgSwitcher } from "../components/org-switcher";
+import { OrgScopeProvider } from "../components/org-scope";
 import { WorkspaceOverview } from "@/features/workspaces/components/workspace-overview";
-import { WorkspaceSidebar } from "@/features/workspaces/components/workspace-sidebar";
+import { AppShell } from "@/features/shell/app-shell";
+import { stubMatchMedia } from "@/features/shell/__tests__/match-media";
 import { fakeFetcher, jsonResponse, ORG_A, ORG_B, renderWithQuery, ws } from "./helpers";
 
 const nav = vi.hoisted(() => ({ push: vi.fn(), pathname: "/o/acme", params: {} as Record<string, string> }));
@@ -28,6 +28,8 @@ const A_WS = [ws(ORG_A, "notes", "Acme Notes"), ws(ORG_A, "papers", "Acme Papers
 const B_WS = [ws(ORG_B, "lab", "Globex Bench")];
 const A_SECRETS = ["Acme Notes", "Acme Papers"];
 
+beforeEach(() => stubMatchMedia());
+
 afterEach(() => {
   cleanup();
   nav.push.mockReset();
@@ -36,15 +38,9 @@ afterEach(() => {
 function Shell({ org, workspaces, navigate }: { org: typeof ORG_A; workspaces: typeof A_WS; navigate?: (h: string) => void }) {
   return (
     <OrgScopeProvider org={org} orgs={[ORG_A, ORG_B]} navigate={navigate}>
-      <header>
-        <OrgSwitcher />
-      </header>
-      <ScopedContent>
-        <WorkspaceSidebar initialWorkspaces={workspaces} />
-        <main>
-          <WorkspaceOverview initialWorkspaces={workspaces} />
-        </main>
-      </ScopedContent>
+      <AppShell userLabel="tester@example.com" initialWorkspaces={workspaces}>
+        <WorkspaceOverview initialWorkspaces={workspaces} />
+      </AppShell>
     </OrgScopeProvider>
   );
 }
@@ -186,41 +182,5 @@ describe("org switcher", () => {
     expect(navigate).not.toHaveBeenCalled();
     expect(clearSpy).not.toHaveBeenCalled();
     expect(screen.getAllByText("Acme Notes").length).toBeGreaterThan(0);
-  });
-});
-
-describe("workspace navigation", () => {
-  it("marks the active workspace with aria-current=page", () => {
-    nav.pathname = "/o/acme/w/papers";
-    nav.params = { orgSlug: "acme", workspaceSlug: "papers" };
-    const { fetcher } = routes();
-    renderWithQuery(<Shell org={ORG_A} workspaces={A_WS} />, { fetcher });
-    const navEl = screen.getByRole("navigation", { name: "Workspaces" });
-    const links = within(navEl).getAllByRole("link");
-    expect(links.map((l) => [l.textContent, l.getAttribute("href"), l.getAttribute("aria-current")])).toEqual([
-      ["Overview", "/o/acme", null],
-      ["Search", "/o/acme/search", null],
-      ["Chat", "/o/acme/chat", null],
-      ["Memory", "/o/acme/memory", null],
-      ["Research", "/o/acme/research", null],
-      ["Acme Notes", "/o/acme/w/notes", null],
-      ["Acme Papers", "/o/acme/w/papers", "page"],
-    ]);
-  });
-
-  it("marks Overview current on the org page; the mobile toggle exposes aria-expanded/controls", async () => {
-    nav.pathname = "/o/acme";
-    nav.params = { orgSlug: "acme" };
-    const user = userEvent.setup();
-    const { fetcher } = routes();
-    renderWithQuery(<Shell org={ORG_A} workspaces={A_WS} />, { fetcher });
-    const navEl = screen.getByRole("navigation", { name: "Workspaces" });
-    expect(within(navEl).getByRole("link", { name: "Overview" }).getAttribute("aria-current")).toBe("page");
-    expect(within(navEl).getAllByRole("link").filter((l) => l.getAttribute("aria-current"))).toHaveLength(1);
-    const toggle = screen.getByRole("button", { name: "Workspaces" });
-    expect(toggle.getAttribute("aria-controls")).toBe(navEl.id);
-    expect(toggle.getAttribute("aria-expanded")).toBe("false");
-    await user.click(toggle);
-    expect(toggle.getAttribute("aria-expanded")).toBe("true");
   });
 });
