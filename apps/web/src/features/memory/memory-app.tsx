@@ -52,7 +52,7 @@ export function MemoryApp({ orgId, orgSlug, workspaces }: { orgId: string; orgSl
       <div role="tabpanel" className="grid gap-3" data-testid="memory-list">
         {q.isPending ? (
           <div role="status" className="grid gap-3">
-            <span className="sr-only">Loading…</span>
+            <span className="sr-only">Loadingâ€¦</span>
             <Skeleton className="h-24 w-full" />
             <Skeleton className="h-24 w-full" />
           </div>

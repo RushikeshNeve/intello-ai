@@ -53,7 +53,7 @@ export function ResearchSessionView({ orgId, orgSlug, sessionId, workspaces }: {
       <div className="grid gap-3" data-testid="research-loading">
         {back}
         <div role="status" className="grid gap-3">
-          <span className="sr-only">Loading…</span>
+          <span className="sr-only">Loadingâ€¦</span>
           <Skeleton className="h-8 w-2/3" />
           <Skeleton className="h-24 w-full" />
         </div>
@@ -98,7 +98,7 @@ export function ResearchSessionView({ orgId, orgSlug, sessionId, workspaces }: {
       <div className="flex flex-wrap items-center gap-2">
         <StatusBadge tone={STATE_TONE[s.state]}>{STATE_LABEL[s.state]}</StatusBadge>
         <p role="status" className="text-sm text-text-secondary" data-testid="research-state">
-          {s.state === "planned" || s.state === "running" ? "Researching… this page updates by itself." : s.state === "completed" ? "Done." : s.state === "cancelled" ? "Cancelled." : errorCopy(s.error_code)}
+          {s.state === "planned" || s.state === "running" ? "Researchingâ€¦ this page updates by itself." : s.state === "completed" ? "Done." : s.state === "cancelled" ? "Cancelled." : errorCopy(s.error_code)}
         </p>
       </div>
       {cancelError && (

@@ -10,7 +10,7 @@ import { SurfaceCard } from "@/components/ui/surface";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiFetcher } from "@/lib/query/provider";
 import type { Workspace } from "@/features/workspaces/api";
-import { createThread, getThread, startRun, toChatErrorCode, type ChatMessage, type ThreadDetail } from "./api";
+import { MAX_MESSAGE_LENGTH, createThread, getThread, startRun, toChatErrorCode, type ChatMessage, type ThreadDetail } from "./api";
 import { RememberButton } from "@/features/memory/remember-button";
 import { AnswerBody, CopyButton, SourceList, VerificationBanner, type LinkCtx } from "./answer-view";
 import { Composer } from "./composer";
@@ -88,6 +88,15 @@ export function Conversation({ orgId, orgSlug, workspaces, threadId, stream, onC
 
   // --- composer ---
   const [draft, setDraft] = useState("");
+  // Home quick-Ask links here as /chat?q=<text>: prefill the composer once on the client.
+  useEffect(() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get("q");
+      if (q) setDraft((cur) => cur || q.slice(0, MAX_MESSAGE_LENGTH));
+    } catch {
+      /* no URL access: ignore */
+    }
+  }, []);
   const [scopeChoice, setScopeChoice] = useState<string | null | undefined>(undefined);
   const scope = scopeChoice !== undefined ? scopeChoice : (detail?.thread.workspace_id ?? null);
   const [sending, setSending] = useState(false);

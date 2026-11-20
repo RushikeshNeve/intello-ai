@@ -172,7 +172,7 @@ export function GraphExplorer({ orgId, orgSlug, workspaceId, workspaceRef }: Gra
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusBadge tone="info">Relationships</StatusBadge>
                   <span className="ml-auto text-meta text-text-secondary" data-testid="graph-counts">
-                    {nodeCount} node{nodeCount === 1 ? "" : "s"} · {edgeCount} relationship{edgeCount === 1 ? "" : "s"}
+                    {nodeCount} node{nodeCount === 1 ? "" : "s"} Â· {edgeCount} relationship{edgeCount === 1 ? "" : "s"}
                   </span>
                 </div>
                 <p className="text-meta text-text-secondary">Arrow keys move between nodes, Enter expands a node, Escape collapses it. A table version follows the graph.</p>
