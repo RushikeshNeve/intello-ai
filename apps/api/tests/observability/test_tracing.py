@@ -84,11 +84,11 @@ def test_middleware_propagates_context_into_outbox_and_outbound_headers() -> Non
     assert body["outbox"]["job_id"] == "j1"
     assert tracing.parse_traceparent(body["outbox"]["trace"]["traceparent"])[0] == TRACE  # type: ignore[index]
     assert body["outbox"]["trace"]["request_id"] == "req-abcdef12"
-    # calls to the embedding/chat server: same trace and request id, a NEW span id
+    # calls to the embedding/chat server: same trace and request id, the request span as parent
     out = tracing.parse_traceparent(body["outbound"]["traceparent"])
     assert out is not None
     assert out[0] == TRACE
-    assert out[1] != response_trace[1]
+    assert out[1] == response_trace[1]
     assert body["outbound"]["X-Request-Id"] == "req-abcdef12"
     # logs: JSON lines with trace_id/request_id/hashed org; no org id, no query text, no title
     raw = stream.getvalue()

@@ -181,11 +181,11 @@ def celery_headers(payload: Mapping[str, Any], org_id: object = None) -> dict[st
 
 
 def outbound_headers() -> dict[str, str]:
-    """Headers for a call to the embedding/chat server: a child span of the current context."""
+    """Headers for a call to the embedding/chat server: the current span is the parent."""
     trace_id = _trace_id.get()
     if trace_id is None:
         return {}
-    out = {HEADER_TRACEPARENT: format_traceparent(trace_id, new_span_id())}
+    out = {HEADER_TRACEPARENT: format_traceparent(trace_id, _span_id.get() or new_span_id())}
     request_id = _request_id.get()
     if request_id:
         out[HEADER_REQUEST_ID] = request_id
