@@ -28,6 +28,8 @@ from app.core.security import (
 )
 from app.modules.ai.chat_router import router as chat_router
 from app.modules.ai.policy_router import router as ai_policy_router
+from app.modules.connectors.router import router as connectors_router
+from app.modules.connectors.router import webhook_router as connectors_webhook_router
 from app.modules.connectors.url_capture import router as url_capture_router
 from app.modules.documents import router as documents_router
 from app.modules.graph.api import router as graph_router
@@ -110,5 +112,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(graph_router)
     app.include_router(ai_policy_router)
     app.include_router(chat_router)
+    app.include_router(connectors_router)
+    app.include_router(connectors_webhook_router)
     app.include_router(graph_review_router)
     return app

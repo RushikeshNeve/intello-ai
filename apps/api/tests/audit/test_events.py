@@ -45,6 +45,9 @@ CONTRACT_EVENT_TYPES = {
     "chat.run.created",
     "chat.thread.deleted",
     "graph.merge.decided",
+    "source.created",
+    "source.sync.requested",
+    "source.revoked",
 }
 
 

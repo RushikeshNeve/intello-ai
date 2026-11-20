@@ -1,1 +1,1 @@
-"""Connectors and safe outbound capture (M06). Contract: docs/architecture/m06-contracts.md."""
+"""Connectors and safe outbound capture (M06): remote item discovery/fetch and URL capture."""

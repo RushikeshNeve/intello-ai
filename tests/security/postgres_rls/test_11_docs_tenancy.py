@@ -710,7 +710,6 @@ def test_worker_sees_only_the_context_org_in_workspaces_and_organizations(
         "SELECT count(*) FROM resource_grants",
         "SELECT count(*) FROM workspace_memberships",
         "SELECT count(*) FROM audit_events",
-        "SELECT count(*) FROM sources",
         "SELECT count(*) FROM upload_sessions",
         "UPDATE documents SET title = 'pwn'",
         "UPDATE document_versions SET purged_at = now()",

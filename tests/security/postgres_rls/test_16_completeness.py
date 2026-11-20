@@ -15,6 +15,7 @@ from __future__ import annotations
 import pytest
 from rls_chat_world import CHAT_GRANTS, CHAT_TABLES
 from rls_chat_world import ROLES as CHAT_ROLES
+from rls_connector_world import CONNECTOR_TABLES
 from rls_docs_world import BUILDERS, DOC_TABLES, GRANTS, PARENTS, PK, ROLES
 from rls_world import ORG_TABLE_SPECS
 from sqlalchemy import Engine, text
@@ -26,13 +27,15 @@ NO_CONTEXT_TESTS = {
     "test_select_unset_context_sees_nothing",  # test_02 (M01 tables + users)
     "test_select_without_context_sees_nothing",  # test_11 (M02 + M03, both roles)
     "test_chat_select_without_context_sees_nothing",  # test_17 (M04, both roles)
+    "test_connector_select_without_context_sees_nothing",  # test_18 (M06, both roles)
     "test_graph_select_without_context_sees_nothing",  # test_18 (M05, both roles)
 }
 CROSS_ORG_TESTS = {
     "test_only_own_org_rows_visible",  # test_03 (M01 org-scoped tables)
     "test_select_is_confined_to_the_context_org",  # test_11
     "test_chat_select_is_confined_to_the_context_org",  # test_17
-    "test_graph_select_is_confined_to_the_context_org",  # test_18
+    "test_connector_select_is_confined_to_the_context_org",  # test_18 (M06)
+    "test_graph_select_is_confined_to_the_context_org",  # test_18 (M05)
 }
 
 
@@ -40,13 +43,20 @@ def test_registries_cover_every_org_scoped_table_exactly_once() -> None:
     assert set(DOC_TABLES).isdisjoint(ORG_TABLE_SPECS)
     assert set(CHAT_TABLES).isdisjoint(ORG_TABLE_SPECS)
     assert set(CHAT_TABLES).isdisjoint(DOC_TABLES)
+    assert set(CONNECTOR_TABLES).isdisjoint(set(DOC_TABLES) | set(CHAT_TABLES))
     assert set(GRAPH_TABLES).isdisjoint(set(ORG_TABLE_SPECS) | set(DOC_TABLES) | set(CHAT_TABLES))
-    declared = set(ORG_TABLE_SPECS) | set(DOC_TABLES) | set(CHAT_TABLES) | set(GRAPH_TABLES)
+    declared = (
+        set(ORG_TABLE_SPECS)
+        | set(DOC_TABLES)
+        | set(CHAT_TABLES)
+        | set(GRAPH_TABLES)
+        | set(CONNECTOR_TABLES)
+    )
     assert declared == set(ORG_SCOPED_TABLES), (
         "a table was added to ORG_SCOPED_TABLES without a tenancy registry entry: add it to "
         "rls_world.ORG_TABLE_SPECS (M01), rls_docs_world.DOC_TABLES + GRANTS/BUILDERS/PK/PARENTS "
-        "(M02/M03), rls_chat_world.CHAT_TABLES + CHAT_GRANTS (M04) or "
-        "test_18_graph_tables.GRAPH_TABLES (M05)"
+        "(M02/M03), rls_chat_world.CHAT_TABLES + CHAT_GRANTS (M04), "
+        "test_18_graph_tables.GRAPH_TABLES (M05) or rls_connector_world.CONNECTOR_TABLES (M06)"
     )
     assert len(DOC_TABLES) == len(set(DOC_TABLES))
     assert len(CHAT_TABLES) == len(set(CHAT_TABLES))

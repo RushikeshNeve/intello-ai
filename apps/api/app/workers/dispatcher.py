@@ -34,6 +34,7 @@ from typing import Any, Final
 from sqlalchemy import Engine, text
 
 from app.modules.ai import chat_repo
+from app.modules.connectors.models import EVENT_SOURCE_SYNC_REQUESTED
 from app.modules.ingestion.models import (
     EVENT_CHAT_RUN_QUEUED,
     EVENT_DOCUMENT_DELETED,
@@ -46,6 +47,7 @@ from app.workers.celery_app import (
     QUEUE_INGEST,
     QUEUE_MAINTENANCE,
     TASK_CHAT_RUN,
+    TASK_CONNECTOR_SYNC,
     TASK_DELETE_DOCUMENT,
     TASK_GRAPH_EXTRACT,
     TASK_RECONCILE,
@@ -107,6 +109,14 @@ def _chat_run_queued(row: OutboxRow) -> Delivery:
     return Delivery(TASK_CHAT_RUN, QUEUE_CHAT, (_uuid(row.payload.get("run_id"), "run_id"),))
 
 
+def _source_sync_requested(row: OutboxRow) -> Delivery:
+    return Delivery(
+        TASK_CONNECTOR_SYNC,
+        QUEUE_MAINTENANCE,
+        (str(row.org_id), _uuid(row.payload.get("source_id", row.aggregate_id), "source_id")),
+    )
+
+
 def _document_task(task: str) -> Callable[[OutboxRow], Delivery]:
     def build(row: OutboxRow) -> Delivery:
         document_id = row.payload.get("document_id", row.aggregate_id)
@@ -122,6 +132,7 @@ def _document_task(task: str) -> Callable[[OutboxRow], Delivery]:
 ROUTES: Final[Mapping[str, Callable[[OutboxRow], Delivery]]] = {
     EVENT_JOB_QUEUED: _job_queued,
     EVENT_CHAT_RUN_QUEUED: _chat_run_queued,
+    EVENT_SOURCE_SYNC_REQUESTED: _source_sync_requested,
     EVENT_DOCUMENT_DELETED: _document_task(TASK_DELETE_DOCUMENT),
     EVENT_RECONCILE: _document_task(TASK_RECONCILE),
     EVENT_REVISION_PUBLISHED: _document_task(TASK_RECONCILE),
@@ -188,6 +199,7 @@ class Dispatcher:
         self._clock = clock
         self._next_reap = 0.0
         self._next_reconcile = 0.0
+        self._next_connector_tick = 0.0
         self._last_batch_size = 0
 
     # -- one pass -----------------------------------------------------------------------------
@@ -266,6 +278,16 @@ class Dispatcher:
         with system_connection(self.engine) as conn:
             return len(chat_repo.reap_expired_runs(conn, CHAT_REAP_MAX_ATTEMPTS))
 
+    def connector_tick(self) -> int:
+        """Scheduler (M06.01.04): queue a sync (+ ``source.sync.requested`` outbox row) for every
+        source whose ``next_sync_at`` passed; the definer function does it atomically."""
+        with system_connection(self.engine) as conn:
+            row = conn.execute(
+                text("SELECT connector_enqueue_due_syncs(:n)"),
+                {"n": self.settings.RECONCILE_BATCH_SIZE},
+            ).scalar_one()
+        return int(row)
+
     def reconcile_sweep(self) -> int:
         """Hand documents whose publication is due for a check to the maintenance queue; the
         function marks them (``reconciled_at``) in the same transaction, so a failed publish rolls
@@ -339,6 +361,15 @@ class Dispatcher:
             else:
                 if chat_reaped:
                     log.info("reaped %s expired chat run(s)", chat_reaped)
+        if now >= self._next_connector_tick:
+            self._next_connector_tick = now + self.settings.CONNECTOR_SCHEDULER_INTERVAL_SECONDS
+            try:
+                scheduled = self.connector_tick()
+            except Exception as exc:  # noqa: BLE001 - the scheduler must not stop the other sweeps
+                log.error("connector scheduler failed (%s)", type(exc).__name__)
+            else:
+                if scheduled:
+                    log.info("scheduled %s connector sync(s)", scheduled)
         if now >= self._next_reconcile:
             self._next_reconcile = now + self.settings.INGEST_RECONCILE_INTERVAL_SECONDS
             queued = self.reconcile_sweep()

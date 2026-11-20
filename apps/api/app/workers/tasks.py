@@ -27,6 +27,7 @@ from sqlalchemy import Engine
 
 from app.workers import chat_tasks  # noqa: F401 - registers the ``chat.run`` task
 from app.workers.celery_app import (
+    TASK_CONNECTOR_SYNC,
     TASK_DELETE_DOCUMENT,
     TASK_GRAPH_EXTRACT,
     TASK_RECONCILE,
@@ -142,6 +143,42 @@ def delete_document(org_id: str, document_id: str) -> None:
     get_runtime().delete_handler.handle(uuid.UUID(org_id), uuid.UUID(document_id))
 
 
+_connector_override: Any = None
+_connector_deps: dict[int, Any] = {}
+
+
+def set_connector_deps_override(deps: Any) -> None:
+    """Tests only: run ``connectors.sync_source`` against injected ``SyncDeps``."""
+    global _connector_override
+    _connector_override = deps
+
+
+def _connector_runtime() -> Any:
+    if _connector_override is not None:
+        return _connector_override
+    from app.modules.connectors.wiring import default_deps
+
+    pid = os.getpid()
+    with _lock:
+        if pid not in _connector_deps:
+            _connector_deps[pid] = default_deps(_SETTINGS)
+        return _connector_deps[pid]
+
+
+def sync_source(org_id: str, source_id: str) -> str:
+    """``connectors.sync_source``: run the source's oldest queued sync. A sync that is already
+    running raises ``SyncBusy`` so Celery retries it later; every other failure is recorded in
+    ``source_syncs`` (never raised: no retry storm)."""
+    from app.modules.connectors.sync import run_source_sync
+
+    try:
+        org, source = uuid.UUID(org_id), uuid.UUID(source_id)
+    except ValueError:
+        log.error("connectors.sync_source: invalid ids; dropping the message")
+        return "invalid"
+    return run_source_sync(_connector_runtime(), org, source)
+
+
 def reconcile(org_id: str, document_id: str) -> None:
     get_runtime().reconcile_handler.handle(uuid.UUID(org_id), uuid.UUID(document_id))
 
@@ -178,6 +215,7 @@ delete_document_task = celery_app.task(name=TASK_DELETE_DOCUMENT, **_maintenance
     delete_document
 )
 reconcile_task = celery_app.task(name=TASK_RECONCILE, **_maintenance_options)(reconcile)
+sync_source_task = celery_app.task(name=TASK_CONNECTOR_SYNC, **_maintenance_options)(sync_source)
 graph_extract_task = celery_app.task(name=TASK_GRAPH_EXTRACT, **_maintenance_options)(
     graph_extract_revision
 )

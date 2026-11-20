@@ -67,6 +67,10 @@ class AuditEventType(StrEnum):
     ORG_AI_POLICY_UPDATED = "org.ai_policy.updated"
     CHAT_RUN_CREATED = "chat.run.created"
     CHAT_THREAD_DELETED = "chat.thread.deleted"
+    # M06 (contract m06 section 2): ids only, never a token, secret or repository content.
+    SOURCE_CREATED = "source.created"
+    SOURCE_SYNC_REQUESTED = "source.sync.requested"
+    SOURCE_REVOKED = "source.revoked"
     # M05: a workspace editor accepted or rejected an entity merge candidate (ids only).
     GRAPH_MERGE_DECIDED = "graph.merge.decided"
 

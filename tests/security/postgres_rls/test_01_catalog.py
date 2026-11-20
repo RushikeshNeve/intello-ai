@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import pytest
-from app.core.models import ORG_SCOPED_TABLES, RLS_TABLES
 from rls_world import World
 from sqlalchemy import Engine, text
+
+from app.core.models import ORG_SCOPED_TABLES, RLS_TABLES
 
 EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     "users": {"SELECT", "INSERT", "UPDATE"},
@@ -37,6 +38,11 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     "chat_messages": {"SELECT", "INSERT"},
     "chat_runs": {"SELECT", "INSERT"},
     "chat_run_events": {"SELECT"},
+    # M06 (migration 0009): accounts/syncs are created by the API (column-limited UPDATE for
+    # revoke); items are written by the worker only. Deep coverage: test_18.
+    "connector_accounts": {"SELECT", "INSERT"},
+    "source_syncs": {"SELECT", "INSERT"},
+    "source_items": {"SELECT"},
     # M05 (migration 0008): the API only reads; review columns are UPDATE-granted per column.
     "graph_entities": {"SELECT"},
     "entity_merge_candidates": {"SELECT"},
@@ -229,7 +235,7 @@ def test_force_rls_restricts_a_non_superuser_owner(admin_engine: Engine, world: 
                 conn.execute(text(f"ALTER TABLE {table} OWNER TO rls_probe_owner"))
             conn.execute(text("SET LOCAL ROLE rls_probe_owner"))
             for table in RLS_TABLES:
-                n = conn.execute(text(f"SELECT count(*) FROM {table}")).scalar_one()  # noqa: S608
+                n = conn.execute(text(f"SELECT count(*) FROM {table}")).scalar_one()
                 assert n == 0, f"owner sees {n} rows of {table} without context"
             conn.execute(
                 text("SELECT set_config('app.current_org_id', :o, true)"),
@@ -238,7 +244,7 @@ def test_force_rls_restricts_a_non_superuser_owner(admin_engine: Engine, world: 
             for table in ORG_SCOPED_TABLES:
                 col = "id" if table == "organizations" else "org_id"
                 other = conn.execute(
-                    text(f"SELECT count(*) FROM {table} WHERE {col} IS DISTINCT FROM :o"),  # noqa: S608
+                    text(f"SELECT count(*) FROM {table} WHERE {col} IS DISTINCT FROM :o"),
                     {"o": world.a.org_id},
                 ).scalar_one()
                 assert other == 0, table

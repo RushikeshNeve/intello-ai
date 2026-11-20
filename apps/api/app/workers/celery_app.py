@@ -36,6 +36,8 @@ TASK_DELETE_DOCUMENT: Final = "maintenance.delete_document"
 TASK_GRAPH_EXTRACT: Final = "graph.extract_revision"
 # M04: implemented by the chat runtime (batch B); the dispatcher routes ``chat.run.queued`` here.
 TASK_CHAT_RUN: Final = "chat.run"
+# M06: ``source.sync.requested`` outbox rows are routed here (maintenance queue).
+TASK_CONNECTOR_SYNC: Final = "connectors.sync_source"
 
 
 def _queue(name: str) -> Any:
@@ -83,6 +85,7 @@ def make_celery(settings: WorkerSettings | None = None) -> Celery:
             TASK_DELETE_DOCUMENT: {"queue": QUEUE_MAINTENANCE},
             TASK_GRAPH_EXTRACT: {"queue": QUEUE_MAINTENANCE},
             TASK_CHAT_RUN: {"queue": QUEUE_CHAT},
+            TASK_CONNECTOR_SYNC: {"queue": QUEUE_MAINTENANCE},
         },
         enable_utc=True,
         timezone="UTC",

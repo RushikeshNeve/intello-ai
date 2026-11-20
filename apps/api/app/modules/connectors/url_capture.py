@@ -23,7 +23,6 @@ never echo an address. An unauthorized caller is rejected BEFORE any network act
 
 from __future__ import annotations
 
-import hashlib
 import ipaddress
 import logging
 import socket
@@ -37,18 +36,14 @@ from urllib.parse import urljoin, urlsplit
 import httpx
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import func, insert, update
 
 from app.api.deps import Tenant, TenantRequest, api_error
 from app.core.config import get_settings
-from app.core.models import Document, DocumentVersion
-from app.modules.audit import AuditEventType, record_event
 from app.modules.connectors.settings import UrlCaptureSettings, get_url_capture_settings
 from app.modules.documents import errors, upload_service
-from app.modules.documents.schemas import default_title, sanitize_filename, sha256_hex_to_b64
-from app.modules.ingestion.jobs import enqueue_ingestion
+from app.modules.documents.remote_ingest import QuotaExceeded, ingest_bytes
+from app.modules.documents.schemas import sanitize_filename
 from app.modules.storage.deps import ObjectStoreDep
-from app.modules.storage.keys import original_key
 from app.modules.storage.ports import ObjectStore, StorageError
 
 logger = logging.getLogger("ukos.connectors.url_capture")
@@ -364,10 +359,7 @@ def create_document_from_bytes(
     """Store ``data`` as a NEW document's first version and queue ingestion (finalize's work
     without the presigned PUT). Returns ``(document_id, version_id)``."""
     settings = get_settings()
-    sha = hashlib.sha256(data).hexdigest()
-    document_id, version_id = uuid.uuid4(), uuid.uuid4()
-    key = original_key(org_id, document_id, version_id)
-    stored = False
+    stored_key: list[str] = []
     try:
         with tenant.transaction(org_id) as session:
             upload_service.authorize_write(
@@ -382,84 +374,38 @@ def create_document_from_bytes(
             if len(data) > settings.UPLOAD_MAX_BYTES:
                 raise errors.file_too_large()
             upload_service.lock_org_uploads(session, org_id)
-            usage = upload_service.org_usage_bytes(session, org_id)
-            if usage + len(data) > settings.ORG_STORAGE_QUOTA_BYTES:
-                raise errors.quota_exceeded()
-            try:
-                store.put_object(
-                    key, data, content_type=content_type, sha256_b64=sha256_hex_to_b64(sha)
-                )
-            except StorageError as exc:
-                raise upload_service.storage_error_to_http(exc) from None
-            stored = True
             source_id = upload_service.get_or_create_upload_source(
                 session, org_id, workspace_id, tenant.user_id
             )
-            session.execute(
-                insert(Document).values(
-                    id=document_id,
+            try:
+                result = ingest_bytes(
+                    session,
+                    store,
                     org_id=org_id,
                     workspace_id=workspace_id,
                     source_id=source_id,
-                    title=title or default_title(filename),
                     created_by=tenant.user_id,
-                )
-            )
-            session.execute(
-                insert(DocumentVersion).values(
-                    id=version_id,
-                    org_id=org_id,
-                    workspace_id=workspace_id,
-                    document_id=document_id,
-                    version_number=1,
-                    original_filename=filename,
+                    data=data,
+                    filename=filename,
                     content_type=content_type,
-                    size_bytes=len(data),
-                    sha256=sha,
-                    object_key=key,
-                    created_by=tenant.user_id,
+                    title=title,
+                    request_id=tenant.request_id,
+                    audit_metadata={"captured_from": _public_source_url(source_url)},
+                    actor_user_id=tenant.user_id,
+                    on_stored=stored_key.append,
                 )
-            )
-            session.execute(
-                update(Document)
-                .where(Document.id == document_id, Document.org_id == org_id)
-                .values(latest_version_id=version_id, updated_at=func.clock_timestamp())
-            )
-            enqueue_ingestion(
-                session,
-                org_id=org_id,
-                workspace_id=workspace_id,
-                document_id=document_id,
-                version_id=version_id,
-                embedding_space_id=settings.embedding_space_id,
-            )
-            record_event(
-                session,
-                event_type=AuditEventType.DOCUMENT_CREATED,
-                actor_user_id=tenant.user_id,
-                org_id=org_id,
-                target_type=upload_service.TARGET_DOCUMENT,
-                target_id=str(document_id),
-                outcome="success",
-                request_id=tenant.request_id,
-                metadata={
-                    "workspace_id": str(workspace_id),
-                    "document_id": str(document_id),
-                    "version_id": str(version_id),
-                    "version_number": 1,
-                    "size_bytes": len(data),
-                    "content_type": content_type,
-                    "captured_from": _public_source_url(source_url),
-                },
-            )
+            except QuotaExceeded:
+                raise errors.quota_exceeded() from None
+            except StorageError as exc:
+                raise upload_service.storage_error_to_http(exc) from None
     except BaseException:
-        if stored:
+        for key in stored_key:
             try:
                 store.delete_object(key)
             except StorageError:
                 logger.warning("orphaned captured object after a failed create")
         raise
-    return document_id, version_id
+    return result.document_id, result.version_id
 
 
 # --- route -------------------------------------------------------------------------------------
