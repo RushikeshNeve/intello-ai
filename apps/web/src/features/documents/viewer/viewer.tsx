@@ -65,13 +65,13 @@ export function DocumentViewer({ orgId, workspaceId, libraryPath, document: doc,
   return (
     <div className="mx-auto grid max-w-6xl gap-6" data-testid="document-viewer" data-document-id={doc.id}>
       <div className="grid gap-3">
-        <Link href={libraryPath} className="inline-flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <Link href={libraryPath} className="focus-ring inline-flex w-fit items-center gap-1 rounded text-sm text-text-secondary hover:text-foreground">
           <ArrowLeftIcon aria-hidden="true" className="size-3.5" />
           Documents
         </Link>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="grid min-w-0 gap-1">
-            <h1 ref={headingRef} tabIndex={-1} className="text-2xl font-semibold tracking-tight break-words outline-none" data-testid="document-title">
+            <h1 ref={headingRef} tabIndex={-1} className="text-2xl font-bold tracking-title break-words text-brand-indigo outline-none sm:text-title dark:text-foreground" data-testid="document-title">
               {doc.title}
             </h1>
             {selected && (

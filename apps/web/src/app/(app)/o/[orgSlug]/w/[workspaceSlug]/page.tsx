@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { WorkspaceHome as WorkspaceHomeView } from "@/features/documents/home/workspace-home";
 import { Suspense } from "react";
 import { resolveWorkspaceScope } from "@/features/organizations/server";
 import { SessionRedirect } from "@/features/shell/session-redirect";
@@ -26,44 +26,14 @@ async function WorkspaceHome({ params }: { params: Promise<{ orgSlug: string; wo
   }
   const { workspace, org } = scope.data;
   return (
-    <div className="mx-auto grid max-w-4xl gap-6" data-workspace-scope={workspace.id}>
-      <div className="grid gap-1">
-        <p className="text-xs text-muted-foreground">{org.name}</p>
-        <h1 tabIndex={-1} className="text-2xl font-semibold tracking-tight outline-none" data-testid="workspace-heading">
-          {workspace.name}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Workspace{workspace.role ? ` · your role: ${WORKSPACE_ROLE_LABEL[workspace.role]}` : ""}
-        </p>
-      </div>
-      <section aria-labelledby="ws-content-heading" className="rounded-lg border border-border p-6">
-        <h2 id="ws-content-heading" className="text-base font-medium">
-          Documents
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Upload, search and open the documents in this workspace.
-        </p>
-        <Link
-          href={`${path}/documents`}
-          className="mt-4 inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          data-testid="open-documents"
-        >
-          Open documents
-        </Link>
-      </section>
-      <section aria-labelledby="ws-graph-heading" className="rounded-lg border border-border p-6">
-        <h2 id="ws-graph-heading" className="text-base font-medium">
-          Knowledge graph
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">See how the things in your documents connect, with the source of each link.</p>
-        <Link
-          href={`${path}/graph`}
-          className="mt-4 inline-flex h-9 items-center rounded-md border border-border px-4 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          data-testid="open-graph"
-        >
-          Explore the graph
-        </Link>
-      </section>
-    </div>
+    <WorkspaceHomeView
+      orgId={org.id}
+      orgSlug={orgSlug}
+      orgName={org.name}
+      workspaceId={workspace.id}
+      workspaceSlug={workspaceSlug}
+      workspaceName={workspace.name}
+      roleLabel={workspace.role ? WORKSPACE_ROLE_LABEL[workspace.role] : null}
+    />
   );
 }
