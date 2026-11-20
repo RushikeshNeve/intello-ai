@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 !infrastructure/env/.env.example
+!infrastructure/env/.env.prod.example
 
 # Python
 __pycache__/

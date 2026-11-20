@@ -1,0 +1,43 @@
+# Caddy for the single-VM production stack (UNTESTED against a real domain). Automatic HTTPS (Let's Encrypt).
+# Hosts and the ACME contact come from the container environment (prod.yml). Needs ports 80 and 443
+# reachable from the internet and DNS A/AAAA records for BOTH hosts pointing at the VM.
+{
+	email {$ACME_EMAIL}
+}
+
+# App: web (Next.js BFF) + Dex (OIDC issuer, public because the browser is redirected to it)
+# + the connector webhook receiver of the API. The rest of the API stays internal (web calls it over the network).
+{$PUBLIC_HOST} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	handle /dex* {
+		reverse_proxy dex:5556
+	}
+
+	handle /v1/webhooks/* {
+		reverse_proxy api:8000
+	}
+
+	handle {
+		# flush_interval -1: do not buffer server-sent events (ingestion status, chat streaming)
+		reverse_proxy web:3000 {
+			flush_interval -1
+		}
+	}
+}
+
+# Presigned object-store URLs handed to the browser (uploads/downloads). SigV4 signs host and path, so
+# the object store needs its own host rather than a path prefix. DuckDNS-style single names cannot do
+# this unless sub-subdomains resolve; use a second free name or a real domain (see the runbook).
+{$FILES_HOST} {
+	reverse_proxy objectstore:9000 {
+		flush_interval -1
+	}
+}

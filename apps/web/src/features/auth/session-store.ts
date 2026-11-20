@@ -7,6 +7,9 @@
  * copy of the cookie. A multi-instance deployment needs a shared implementation of `SessionStore`
  * (for example Postgres or Redis with the record encrypted at rest); nothing else changes.
  */
+import { RespClient } from "./redis-client";
+import { RedisSessionStore } from "./redis-session-store";
+
 export type SessionUser = {
   readonly issuer: string;
   readonly subject: string;
@@ -82,6 +85,18 @@ export class MemorySessionStore implements SessionStore {
   }
 }
 
+/**
+ * REDIS_URL set (production compose) -> Redis-backed store shared by every web instance and surviving
+ * restarts; unset (dev, tests) -> in-process memory. WEB_SESSION_SECRET keys the at-rest encryption.
+ */
+export function createSessionStore(env: Record<string, string | undefined>): SessionStore {
+  const url = env.REDIS_URL?.trim();
+  if (!url) return new MemorySessionStore();
+  const secret = env.WEB_SESSION_SECRET ?? "";
+  if (secret.length < 32) throw new Error("REDIS_URL requires WEB_SESSION_SECRET (>= 32 chars) to encrypt stored sessions");
+  return new RedisSessionStore(new RespClient(new URL(url)), secret);
+}
+
 const STORE_KEY = Symbol.for("ukos.web.sessionStore");
 type GlobalWithStore = typeof globalThis & { [STORE_KEY]?: SessionStore };
 
@@ -91,7 +106,7 @@ type GlobalWithStore = typeof globalThis & { [STORE_KEY]?: SessionStore };
  */
 export function getSessionStore(): SessionStore {
   const g = globalThis as GlobalWithStore;
-  g[STORE_KEY] ??= new MemorySessionStore();
+  g[STORE_KEY] ??= createSessionStore(process.env);
   return g[STORE_KEY];
 }
 

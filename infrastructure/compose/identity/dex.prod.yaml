@@ -1,0 +1,60 @@
+{{- /* UKOS production Dex config (v2.45.1). Rendered by the image entrypoint with gomplate; every value comes from
+     the environment. NO test users, NO password grant. One bootstrap admin whose bcrypt hash is passed base64-encoded
+     (DEX_ADMIN_PASSWORD_HASH_B64) so `$` characters never meet shell or compose interpolation.
+     More users: add staticPasswords entries here, or swap to a hosted OIDC connector later (config only). */ -}}
+issuer: {{ getenv "OIDC_ISSUER_URL" | required "OIDC_ISSUER_URL is required" }}
+
+storage:
+  type: sqlite3
+  config:
+    file: /var/dex/dex.db
+
+web:
+  http: 0.0.0.0:5556
+
+expiry:
+  idTokens: {{ getenv "OIDC_ID_TOKEN_TTL" "15m" }}
+  authRequests: 10m
+  refreshTokens:
+    validIfNotUsedFor: 168h
+    absoluteLifetime: 720h
+
+signer:
+  type: local
+  config:
+    keysRotationPeriod: 6h
+    algorithm: RS256
+
+logger:
+  level: {{ getenv "OIDC_LOG_LEVEL" "info" }}
+  format: json
+
+oauth2:
+  responseTypes: [code]
+  skipApprovalScreen: true
+  grantTypes:
+    - authorization_code
+    - refresh_token
+
+enablePasswordDB: true
+
+staticClients:
+  - id: {{ getenv "OIDC_CLIENT_ID" "ukos-web" }}
+    name: Intello AI
+    secret: {{ getenv "OIDC_CLIENT_SECRET" | required "OIDC_CLIENT_SECRET is required" }}
+    redirectURIs:
+{{- range (getenv "OIDC_REDIRECT_URIS" | required "OIDC_REDIRECT_URIS is required" | strings.Split ",") }}
+      - {{ . | strings.TrimSpace }}
+{{- end }}
+  - id: {{ getenv "OIDC_AUDIENCE" "ukos-api" }}
+    name: UKOS API
+    secret: {{ getenv "OIDC_API_CLIENT_SECRET" | required "OIDC_API_CLIENT_SECRET is required" }}
+    trustedPeers:
+      - {{ getenv "OIDC_CLIENT_ID" "ukos-web" }}
+    redirectURIs: []
+
+staticPasswords:
+  - email: {{ getenv "DEX_ADMIN_EMAIL" | required "DEX_ADMIN_EMAIL is required" }}
+    username: admin
+    userID: {{ getenv "DEX_ADMIN_USER_ID" | required "DEX_ADMIN_USER_ID is required" }}
+    hash: "{{ getenv "DEX_ADMIN_PASSWORD_HASH_B64" | required "DEX_ADMIN_PASSWORD_HASH_B64 is required" | base64.Decode }}"

@@ -87,3 +87,4 @@ Parallel-safety (batch A): the foundation agent owns migrations, `models.py`, `c
 | M03.03.05 | Retry/dead-letter/crash-injection tests | gate-agent | agent/m03-gate | batch C | DONE (scenarios 5b, 6a-e) |
 | (gate) | M03 full-stack e2e + exit gate | gate-agent + coordinator | main | all | DONE (17/17) |
 | (feature) | Pre-approve members by email (0011, preapprovals API, Members modal) | agent | main | M08 | DONE |
+| M10 prep | Prod overlay + Caddy + Dex prod config, .env.prod.example, deploy/rollback/backup/preflight scripts, Redis web session store, prod smoke, runbook + release checklist + cost sheet | deploy-prep-agent | main | M09 | PREPARED, NOT DEPLOYED (no account/target approved; untested on a VM) |

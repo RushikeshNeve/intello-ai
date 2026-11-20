@@ -1,0 +1,190 @@
+# Universal Knowledge OS — production overlay for ONE VM (M10 preparation; UNTESTED on a real VM).
+#
+# Applied on top of the six base files, never on its own. Always go through scripts/deploy/*.sh, which
+# build the exact file list and use --env-file .env.prod (template: infrastructure/env/.env.prod.example):
+#
+#   docker compose -p ukos-prod --env-file .env.prod \
+#     -f infrastructure/compose/data.yml -f infrastructure/compose/rushdb.yml -f infrastructure/compose/objects.yml \
+#     -f infrastructure/compose/identity.yml -f infrastructure/compose/apps.yml -f infrastructure/compose/workers.yml \
+#     -f infrastructure/compose/prod.yml config
+#
+# What it changes versus dev:
+#   * Only `caddy` publishes host ports (80/443). Every other service's ports are reset to none, EXCEPT
+#     rushdb, which keeps the base mapping 127.0.0.1:${RUSHDB_HTTP_HOST_PORT} (loopback only, UKOS_BIND_HOST
+#     must stay 127.0.0.1) because scripts/ops/backup.sh reads per-tenant counts through it.
+#   * restart policies, memory/cpu limits sized for a 4 vCPU / 24 GB ARM VM, bounded json-file logs.
+#   * no host.docker.internal; AI provider comes from env (AI_BASE_URL / AI_API_KEY), default hosted OpenAI-compatible.
+#   * Dex: production config (no test users, no password grant, one admin from env) instead of the dev template.
+#   * caddy carries a network alias equal to PUBLIC_HOST, so api/web/dex-clients reach the issuer over https
+#     inside the compose network (the web app refuses http OIDC URLs outside local/test/ci).
+#   * images api/worker/dispatcher/web are tagged ukos-*:${UKOS_IMAGE_TAG} for rollback (scripts/deploy).
+#
+# Architectures: every image in the stack publishes linux/arm64 (checked with `docker buildx imagetools inspect`
+# on 2026-11-20): postgres:17-alpine, redis:7.4-alpine, ghcr.io/dexidp/dex:v2.45.1, rustfs/rustfs:1.0.5,
+# amazon/aws-cli:2.40.3, rushdb/rushdb:3.0.10, caddy:2.8-alpine, node:24-alpine, python:3.12-slim, alpine:3.20.
+# NOT verified: that the API's Python wheels (psycopg, pypdf, ...) install on arm64 during the image build,
+# and that rushdb/rustfs run correctly on arm64 -- check at first deploy (docs/runbooks/deploy-free-vm.md).
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-ai-env: &ai-env
+  AI_BASE_URL: ${AI_BASE_URL:?AI_BASE_URL is required}
+  AI_API_KEY: ${AI_API_KEY:?AI_API_KEY is required}
+  AI_EXTERNAL_PROVIDERS_ENABLED: ${AI_EXTERNAL_PROVIDERS_ENABLED:-true}
+  # No colon: an EMPTY value is kept (hosted embedding models take no query/document prefix).
+  AI_EMBEDDING_QUERY_PREFIX: "${AI_EMBEDDING_QUERY_PREFIX-}"
+  AI_EMBEDDING_DOCUMENT_PREFIX: "${AI_EMBEDDING_DOCUMENT_PREFIX-}"
+
+services:
+  postgres:
+    restart: unless-stopped
+    ports: !reset []
+    logging: *logging
+    deploy:
+      resources:
+        limits: { cpus: "1.5", memory: 3g }
+
+  redis:
+    restart: unless-stopped
+    ports: !reset []
+    logging: *logging
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 512m }
+
+  rushdb:
+    restart: unless-stopped
+    logging: *logging
+    deploy:
+      resources:
+        limits: { cpus: "1.5", memory: 6g }
+
+  objectstore:
+    restart: unless-stopped
+    ports: !reset []
+    logging: *logging
+    deploy:
+      resources:
+        limits: { cpus: "1", memory: 2g }
+
+  objectstore-init:
+    restart: "no"
+    logging: *logging
+
+  dex:
+    restart: unless-stopped
+    ports: !reset []
+    logging: *logging
+    environment:
+      DEX_ADMIN_EMAIL: ${DEX_ADMIN_EMAIL:?DEX_ADMIN_EMAIL is required}
+      DEX_ADMIN_USER_ID: ${DEX_ADMIN_USER_ID:?DEX_ADMIN_USER_ID is required}
+      DEX_ADMIN_PASSWORD_HASH_B64: ${DEX_ADMIN_PASSWORD_HASH_B64:?DEX_ADMIN_PASSWORD_HASH_B64 is required}
+    volumes:
+      # Same target as the base mount: replaces the dev template that carries test users.
+      - ./identity/dex.prod.yaml:/etc/dex/ukos.yaml:ro
+      - dex-data:/var/dex
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256m }
+
+  api-migrate:
+    image: ukos-api:${UKOS_IMAGE_TAG:-local}
+    restart: "no"
+    logging: *logging
+
+  api:
+    image: ukos-api:${UKOS_IMAGE_TAG:-local}
+    restart: unless-stopped
+    ports: !reset []
+    extra_hosts: !reset []
+    logging: *logging
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      <<: *ai-env
+      OPENAI_API_KEY: ${AI_API_KEY}
+    deploy:
+      resources:
+        limits: { cpus: "1.5", memory: 2g }
+
+  worker:
+    image: ukos-api:${UKOS_IMAGE_TAG:-local}
+    restart: unless-stopped
+    extra_hosts: !reset []
+    logging: *logging
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      <<: *ai-env
+      OPENAI_API_KEY: ${AI_API_KEY}
+    deploy:
+      resources:
+        limits: { cpus: "2", memory: 4g }
+
+  dispatcher:
+    image: ukos-api:${UKOS_IMAGE_TAG:-local}
+    restart: unless-stopped
+    logging: *logging
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      <<: *ai-env
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 512m }
+
+  web:
+    image: ukos-web:${UKOS_IMAGE_TAG:-local}
+    restart: unless-stopped
+    ports: !reset []
+    logging: *logging
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      # REDIS_URL present -> Redis-backed session store (encrypted records); see apps/web session-store.ts.
+      REDIS_URL: ${WEB_REDIS_URL:?WEB_REDIS_URL is required}
+    deploy:
+      resources:
+        limits: { cpus: "1", memory: 1g }
+
+  caddy:
+    image: ${CADDY_IMAGE:-caddy:2.8-alpine}
+    restart: unless-stopped
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?PUBLIC_HOST is required}
+      FILES_HOST: ${FILES_HOST:?FILES_HOST is required}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL is required}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ../caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      default:
+        aliases:
+          - ${PUBLIC_HOST}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:2019/config/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      web:
+        condition: service_healthy
+      dex:
+        condition: service_healthy
+      objectstore:
+        condition: service_healthy
+    logging: *logging
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256m }
+
+volumes:
+  caddy-data:
+  caddy-config:

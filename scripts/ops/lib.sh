@@ -30,9 +30,13 @@ ops_init() {
   local line key
   while IFS= read -r line; do
     key="${line%%=*}"
+    # values with ${VAR} are compose-interpolated (prod env): leave them to docker compose, never export them raw
+    [[ "$line" == *'${'* ]] && continue
     if [[ -z "${!key+x}" ]]; then export "$key=${line#*=}"; fi
   done < <(grep -E '^[A-Z0-9_]+=' "$ENV_FILE" | tr -d '\r')
   OPS_DATA_FILES=(-f "$OPS_ROOT/infrastructure/compose/data.yml" -f "$OPS_ROOT/infrastructure/compose/rushdb.yml" -f "$OPS_ROOT/infrastructure/compose/objects.yml")
+  # Production: scripts/deploy/backup-cron.sh passes the full file list ("-f a -f b ...") so recreated containers keep prod settings.
+  if [[ -n "${OPS_COMPOSE_FILES:-}" ]]; then read -r -a OPS_DATA_FILES <<< "$OPS_COMPOSE_FILES"; fi
   BUCKETS="${S3_BUCKET_ORIGINALS:-ukos-originals} ${S3_BUCKET_ARTIFACTS:-ukos-artifacts}"
 }
 
