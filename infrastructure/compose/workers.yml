@@ -75,6 +75,14 @@ x-worker-environment: &worker-environment
   GRAPH_EXTRACT_BATCH_CHUNKS: ${GRAPH_EXTRACT_BATCH_CHUNKS:-6}
   GRAPH_TRAVERSAL_MAX_DEPTH: ${GRAPH_TRAVERSAL_MAX_DEPTH:-2}
   GRAPH_MAX_NODES: ${GRAPH_MAX_NODES:-50}
+  # Memory and research (M07 contract §6).
+  MEMORY_ENABLED: ${MEMORY_ENABLED:-true}
+  MEMORY_MAX_PER_PROMPT: ${MEMORY_MAX_PER_PROMPT:-5}
+  RESEARCH_MAX_SUBQUERIES: ${RESEARCH_MAX_SUBQUERIES:-6}
+  RESEARCH_MAX_EVIDENCE: ${RESEARCH_MAX_EVIDENCE:-60}
+  RESEARCH_MAX_MODEL_CALLS: ${RESEARCH_MAX_MODEL_CALLS:-12}
+  RESEARCH_TIMEOUT_SECONDS: ${RESEARCH_TIMEOUT_SECONDS:-600}
+  RESEARCH_LEASE_SECONDS: ${RESEARCH_LEASE_SECONDS:-60}
   # Ingestion (contract §10).
   INGEST_MAX_ATTEMPTS: ${INGEST_MAX_ATTEMPTS:-5}
   INGEST_LEASE_SECONDS: ${INGEST_LEASE_SECONDS:-120}
@@ -106,7 +114,7 @@ services:
       - app.workers.celery_app
       - worker
       - -Q
-      - ingest,maintenance,chat
+      - ingest,maintenance,chat,research
       - --concurrency=${INGEST_CONCURRENCY:-2}
       - --loglevel=${UKOS_LOG_LEVEL:-info}
       - --without-gossip

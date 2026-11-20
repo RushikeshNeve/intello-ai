@@ -35,15 +35,16 @@ for extra in (HERE, API_DIR, REPO_ROOT / "tests" / "infrastructure"):
 os.environ.setdefault("POSTGRES_HOST_PORT", "25544")
 os.environ.setdefault("REDIS_HOST_PORT", "26544")
 
-from alembic import command  # noqa: E402
-from alembic.config import Config  # noqa: E402
-from compose_support import ComposeProject, compose_file, require_docker, wait_until  # noqa: E402
-from rls_chat_world import ChatWorld, seed_chat_world  # noqa: E402
-from rls_connector_world import ConnectorWorld, seed_connector_world  # noqa: E402
-from rls_docs_world import DocWorld, seed_doc_world  # noqa: E402
-from rls_world import World, seed_world  # noqa: E402
-from sqlalchemy import Engine, create_engine, text  # noqa: E402
-from sqlalchemy.engine import URL  # noqa: E402
+from alembic import command
+from alembic.config import Config
+from compose_support import ComposeProject, compose_file, require_docker, wait_until
+from rls_chat_world import ChatWorld, seed_chat_world
+from rls_connector_world import ConnectorWorld, seed_connector_world
+from rls_docs_world import DocWorld, seed_doc_world
+from rls_m07_world import M07World, seed_m07_world
+from rls_world import World, seed_world
+from sqlalchemy import Engine, create_engine, text
+from sqlalchemy.engine import URL
 
 require_docker()
 
@@ -173,6 +174,12 @@ def chat(admin_engine: Engine, world: World) -> ChatWorld:
 def connectors(admin_engine: Engine, world: World) -> ConnectorWorld:
     """Per-tenant connector rows for the M06 tables (admin-seeded; migration 0009)."""
     return seed_connector_world(admin_engine, world)
+
+
+@pytest.fixture(scope="session")
+def m07(admin_engine: Engine, world: World) -> M07World:
+    """Per-tenant memory / research rows for the M07 tables (admin-seeded; migration 0010)."""
+    return seed_m07_world(admin_engine, world)
 
 
 @pytest.fixture(scope="session")

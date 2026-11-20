@@ -25,6 +25,8 @@ M04_CHAT_TABLES = {
 }
 # M06 (migration 0009): the sync task runs as the worker; exact grants: rls test_18.
 M06_TABLES = {"sources", "connector_accounts", "source_syncs", "source_items"}
+# M07 (migration 0010): memory reads and the research runtime; exact grants: rls test_19.
+M07_TABLES = {"memories", "research_sessions", "research_steps", "research_reports"}
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 SEARCH_PATH = ["search_path=pg_catalog, public, pg_temp"]
 DEFINER_FUNCTIONS = {
@@ -203,7 +205,7 @@ def test_worker_reaches_nothing_beyond_its_grants(
             ).scalars()
         )
     # alembic_version, users, memberships, grants, sources, upload_sessions: out of reach.
-    assert reachable - M04_CHAT_TABLES - M06_TABLES == set(WORKER_PRIVILEGES)
+    assert reachable - M04_CHAT_TABLES - M06_TABLES - M07_TABLES == set(WORKER_PRIVILEGES)
 
 
 def test_worker_cannot_create_objects_or_alter_the_schema(

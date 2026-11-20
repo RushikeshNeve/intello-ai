@@ -28,6 +28,7 @@ from app.workers.settings import WorkerSettings, get_worker_settings
 QUEUE_INGEST: Final = "ingest"
 QUEUE_MAINTENANCE: Final = "maintenance"
 QUEUE_CHAT: Final = "chat"
+QUEUE_RESEARCH: Final = "research"
 
 TASK_RUN_JOB: Final = "ingest.run_job"
 TASK_RECONCILE: Final = "maintenance.reconcile"
@@ -38,6 +39,8 @@ TASK_GRAPH_EXTRACT: Final = "graph.extract_revision"
 TASK_CHAT_RUN: Final = "chat.run"
 # M06: ``source.sync.requested`` outbox rows are routed here (maintenance queue).
 TASK_CONNECTOR_SYNC: Final = "connectors.sync_source"
+# M07: ``research.session.queued`` outbox rows are routed here (research queue).
+TASK_RESEARCH_RUN: Final = "research.run"
 
 
 def _queue(name: str) -> Any:
@@ -78,7 +81,12 @@ def make_celery(settings: WorkerSettings | None = None) -> Celery:
         worker_send_task_events=False,
         task_default_queue=QUEUE_MAINTENANCE,
         task_create_missing_queues=False,
-        task_queues=(_queue(QUEUE_INGEST), _queue(QUEUE_MAINTENANCE), _queue(QUEUE_CHAT)),
+        task_queues=(
+            _queue(QUEUE_INGEST),
+            _queue(QUEUE_MAINTENANCE),
+            _queue(QUEUE_CHAT),
+            _queue(QUEUE_RESEARCH),
+        ),
         task_routes={
             TASK_RUN_JOB: {"queue": QUEUE_INGEST},
             TASK_RECONCILE: {"queue": QUEUE_MAINTENANCE},
@@ -86,6 +94,7 @@ def make_celery(settings: WorkerSettings | None = None) -> Celery:
             TASK_GRAPH_EXTRACT: {"queue": QUEUE_MAINTENANCE},
             TASK_CHAT_RUN: {"queue": QUEUE_CHAT},
             TASK_CONNECTOR_SYNC: {"queue": QUEUE_MAINTENANCE},
+            TASK_RESEARCH_RUN: {"queue": QUEUE_RESEARCH},
         },
         enable_utc=True,
         timezone="UTC",

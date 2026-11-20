@@ -42,15 +42,20 @@ from app.modules.ingestion.models import (
     EVENT_RECONCILE,
     EVENT_REVISION_PUBLISHED,
 )
+from app.modules.memory import invalidation as memory_invalidation
+from app.modules.research import repo as research_repo
+from app.modules.research.models import EVENT_RESEARCH_SESSION_QUEUED
 from app.workers.celery_app import (
     QUEUE_CHAT,
     QUEUE_INGEST,
     QUEUE_MAINTENANCE,
+    QUEUE_RESEARCH,
     TASK_CHAT_RUN,
     TASK_CONNECTOR_SYNC,
     TASK_DELETE_DOCUMENT,
     TASK_GRAPH_EXTRACT,
     TASK_RECONCILE,
+    TASK_RESEARCH_RUN,
     TASK_RUN_JOB,
 )
 from app.workers.leases import reap_expired_leases
@@ -62,6 +67,8 @@ log = logging.getLogger("ukos.dispatcher")
 TRANSIENT_BACKOFF_CAP: Final = 300
 # A chat run is started at most this many times (a dead worker's run is requeued once).
 CHAT_REAP_MAX_ATTEMPTS: Final = 2
+# A research session may be claimed this many times (steps persist, so a restart resumes).
+RESEARCH_REAP_MAX_ATTEMPTS: Final = 3
 
 
 class BrokerUnavailable(Exception):
@@ -109,6 +116,12 @@ def _chat_run_queued(row: OutboxRow) -> Delivery:
     return Delivery(TASK_CHAT_RUN, QUEUE_CHAT, (_uuid(row.payload.get("run_id"), "run_id"),))
 
 
+def _research_queued(row: OutboxRow) -> Delivery:
+    return Delivery(
+        TASK_RESEARCH_RUN, QUEUE_RESEARCH, (_uuid(row.payload.get("session_id"), "session_id"),)
+    )
+
+
 def _source_sync_requested(row: OutboxRow) -> Delivery:
     return Delivery(
         TASK_CONNECTOR_SYNC,
@@ -133,6 +146,7 @@ ROUTES: Final[Mapping[str, Callable[[OutboxRow], Delivery]]] = {
     EVENT_JOB_QUEUED: _job_queued,
     EVENT_CHAT_RUN_QUEUED: _chat_run_queued,
     EVENT_SOURCE_SYNC_REQUESTED: _source_sync_requested,
+    EVENT_RESEARCH_SESSION_QUEUED: _research_queued,
     EVENT_DOCUMENT_DELETED: _document_task(TASK_DELETE_DOCUMENT),
     EVENT_RECONCILE: _document_task(TASK_RECONCILE),
     EVENT_REVISION_PUBLISHED: _document_task(TASK_RECONCILE),
@@ -278,6 +292,17 @@ class Dispatcher:
         with system_connection(self.engine) as conn:
             return len(chat_repo.reap_expired_runs(conn, CHAT_REAP_MAX_ATTEMPTS))
 
+    def reap_research(self) -> int:
+        """Research sessions whose worker died: back to ``planned`` with a fresh outbox row while
+        attempts remain (the next worker resumes at the first step not done), else failed."""
+        with system_connection(self.engine) as conn:
+            return len(research_repo.reap_expired(conn, RESEARCH_REAP_MAX_ATTEMPTS))
+
+    def memory_sweep(self) -> int:
+        """Memory expiry and evidence-change invalidation (M07.01.03); returns rows changed."""
+        result = memory_invalidation.sweep(self.engine)
+        return result.expired + result.invalidated
+
     def connector_tick(self) -> int:
         """Scheduler (M06.01.04): queue a sync (+ ``source.sync.requested`` outbox row) for every
         source whose ``next_sync_at`` passed; the definer function does it atomically."""
@@ -361,6 +386,13 @@ class Dispatcher:
             else:
                 if chat_reaped:
                     log.info("reaped %s expired chat run(s)", chat_reaped)
+            try:
+                research_reaped = self.reap_research()
+            except Exception as exc:  # noqa: BLE001 - never let the research sweep stop the others
+                log.error("research reap failed (%s)", type(exc).__name__)
+            else:
+                if research_reaped:
+                    log.info("reaped %s expired research session(s)", research_reaped)
         if now >= self._next_connector_tick:
             self._next_connector_tick = now + self.settings.CONNECTOR_SCHEDULER_INTERVAL_SECONDS
             try:
@@ -375,6 +407,13 @@ class Dispatcher:
             queued = self.reconcile_sweep()
             if queued:
                 log.info("queued %s reconcile task(s)", queued)
+            try:
+                swept = self.memory_sweep()
+            except Exception as exc:  # noqa: BLE001 - maintenance must not stop the dispatcher
+                log.error("memory sweep failed (%s)", type(exc).__name__)
+            else:
+                if swept:
+                    log.info("memory sweep changed %s memor(ies)", swept)
 
 
 def health_ok(settings: WorkerSettings, *, now: float | None = None) -> bool:

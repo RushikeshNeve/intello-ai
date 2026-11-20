@@ -11,10 +11,11 @@ from __future__ import annotations
 import uuid
 
 import pytest
-from app.core.db import set_identity_context, tenant_session
 from rls_world import World, app_tx, expect_denied, scalar, set_ctx
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.engine import URL
+
+from app.core.db import set_identity_context, tenant_session
 
 # -- spoofing (documented behaviour) ----------------------------------------------------------
 
@@ -58,7 +59,7 @@ def test_nil_uuid_context_sees_nothing(app_engine: Engine, world: World) -> None
     nil = uuid.UUID(int=0)
     with app_tx(app_engine, user=nil, org=nil) as conn:
         for t in ("organizations", "workspaces", "users", "audit_events"):
-            assert scalar(conn, f"SELECT count(*) FROM {t}") == 0, t  # noqa: S608
+            assert scalar(conn, f"SELECT count(*) FROM {t}") == 0, t
 
 
 # -- transaction-local lifetime -----------------------------------------------------------------
@@ -89,7 +90,7 @@ def test_context_gone_after_transaction_end(app_engine: Engine, world: World, en
         with conn.begin():
             assert _ctx(conn) == ("", "", "", "")
             for t in ("organizations", "workspaces", "users", "organization_memberships"):
-                assert scalar(conn, f"SELECT count(*) FROM {t}") == 0, t  # noqa: S608
+                assert scalar(conn, f"SELECT count(*) FROM {t}") == 0, t
 
 
 def test_context_gone_after_tenant_session_error(app_engine: Engine, world: World) -> None:

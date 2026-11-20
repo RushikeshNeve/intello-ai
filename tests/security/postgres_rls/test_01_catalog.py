@@ -44,6 +44,12 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     "source_syncs": {"SELECT", "INSERT"},
     "source_items": {"SELECT"},
     # M05 (migration 0008): the API only reads; review columns are UPDATE-granted per column.
+    # M07 (migration 0010): the API suggests memories and starts research sessions; the worker
+    # writes steps/reports. Deep coverage: test_19_m07_tables.py.
+    "memories": {"SELECT", "INSERT"},
+    "research_sessions": {"SELECT", "INSERT"},
+    "research_steps": {"SELECT"},
+    "research_reports": {"SELECT"},
     "graph_entities": {"SELECT"},
     "entity_merge_candidates": {"SELECT"},
 }
@@ -233,6 +239,10 @@ def test_force_rls_restricts_a_non_superuser_owner(admin_engine: Engine, world: 
             conn.execute(text("CREATE ROLE rls_probe_owner NOLOGIN NOSUPERUSER NOBYPASSRLS"))
             for table in RLS_TABLES:
                 conn.execute(text(f"ALTER TABLE {table} OWNER TO rls_probe_owner"))
+            # the memories policies call a definer function: the probe may execute it
+            conn.execute(
+                text("GRANT EXECUTE ON FUNCTION memory_ws_access(uuid) TO rls_probe_owner")
+            )
             conn.execute(text("SET LOCAL ROLE rls_probe_owner"))
             for table in RLS_TABLES:
                 n = conn.execute(text(f"SELECT count(*) FROM {table}")).scalar_one()

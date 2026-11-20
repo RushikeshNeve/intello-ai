@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import uuid
 
-from app.core.db import set_identity_context, tenant_session
 from rls_world import ISSUER, World, admin_count, app_tx, expect_denied, scalar
 from sqlalchemy import Engine, text
+
+from app.core.db import set_identity_context, tenant_session
 
 
 def _visible(conn: object) -> set[uuid.UUID]:

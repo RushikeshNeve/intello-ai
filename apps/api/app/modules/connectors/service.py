@@ -51,6 +51,7 @@ from app.modules.connectors.schemas import (
 from app.modules.documents import catalog_service as svc
 from app.modules.ingestion.jobs import enqueue_document_deleted
 from app.modules.ingestion.models import OutboxEvent
+from app.modules.memory import evidence as memory_evidence
 
 TARGET_SOURCE = "source"
 SOURCE_REVOKED_CODE = "source_revoked"
@@ -364,6 +365,8 @@ def revoke_source(
         .where(SourceItem.source_id == source_id, SourceItem.state == ITEM_ACTIVE)
         .values(state=ITEM_DELETED)
     )
+    # M07: memories whose evidence came from this source are no longer valid.
+    memory_evidence.invalidate_documents(session, ctx.org_id, deleted, "source_revoked")
     audit(
         tenant,
         session,

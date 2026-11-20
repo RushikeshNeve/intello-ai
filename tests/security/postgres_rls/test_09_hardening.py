@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import Engine, text
-
 from rls_world import World, app_tx, expect_denied, scalar
+from sqlalchemy import Engine, text
 
 INSERT = (
     "INSERT INTO audit_events (id, org_id, actor_user_id, event_type, target_type, target_id,"
@@ -59,5 +58,7 @@ def test_non_identity_user_columns_still_updatable(app_engine: Engine, world: Wo
             {"id": world.a.owner_id},
         ).rowcount
         assert n == 1
-        name = scalar(conn, "SELECT display_name FROM users WHERE id = :id", {"id": world.a.owner_id})
+        name = scalar(
+            conn, "SELECT display_name FROM users WHERE id = :id", {"id": world.a.owner_id}
+        )
         assert name == "Renamed"
