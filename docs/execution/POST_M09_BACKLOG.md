@@ -15,3 +15,8 @@
 | G8 | **Extraction quality** | stronger/optional extractor model (local larger model or OpenAI under tenant policy), prompt-version re-extraction jobs, incremental updates, per-document extraction diagnostics |
 
 Order of value/effort: G3 → G1/G2 → G4 → G5 → G6 → G8 → G7.
+
+## Product/UI items deferred out of M09 (2026-11-20)
+- **Invitations** (invite by email; today member PUT needs an existing user_id): needs backend (invitation tokens, email delivery or link, accept flow, expiry, audit). M09 ships the invite dialog as a disabled/honest state.
+- **Usage metering** endpoint (`GET /orgs/{o}/usage`): needs a metering source (tokens, storage, runs); M09 shows a disabled Usage panel.
+- Chat feedback, notifications, "related concepts" chips: no backend; not planned.

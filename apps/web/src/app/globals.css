@@ -1,16 +1,48 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "@fontsource-variable/inter";
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Intello design tokens (docs/ui-spec/DESIGN_TOKENS.md). Owned by the shell track (F1): feature tracks consume
+ * these names and never redefine them. Two layers:
+ *   1. Brand/surface/text tokens (--brand-*, --surface-*, --text-*, --border-subtle, status colours).
+ *   2. The shadcn semantic names (--background, --primary, ...) that every existing component already uses,
+ *      mapped onto layer 1 so the whole app re-skins without touching feature code.
+ * Light is the design baseline; dark is a basic, secondary mapping.
+ * Contrast (WCAG 2.x, computed): --text-secondary #5B6680 = 5.49:1 on canvas #F8FAFC, 5.74:1 on white (AA 4.5:1).
+ * The reference value #748098 measured only 3.80:1 on canvas, so it is NOT used for text.
+ */
 @theme inline {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --font-heading: var(--font-sans);
+
+  /* Brand + surface + text */
+  --color-brand-indigo: var(--brand-indigo);
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-violet: var(--brand-violet);
+  --color-brand-teal: var(--brand-teal);
+  --color-canvas: var(--surface-canvas);
+  --color-surface: var(--surface-card);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-border-subtle: var(--border-subtle);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-violet-soft: var(--violet-soft);
+
+  /* shadcn semantic names */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  /* System font stacks: no build-time font download, so offline builds work (local-first). */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  --font-heading: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -40,6 +72,8 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+
+  /* Radii: controls 9-11px (--radius = 10px), cards 16px */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -47,75 +81,120 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-card: 1rem;
+  --radius-control: 0.625rem;
+
+  /* Typography scale (Inter variable). Use `text-title`, `text-section`, `text-card-title`, `text-meta`. */
+  --text-display: 2.5rem;
+  --text-display--line-height: 1.1;
+  --text-title: 1.75rem;
+  --text-title--line-height: 1.2;
+  --text-section: 1.125rem;
+  --text-section--line-height: 1.4;
+  --text-card-title: 0.9375rem;
+  --text-card-title--line-height: 1.4;
+  --text-meta: 0.75rem;
+  --text-meta--line-height: 1.4;
+  --tracking-title: -0.045em;
+
+  /* Motion helpers: quick hover/focus 120-180ms, panels 180-260ms (see :root --duration-*) */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --shadow-card: 0 8px 32px rgb(22 49 102 / 0.03);
+  --shadow-pop: 0 12px 40px rgb(22 49 102 / 0.14);
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --brand-indigo: #0b1b4f;
+  --brand-blue: #2563eb;
+  --brand-violet: #7c3aed;
+  --brand-teal: #14b8a6;
+  --surface-canvas: #f8fafc;
+  --surface-card: #ffffff;
+  --text-primary: #182342;
+  --text-secondary: #5b6680;
+  --border-subtle: #e8ecf4;
+  --success: #0f766e;
+  --success-soft: #e6f7f4;
+  --warning: #b45309;
+  --warning-soft: #fff4e0;
+  --danger: #b42318;
+  --danger-soft: #fdecea;
+  --info: #1d4fd7;
+  --info-soft: #edf2ff;
+  --violet-soft: #f1eafe;
+  --focus-ring: #2563eb;
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-panel: 260ms;
+
+  --background: var(--surface-canvas);
+  --foreground: var(--text-primary);
+  --card: var(--surface-card);
+  --card-foreground: var(--text-primary);
+  --popover: var(--surface-card);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--brand-indigo);
+  --primary-foreground: #ffffff;
+  --secondary: #eef2fa;
+  --secondary-foreground: var(--text-primary);
+  --muted: #f1f4fa;
+  --muted-foreground: var(--text-secondary);
+  --accent: #edf2ff;
+  --accent-foreground: #1d4fd7;
+  --destructive: var(--danger);
+  --border: var(--border-subtle);
+  /* Form-control boundary: about 3:1 against white (WCAG 1.4.11), unlike the decorative --border. */
+  --input: #8592ab;
+  --ring: var(--brand-blue);
+  --chart-1: var(--brand-blue);
+  --chart-2: var(--brand-violet);
+  --chart-3: var(--brand-teal);
+  --chart-4: var(--brand-indigo);
+  --chart-5: #8592ab;
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: #ffffff;
+  --sidebar-foreground: #3f4a66;
+  --sidebar-primary: var(--brand-blue);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #edf2ff;
+  --sidebar-accent-foreground: #1d4fd7;
+  --sidebar-border: var(--border-subtle);
+  --sidebar-ring: var(--brand-blue);
 }
 
+/* Dark is secondary: same names, basic mapping (contrast: #A3AEC8 on #0B1226 = 8.4:1). */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --surface-canvas: #0b1226;
+  --surface-card: #111a33;
+  --text-primary: #e6eaf5;
+  --text-secondary: #a3aec8;
+  --border-subtle: #243051;
+  --success: #3dd6c3;
+  --success-soft: #0f2f35;
+  --warning: #f5b562;
+  --warning-soft: #33260f;
+  --danger: #ff8d82;
+  --danger-soft: #3a1717;
+  --info: #8fb0ff;
+  --info-soft: #17254d;
+  --violet-soft: #271a4d;
+  --focus-ring: #8fb0ff;
+
+  --primary: #8fb0ff;
+  --primary-foreground: #0b1b4f;
+  --secondary: #1a2545;
+  --muted: #17213f;
+  --accent: #1a2a5a;
+  --accent-foreground: #b9ceff;
+  --input: #5d6c8f;
+  --ring: #8fb0ff;
+  --sidebar: #0e1630;
+  --sidebar-foreground: #c9d2e8;
+  --sidebar-primary: #8fb0ff;
+  --sidebar-primary-foreground: #0b1b4f;
+  --sidebar-accent: #1a2a5a;
+  --sidebar-accent-foreground: #b9ceff;
+  --sidebar-ring: #8fb0ff;
 }
 
 @layer base {
@@ -124,11 +203,26 @@
   }
   body {
     @apply bg-background text-foreground;
+    letter-spacing: -0.011em;
   }
   html {
     @apply font-sans;
   }
+  /* Visible focus for anything that does not set its own ring: full-opacity brand blue, 2px, offset. */
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
 }
+
+/* `focus-ring` utility for new components: same indicator, usable where a base `outline-none` is present. */
+@utility focus-ring {
+  &:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}
+
 /* M07.03.03: reduced motion (media query + the `reduce-motion` class set by the theme toggle) and narrow-screen safety. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }

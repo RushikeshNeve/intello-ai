@@ -29,7 +29,7 @@ async function HomeContent() {
     <>
       <AppHeader userLabel={userLabelOf(user)} />
       {orgs.ok ? (
-        <main id="main" className="mx-auto grid w-full max-w-3xl flex-1 content-start gap-6 px-4 py-8">
+        <main id="main" className="mx-auto grid w-full max-w-3xl flex-1 content-start gap-6 px-[17px] py-8 min-[721px]:px-7">
           <h1 tabIndex={-1} className="text-2xl font-semibold tracking-tight outline-none">
             Home
           </h1>

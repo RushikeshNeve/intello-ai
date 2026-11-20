@@ -1,5 +1,5 @@
 import { AlertTriangleIcon, BanIcon, CheckCircle2Icon, CircleDashedIcon, ClockIcon, FileXIcon, Loader2Icon, type LucideIcon } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge, type StatusTone } from "@/components/ui/badges";
 import type { IngestionSummary } from "./api";
 import { badgeText, displayKind, type DisplayKind } from "./messages";
 
@@ -14,15 +14,15 @@ const ICONS: Record<DisplayKind, LucideIcon> = {
   cancelled: BanIcon,
 };
 
-const VARIANTS: Record<DisplayKind, "default" | "secondary" | "destructive" | "outline"> = {
-  none: "outline",
-  queued: "secondary",
-  processing: "secondary",
-  ready: "default",
-  failed: "destructive",
-  unsupported: "outline",
-  no_text: "outline",
-  cancelled: "outline",
+const TONES: Record<DisplayKind, StatusTone> = {
+  none: "neutral",
+  queued: "info",
+  processing: "info",
+  ready: "success",
+  failed: "danger",
+  unsupported: "neutral",
+  no_text: "warning",
+  cancelled: "neutral",
 };
 
 /** State is always conveyed as text and an icon, never by colour alone. */
@@ -31,9 +31,11 @@ export function IngestionBadge({ summary }: { summary: IngestionSummary | null |
   const kind = displayKind(summary);
   const Icon = ICONS[kind];
   return (
-    <Badge variant={VARIANTS[kind]} data-testid="ingestion-badge" data-state={kind}>
-      <Icon aria-hidden="true" className={kind === "processing" ? "motion-safe:animate-spin" : undefined} />
-      {badgeText(summary)}
-    </Badge>
+    <span data-testid="ingestion-badge" data-state={kind} className="inline-flex">
+      <StatusBadge tone={TONES[kind]}>
+        <Icon aria-hidden="true" className={kind === "processing" ? "size-3 motion-safe:animate-spin" : "size-3"} />
+        {badgeText(summary)}
+      </StatusBadge>
+    </span>
   );
 }

@@ -108,7 +108,7 @@ describe("SearchPage", () => {
     await screen.findByTestId("search-list");
     expect(m.posts()).toEqual([{ query: "alpha", limit: 20, workspace_ids: ["w2"], content_types: ["application/pdf"], mode: "keyword" }]);
     expect((screen.getByLabelText("Where") as HTMLSelectElement).value).toBe("papers");
-    expect((screen.getByLabelText("File type") as HTMLSelectElement).value).toBe("pdf");
+    expect(screen.getByRole("button", { name: "PDF" }).getAttribute("aria-pressed")).toBe("true");
     expect((screen.getByLabelText("Match by") as HTMLSelectElement).value).toBe("keyword");
   });
 
@@ -118,7 +118,7 @@ describe("SearchPage", () => {
     await screen.findByTestId("search-list");
     await userEvent.selectOptions(screen.getByLabelText("Where"), "notes");
     expect(nav.current()).toBe(`${SEARCH}?q=alpha&ws=notes`);
-    await userEvent.selectOptions(screen.getByLabelText("File type"), "markdown");
+    await userEvent.click(screen.getByRole("button", { name: "Markdown" }));
     expect(nav.current()).toBe(`${SEARCH}?q=alpha&ws=notes&type=markdown`);
     expect(window.localStorage.getItem("ukos.search.scope.o1")).toBe("notes");
     await userEvent.selectOptions(screen.getByLabelText("Where"), "all");

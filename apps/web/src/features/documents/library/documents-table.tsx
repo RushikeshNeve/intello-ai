@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { FileTypeBadge } from "@/components/ui/badges";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState, ErrorState } from "@/components/ui/states";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatBytes } from "@/features/documents/upload/messages";
 import { formatDate, typeLabel } from "../format";
@@ -39,7 +41,7 @@ function SortHeader({ label, column, sort, order, onSort }: { label: string; col
       <button
         type="button"
         onClick={() => onSort(column)}
-        className="-mx-1 inline-flex items-center gap-1 rounded px-1 py-0.5 outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="-mx-1 inline-flex items-center gap-1 focus-ring rounded px-1 py-0.5 hover:text-foreground"
       >
         {label}
         <Icon aria-hidden="true" className="size-3" />
@@ -55,7 +57,7 @@ export function DocumentsTable(props: DocumentsTableProps) {
     return (
       <div role="status" aria-label="Loading documents" className="grid gap-2" data-testid="documents-loading">
         {Array.from({ length: 6 }, (_, i) => (
-          <Skeleton key={i} className="h-10 w-full" />
+          <Skeleton key={i} className="h-12 w-full rounded-control" />
         ))}
       </div>
     );
@@ -63,42 +65,48 @@ export function DocumentsTable(props: DocumentsTableProps) {
 
   if (status === "error") {
     return (
-      <div role="alert" className="grid justify-items-start gap-3 rounded-lg border border-border p-4" data-testid="documents-error">
-        <p className="text-sm">We couldn&apos;t load the documents. Your files are safe.</p>
-        <Button variant="outline" onClick={props.onRetry}>
-          Retry
-        </Button>
+      <div data-testid="documents-error">
+        <ErrorState title="We couldn't load the documents" description="Your files are safe." onRetry={props.onRetry} />
       </div>
     );
   }
 
   if (items.length === 0) {
     return filtered ? (
-      <div className="grid justify-items-start gap-3 rounded-lg border border-dashed border-border p-6" data-testid="documents-no-results">
-        <p className="text-sm">No documents match your search or filters.</p>
-        <Button variant="outline" onClick={props.onClear}>
-          Clear filters
-        </Button>
+      <div data-testid="documents-no-results">
+        <EmptyState
+          title="No documents match your search or filters."
+          action={
+            <Button variant="outline" onClick={props.onClear}>
+              Clear filters
+            </Button>
+          }
+        />
       </div>
     ) : (
-      <div className="grid gap-1 rounded-lg border border-dashed border-border p-6" data-testid="documents-empty">
-        <p className="text-base font-medium">No documents yet</p>
-        <p className="text-sm text-muted-foreground">
-          {canUpload
-            ? "Drop a file into the upload area above to add your first document."
-            : "Documents added to this workspace will appear here."}
-        </p>
+      <div data-testid="documents-empty">
+        <EmptyState
+          title="No documents yet"
+          description={
+            canUpload
+              ? "Drop a file into the upload area above to add your first document."
+              : "Documents added to this workspace will appear here."
+          }
+        />
       </div>
     );
   }
 
   return (
+    <div className="overflow-x-auto rounded-card border border-border bg-card shadow-card">
     <Table data-testid="documents-table">
       <TableCaption className="sr-only">Documents in this workspace</TableCaption>
       <TableHeader>
         <TableRow className="hover:bg-transparent">
           <SortHeader label="Title" column="title" sort={props.sort} order={props.order} onSort={props.onSort} />
-          <TableHead scope="col">Type</TableHead>
+          <TableHead scope="col" className="hidden md:table-cell">
+            Type
+          </TableHead>
           <TableHead scope="col">Status</TableHead>
           <TableHead scope="col" className="text-right">
             Size
@@ -118,18 +126,23 @@ export function DocumentsTable(props: DocumentsTableProps) {
           return (
             <TableRow key={doc.id} data-testid="document-row">
               <TableCell className="max-w-[28rem] min-w-0">
+                <div className="flex items-center gap-3">
+                  <FileTypeBadge type={doc.latest_version?.content_type ?? doc.latest_version?.original_filename} className="shrink-0" />
+                  <div className="min-w-0">
                 <Link
                   id={`doc-link-${doc.id}`}
                   href={href}
-                  className="block truncate rounded font-medium outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+                  className="block truncate focus-ring rounded font-semibold text-brand-indigo hover:underline dark:text-foreground"
                 >
                   {doc.title}
                 </Link>
                 {doc.latest_version && (
-                  <span className="block truncate text-xs text-muted-foreground">{doc.latest_version.original_filename}</span>
+                  <span className="block truncate text-meta text-text-secondary">{doc.latest_version.original_filename}</span>
                 )}
+                  </div>
+                </div>
               </TableCell>
-              <TableCell>{typeLabel(doc.latest_version?.content_type)}</TableCell>
+              <TableCell className="hidden md:table-cell">{typeLabel(doc.latest_version?.content_type)}</TableCell>
               <TableCell>
                 <IngestionBadge summary={doc.ingestion} />
               </TableCell>
@@ -164,5 +177,6 @@ export function DocumentsTable(props: DocumentsTableProps) {
         })}
       </TableBody>
     </Table>
+    </div>
   );
 }

@@ -2,16 +2,14 @@ import { Suspense, type ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/features/auth/server";
 import { loginUrl } from "@/features/organizations/api/http";
-import { CommandPalette } from "@/features/palette/command-palette";
-import { OrgScopeProvider, ScopedContent } from "@/features/organizations/components/org-scope";
-import { OrgSwitcher } from "@/features/organizations/components/org-switcher";
+import { OrgScopeProvider } from "@/features/organizations/components/org-scope";
 import { getOrgWorkspaces, resolveOrgScope } from "@/features/organizations/server";
 import { AppHeader, userLabelOf } from "@/features/shell/app-header";
+import { AppShell } from "@/features/shell/app-shell";
 import { SessionRedirect } from "@/features/shell/session-redirect";
 import { PageLoading, ScopeNotFound, ServiceUnavailable } from "@/features/shell/states";
-import { WorkspaceSidebar } from "@/features/workspaces/components/workspace-sidebar";
 
-/** Org shell: header with the org switcher, workspace sidebar, and the scoped `<main>`. */
+/** Org shell (F1): sidebar + top bar + scoped `<main>` via `AppShell`; error states keep the slim header. */
 export default function OrgLayout({ children, params }: LayoutProps<"/o/[orgSlug]">) {
   return (
     <Suspense fallback={<PageLoading />}>
@@ -51,23 +49,9 @@ async function OrgShell({ params, children }: { params: Promise<{ orgSlug: strin
 
   return (
     <OrgScopeProvider org={org} orgs={orgs}>
-      <AppHeader
-        userLabel={userLabel}
-        scope={
-          <>
-            <OrgSwitcher />
-            <CommandPalette />
-          </>
-        }
-      />
-      <ScopedContent>
-        <div className="flex flex-1 flex-col md:flex-row" data-org-scope={org.id}>
-          <WorkspaceSidebar initialWorkspaces={workspaces.data} />
-          <main id="main" className="min-w-0 flex-1 px-4 py-6 md:px-8">
-            {children}
-          </main>
-        </div>
-      </ScopedContent>
+      <AppShell userLabel={userLabel} initialWorkspaces={workspaces.data}>
+        {children}
+      </AppShell>
     </OrgScopeProvider>
   );
 }

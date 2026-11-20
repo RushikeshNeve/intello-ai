@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { Background, Controls, ReactFlow, type Edge, type Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { layout, type GraphState } from "./model";
+import { nodeTone, TONE_VAR } from "./node-style";
 
 export type GraphCanvasProps = {
   state: GraphState;
@@ -25,7 +26,15 @@ export function GraphCanvas({ state, focusedId, onNodeClick, onEdgeClick }: Grap
           data: { label: `${n.name} (${n.type})` },
           selected: p.id === focusedId,
           ariaLabel: `${n.name}, ${n.type}, ${open ? "expanded" : "collapsed"}`,
-          style: { fontWeight: open ? 600 : 400 },
+          style: {
+            fontWeight: open ? 600 : 500,
+            fontSize: 12,
+            color: "var(--text-primary)",
+            background: "var(--card)",
+            border: `2px solid ${TONE_VAR[nodeTone(n.type)]}`,
+            borderRadius: 12,
+            boxShadow: p.id === focusedId ? `0 0 0 3px color-mix(in srgb, ${TONE_VAR[nodeTone(n.type)]} 30%, transparent)` : undefined,
+          },
         } satisfies Node;
       }),
     [state, focusedId],
@@ -43,7 +52,7 @@ export function GraphCanvas({ state, focusedId, onNodeClick, onEdgeClick }: Grap
     [state],
   );
   return (
-    <div className="h-[28rem] rounded-lg border border-border" data-testid="graph-canvas">
+    <div className="h-[22rem] overflow-hidden rounded-card border border-border bg-canvas sm:h-[28rem]" data-testid="graph-canvas">
       <ReactFlow
         nodes={nodes}
         edges={edges}

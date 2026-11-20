@@ -107,7 +107,7 @@ describe("Library table states", () => {
     const m = mount(() => (fail ? jsonResponse(500, { detail: "boom" }) : jsonResponse(200, list(DOCS))));
     await screen.findByTestId("documents-error");
     fail = false;
-    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     await screen.findByTestId("documents-table");
     expect(m.listCalls()).toHaveLength(2);
   });
@@ -168,7 +168,7 @@ describe("URL is the single source of truth", () => {
   it("type, sort and order selects write to the URL and the request", async () => {
     const m = mount(() => jsonResponse(200, list(DOCS)));
     await screen.findByTestId("documents-table");
-    await userEvent.selectOptions(screen.getByLabelText("File type"), "image");
+    await userEvent.click(screen.getByRole("button", { name: "Images" }));
     expect(nav.current()).toBe(`${LIBRARY}?type=image`);
     await userEvent.selectOptions(screen.getByLabelText("Sort by"), "title");
     expect(nav.current()).toBe(`${LIBRARY}?type=image&sort=title`);
@@ -180,17 +180,17 @@ describe("URL is the single source of truth", () => {
   it("the controls follow the URL, including back/forward and externally changed links", async () => {
     mount(() => jsonResponse(200, list(DOCS)));
     await screen.findByTestId("documents-table");
-    await userEvent.selectOptions(screen.getByLabelText("File type"), "pdf");
-    expect((screen.getByLabelText("File type") as HTMLSelectElement).value).toBe("pdf");
+    await userEvent.click(screen.getByRole("button", { name: "PDF" }));
+    expect(screen.getByRole("button", { name: "PDF" }).getAttribute("aria-pressed")).toBe("true");
     act(() => nav.back());
-    expect((screen.getByLabelText("File type") as HTMLSelectElement).value).toBe("all");
+    expect(screen.getByRole("button", { name: "All types" }).getAttribute("aria-pressed")).toBe("true");
     act(() => nav.forward());
-    expect((screen.getByLabelText("File type") as HTMLSelectElement).value).toBe("pdf");
+    expect(screen.getByRole("button", { name: "PDF" }).getAttribute("aria-pressed")).toBe("true");
     act(() => nav.push(`${LIBRARY}?q=zeta&sort=created_at&order=asc`));
     expect((screen.getByLabelText("Search") as HTMLInputElement).value).toBe("zeta");
     expect((screen.getByLabelText("Sort by") as HTMLSelectElement).value).toBe("created_at");
     expect((screen.getByLabelText("Order") as HTMLSelectElement).value).toBe("asc");
-    expect((screen.getByLabelText("File type") as HTMLSelectElement).value).toBe("all");
+    expect(screen.getByRole("button", { name: "All types" }).getAttribute("aria-pressed")).toBe("true");
   });
 
   it("a shared/reloaded URL reproduces the same request", async () => {

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 250" role="img" aria-labelledby="title desc">
+<title id="title">Intello Knowledge Prism</title><desc id="desc">Two translucent knowledge layers converge into a blue and teal prism with a white letter I.</desc>
+<defs>
+ <linearGradient id="rear1" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#BCC7FF" stop-opacity=".93"/><stop offset="1" stop-color="#9EB5FF" stop-opacity=".52"/></linearGradient>
+ <linearGradient id="rear2" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#9A9CFA" stop-opacity=".83"/><stop offset="1" stop-color="#697FFA" stop-opacity=".70"/></linearGradient>
+ <linearGradient id="bluefront" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#064FEA"/><stop offset=".47" stop-color="#1268FC"/><stop offset="1" stop-color="#0B42D8"/></linearGradient>
+ <linearGradient id="tealface" x1="0" y1="0" x2=".9" y2="1"><stop stop-color="#09BCE9"/><stop offset=".37" stop-color="#08BBAE"/><stop offset="1" stop-color="#029D92"/></linearGradient>
+ <linearGradient id="topfacet" x1="0" y1="0" x2="1" y2=".7"><stop stop-color="#0E73F4"/><stop offset=".65" stop-color="#40DDE3"/><stop offset="1" stop-color="#55F0CC"/></linearGradient>
+ <linearGradient id="lowerfacet" x1="0" y1="0" x2="1" y2=".7"><stop stop-color="#0870F0"/><stop offset=".62" stop-color="#12D4E0"/><stop offset="1" stop-color="#04BEAE"/></linearGradient>
+</defs>
+<!-- Knowledge sources: two translucent layers -->
+<path d="M14 59Q8 54 8 64V189Q8 200 17 194L105 146V106Z" fill="url(#rear1)"/>
+<path d="M70 32Q60 25 60 39V209Q60 225 72 217L108 197V56Z" fill="url(#rear2)"/>
+<!-- Intello intelligence prism with separated refraction facets -->
+<path d="M113 23Q105 18 105 28V220Q105 233 117 227L234 165Q240 162 240 155V95Q240 89 234 86Z" fill="url(#bluefront)"/>
+<path d="M110 22Q113 19 120 23L236 87L192 83L145 52Z" fill="url(#topfacet)"/>
+<path d="M151 58L235 86Q240 89 240 96V154Q240 160 234 164L151 208Z" fill="url(#tealface)"/>
+<path d="M105 222L151 194L239 155Q240 161 232 166L119 228Q105 235 105 222Z" fill="url(#lowerfacet)"/>
+<path d="M150 58L167 68L168 199L150 208Z" fill="#0951D4" opacity=".26"/>
+<!-- Hidden I: a deliberate, clean vertical aperture -->
+<path d="M154 77Q155 72 160 75L170 81Q174 83 174 88V163Q174 168 170 171L160 179Q154 183 154 175Z" fill="#FFFFFF"/>
+</svg>
