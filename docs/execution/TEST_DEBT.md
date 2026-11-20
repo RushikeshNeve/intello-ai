@@ -9,3 +9,4 @@
 - Security: PK-collision existence oracle; 24 ruff + 4 mypy findings in old security tests; 56 older style findings (M08.03.01).
 - Retry button shown for `unsupported` files (decide in M06).
 - M05 integration: no HTTP-stub web e2e for the graph explorer (React Flow canvas is stubbed in vitest; real-browser pass of canvas keyboard focus and edge click pending); entity name search scans up to 5000 active entities per request in RushDB (no proven substring operator), revisit with a native prefix/contains filter.
+- M06: webhook/HMAC and token connectors not run on the live stack (needs CONNECTOR_ENCRYPTION_KEY); OCR/audio engines only fakes; code-file repository locators and xlsx not exercised live; sync scheduler tick timing; `.env.example` placeholder CONNECTOR_ENCRYPTION_KEY is not valid base64 (cipher rejects `change-me*` by design); web UI for sources absent (API only); first LM Studio call after idle times out (consider warm-up/longer first-call timeout).

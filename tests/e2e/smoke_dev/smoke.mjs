@@ -214,4 +214,54 @@ if (process.env.GRAPH === "1") {
   const v3 = f3.find((f) => f.event === "verification")?.json;
   out("graph chat answer", `${v3?.status} :: ${JSON.stringify(d3?.answer_text ?? "").slice(0, 160)}`);
 }
+if (process.env.M06 === "1") {
+  // M06: CSV through the pipeline, safe URL capture, GitHub source sync + revoke (needs outbound internet)
+  const csv = Buffer.from("product,region,units\nKestrel-9,EMEA,120\nKestrel-9,APAC,75\nAurora,EMEA,40\n", "utf8");
+  const cc = await web(`${wsPath}/uploads`, { session: alice, method: "POST", json: { filename: "sales.csv", content_type: "text/csv", size_bytes: csv.length, sha256: createHash("sha256").update(csv).digest("hex") } });
+  assert.equal(cc.status, 201, cc.text);
+  assert.equal((await fetch(cc.body.upload.url, { method: cc.body.upload.method, headers: cc.body.upload.headers, body: csv })).status, 200);
+  const cf = await web(`${wsPath}/uploads/${cc.body.upload_id}/finalize`, { session: alice, method: "POST" });
+  assert.equal(cf.status, 201, cf.text);
+  const waitReady = async (docId, ms = 120_000) => {
+    const t = Date.now(); let st = "";
+    while (Date.now() - t < ms) { st = (await web(`${wsPath}/documents/${docId}/ingestion`, { session: alice })).body?.state; if (["ready", "failed", "unsupported", "no_text"].includes(st)) break; await sleep(1500); }
+    return st;
+  };
+  out("csv ingestion", await waitReady(cf.body.document.id));
+  const cs = await web(`/api/v1/orgs/${O}/search`, { session: alice, method: "POST", json: { query: "Kestrel-9 EMEA units" } });
+  const csvHit = cs.body?.results?.find((r) => r.document_id === cf.body.document.id);
+  out("csv search", csvHit ? `hit "${csvHit.title}"` : "NO HIT");
+  assert.ok(csvHit, "csv content searchable");
+
+  const bad = await web(`${wsPath}/documents/from-url`, { session: alice, method: "POST", json: { url: "http://169.254.169.254/latest/meta-data/" } });
+  out("url capture (blocked)", `${bad.status} ${bad.body?.detail ?? ""}`);
+  assert.equal(bad.status, 422);
+  const good = await web(`${wsPath}/documents/from-url`, { session: alice, method: "POST", json: { url: "https://example.com/", title: "Example page" } });
+  out("url capture (public)", `${good.status} ${good.status === 201 ? "document created" : good.text.slice(0, 80)}`);
+  if (good.status === 201) out("url doc ingestion", await waitReady(good.body.document_id));
+
+  const src = await web(`${wsPath}/sources`, { session: alice, method: "POST", json: { provider: "github", repo: "octocat/Hello-World" } });
+  out("github source", `${src.status} ${src.body?.state ?? src.text.slice(0, 80)}`);
+  assert.equal(src.status, 201, src.text);
+  const syncRes = await web(`${wsPath}/sources/${src.body.id}/sync`, { session: alice, method: "POST" });
+  assert.equal(syncRes.status, 202, syncRes.text);
+  let detail = null; const ts = Date.now();
+  while (Date.now() - ts < 120_000) {
+    detail = (await web(`${wsPath}/sources/${src.body.id}`, { session: alice })).body;
+    if (detail?.last_sync && ["succeeded", "failed"].includes(detail.last_sync.state)) break;
+    await sleep(2000);
+  }
+  out("github sync", `${detail?.last_sync?.state} items=${JSON.stringify(detail?.items)} err=${detail?.last_sync?.error_code ?? "-"}`);
+  assert.equal(detail?.last_sync?.state, "succeeded", "GitHub sync succeeded (internet access? rate limit?)");
+  assert.ok(detail.items.active >= 1, "synced at least one file");
+  const outsiderSrc = await web(`${wsPath}/sources/${src.body.id}`, { session: mallory });
+  out("outsider source read", String(outsiderSrc.status));
+  assert.equal(outsiderSrc.status, 404);
+  const rev = await web(`${wsPath}/sources/${src.body.id}/revoke`, { session: alice, method: "POST" });
+  out("revoke", String(rev.status));
+  assert.ok([200, 202, 204].includes(rev.status), rev.text);
+  const after = await web(`${wsPath}/sources/${src.body.id}`, { session: alice });
+  out("source after revoke", `${after.body?.state}, has_token=${after.body?.has_token}`);
+  assert.equal(after.body?.state, "revoked");
+}
 console.log("\nSMOKE PASSED");

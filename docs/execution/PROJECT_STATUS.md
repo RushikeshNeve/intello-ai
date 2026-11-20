@@ -1,6 +1,6 @@
 # Project Status
 
-**Updated:** 2026-11-19 · **Current milestone:** M05 complete (smoke gate PASSED) → M06 (connectors/formats) in progress
+**Updated:** 2026-11-19 · **Current milestone:** M06 complete (smoke gate PASSED) → M07 (memory/research/UX) in progress
 **Source of truth:** this Git repository. Notion mirror: **not synchronized** (no Notion integration in this session).
 
 ## Summary
@@ -13,10 +13,10 @@
 | M03 Reliable ingestion | 14 | **14** | 0 | **PASSED**, 2026-11-19 (17/17 full-stack scenarios) |
 | M04 Search & grounded chat | 13 | **13** | 0 | **PASSED** (lean smoke on the live stack with real LM Studio), 2026-11-19 |
 | M05 Graph & GraphRAG | 11 | **11** | 0 | **PASSED** (lean smoke on the live stack with real LM Studio), 2026-11-19 |
-| M06 Connectors & formats | 11 | 0 | 0 | blocked on M05 gate |
+| M06 Connectors & formats | 11 | **11** | 0 | **PASSED** (lean smoke on the live stack), 2026-11-20 |
 | M07 Memory, research, UX | 11 | 0 | 0 | blocked on M06 gate |
 | M08 Security, eval, release | 12 | 0 | 0 | blocked on M07 gate |
-| **Total** | **108** | **74** | **0** | |
+| **Total** | **108** | **85** | **0** | |
 
 ## M00 exit gate (definition in `DEPENDENCY_GRAPH.md`, DC-007)
 
@@ -102,3 +102,6 @@ Smoke `node tests/e2e/smoke_dev/smoke.mjs` on the dev stack: upload → ready �
 
 ## M05 gate (lean, 2026-11-19)
 `GRAPH=1 node tests/e2e/smoke_dev/smoke.mjs` on the dev stack (GRAPH_ENABLED=true): relationship document → async extraction (gemma-3-4b) → entities → neighborhood (4 nodes/3 edges) → claim with evidence → outsider 404 → graph-aided grounded chat answer. Found + fixed: extraction prompt/parser chunk-ref mismatch with the real model (all items dropped). Deferred: `TEST_DEBT.md` (entity search loads entities in Python; no web e2e for the explorer; no real-browser canvas check).
+
+## M06 gate (lean, 2026-11-20)
+`GRAPH=1 M06=1 node tests/e2e/smoke_dev/smoke.mjs` on the dev stack: CSV upload → ready → searchable; URL capture blocks 169.254.169.254 (422) and captures https://example.com → ready; GitHub source `octocat/Hello-World` sync succeeded (1 active item); outsider 404; revoke → state revoked, token wiped. Not exercised live: webhook (needs `CONNECTOR_ENCRYPTION_KEY`), token connectors, OCR/audio engines (disabled-by-default contracts only), repo locators on a code file through the pipeline. See `TEST_DEBT.md`. Note: first LM Studio call after idle can time out (cold model load); rerun succeeds.
