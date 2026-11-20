@@ -14,3 +14,24 @@ Dependencies that are only formal (not technical): M06.01/.02 do not need the gr
 
 ## M09 — UI/UX revamp (user decision 2026-11-19)
 Not part of the original M00–M08 plan. Build ALL functionality first (M04–M08, current UI stays functional-but-plain); then a dedicated milestone M09 reworks the whole UI/UX following `docs/ui-spec/PRODUCT_UI_SPEC.md`, `docs/ui-spec/DESIGN_TOKENS.md` and `docs/ui-spec/CLAUDE_FRONTEND_HANDOFF.md` (user-supplied; read them at M09 start, write a slim `m09-contracts.md`, then republish the UI). Until then: no UX polish work, only functional UI.
+
+## Release policy and M10 (user decisions 2026-11-20)
+- **M08 is NOT a release**: lean hardening + a git baseline tag only (no deployment, no publication).
+- **Nothing is released before M09 (UI revamp).** After M09: **M10 — Production deployment** on free sources (backend first), then decide the public release.
+- Planning only until the user approves a target and any account/cost (cloud use requires explicit approval; credentials only via the user's own secret stores, never chat).
+
+### M10 outline (what must be solved; free-tier realities to verify at M10 start)
+| Area | Local today | Production need | Free-tier fit (verify) |
+|---|---|---|---|
+| API + worker + dispatcher | 3 containers | 2 long-running processes + web service | Render free: web services only (sleep after ~15 min idle), NO free background workers → worker/dispatcher need another host or run in-process |
+| Web (Next.js) | container | static/SSR host | Vercel / Cloudflare Pages / same host |
+| PostgreSQL (RLS, definer functions, roles `ukos_app`/`ukos_worker`) | container | managed Postgres that allows roles + SECURITY DEFINER owner bypassing RLS | Neon/Supabase free (500 MB, may pause); Render free Postgres expires after ~30 days; must verify owner role can bypass RLS |
+| Redis (Celery broker only) | container | small broker | Render Key Value free (25 MB, no persistence) OK; Upstash free command limits too low for Celery polling |
+| Object store (S3) | RustFS | S3-compatible | Cloudflare R2 / Backblaze B2 free ~10 GB (config only) |
+| RushDB (vector + keyword + graph) | container | persistent disk + ≥1 GB RAM | no true free managed tier known: self-host on a VM, or RushDB Cloud free plan if available (verify) |
+| Identity (Dex) | container | OIDC provider | keep Dex on the VM, or swap to a hosted OIDC (config only) |
+| LLM + embeddings | LM Studio on the user's PC | hosted inference reachable from the cloud | none free at scale: OpenAI/other under tenant policy (key via secret store) or a free-tier API; embeddings = NEW embedding space → re-embed |
+| Web session store | in-memory | shared store | move sessions to Redis before >1 web instance |
+
+**Recommended path (to confirm with the user):** one always-free VM (e.g. Oracle Cloud Always Free ARM, up to 24 GB RAM) running the SAME Docker Compose stack incl. RushDB/Postgres/Redis/object store/Dex/worker, Caddy/TLS in front, web on the same VM or Vercel; Render then only as a front for stateless pieces if wanted. Alternative: split across Render (API/web) + Neon + R2 + external VM for worker/RushDB.
+M10 tasks: (1) target decision + cost/limit sheet, (2) prod config hygiene (no host.docker.internal; env-driven; secrets), (3) prod images + healthchecks, (4) data-service mapping + migrations runner, (5) inference provider + policy + re-embed plan, (6) TLS/domain/CORS/cookie + shared session store, (7) CI/CD deploy + rollback, (8) prod backups + monitoring, (9) production smoke test + free-tier limit handling (cold starts, pauses), (10) public-release checklist.
