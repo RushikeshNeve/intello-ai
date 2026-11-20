@@ -124,7 +124,7 @@ test("URL state: q / type / sort / order produce the matching API call and the m
   const last = (await docListCalls(seed.workspaces.notes)).at(-1);
   assert.equal(last.path.split("?")[1], "sort=title&order=asc&limit=25&q=report&content_type=application%2Fpdf");
   assert.match(r.html, /id="doc-search"[^>]*value="report"|value="report"[^>]*id="doc-search"/);
-  assert.match(r.html, /<option value="pdf" selected="">/);
+  assert.match(r.html, /<button[^>]*aria-pressed="true"[^>]*>PDF<\/button>/); // type filter is a pill group since M09
   assert.match(r.html, /<option value="title" selected="">/);
   assert.match(r.html, /aria-sort="ascending"[^>]*>(?:<button[^>]*>)?Title/);
 

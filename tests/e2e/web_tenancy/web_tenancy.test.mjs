@@ -115,9 +115,9 @@ test("deep link on a fresh session: login with returnTo, land back on the worksp
   assert.equal(page.res.status, 200);
   assert.equal(testIdText(page.text, "workspace-heading"), "Acme Papers");
   assert.equal(testIdText(page.text, "current-org-name"), "Acme Research");
-  // Sidebar: the active workspace link is aria-current="page", the other is not.
-  assert.match(page.text, /<a[^>]*href="\/o\/acme\/w\/papers"[^>]*aria-current="page"|<a[^>]*aria-current="page"[^>]*href="\/o\/acme\/w\/papers"/);
-  assert.doesNotMatch(page.text, /<a[^>]*href="\/o\/acme\/w\/notes"[^>]*aria-current="page"/);
+  // Shell (M09): the workspace switcher shows the current workspace and the breadcrumb marks the page.
+  assert.equal(testIdText(page.text, "current-workspace-name"), "Acme Papers");
+  assert.doesNotMatch(page.text, /data-testid="current-workspace-name"[^>]*>Acme Notes</);
 });
 
 test("unknown or unauthorized org / workspace → the same calm not-found page, no other tenant's data", async () => {

@@ -190,7 +190,7 @@ test("search page: shell, nav entries, scope/filter controls reflect the URL, an
   const state = await web("/o/acme/search?q=revenue&ws=papers&type=pdf&mode=keyword", { cookie: sessions.alice });
   assert.match(state.html, /id="search-q"[^>]*value="revenue"|value="revenue"[^>]*id="search-q"/);
   assert.match(state.html, /<option value="papers" selected="">/);
-  assert.match(state.html, /<option value="pdf" selected="">/);
+  assert.match(state.html, /<button[^>]*aria-pressed="true"[^>]*>PDF<\/button>/); // type filter is a pill group since M09
   assert.match(state.html, /<option value="keyword" selected="">/);
   const calls = (await stubJson("/__log")).slice(before);
   assert.ok(!calls.some((e) => e.path.endsWith("/search")), "results are fetched by the browser, never by the server render");
