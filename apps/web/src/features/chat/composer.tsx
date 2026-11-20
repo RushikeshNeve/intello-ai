@@ -41,7 +41,7 @@ export function Composer({ value, onChange, onSend, busy, onCancel, cancelling, 
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-2 rounded-lg border border-border p-3" data-testid="composer">
+    <form onSubmit={submit} className="grid gap-2 rounded-card border border-border bg-card p-3 shadow-card focus-within:border-brand-blue" data-testid="composer">
       <Label htmlFor={`${id}-input`} className="sr-only">
         Your question
       </Label>
@@ -54,12 +54,12 @@ export function Composer({ value, onChange, onSend, busy, onCancel, cancelling, 
         placeholder="Ask about your documents…  (Enter to send, Shift+Enter for a new line)"
         aria-describedby={`${id}-count`}
         aria-invalid={tooLong || undefined}
-        className="min-h-20 w-full resize-y rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+        className="focus-ring min-h-20 w-full resize-y rounded-control border border-input bg-transparent px-3 py-2 text-sm"
         data-testid="composer-input"
       />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Label htmlFor={`${id}-scope`} className="text-xs text-muted-foreground">
+          <Label htmlFor={`${id}-scope`} className="text-xs text-text-secondary">
             Search in
           </Label>
           <Select id={`${id}-scope`} value={scope ?? ""} onChange={(e) => onScope(e.target.value || null)} data-testid="chat-scope">
@@ -72,7 +72,7 @@ export function Composer({ value, onChange, onSend, busy, onCancel, cancelling, 
           </Select>
         </div>
         <div className="flex items-center gap-3">
-          <span id={`${id}-count`} className={tooLong ? "text-xs text-destructive" : "text-xs text-muted-foreground"} data-testid="char-count">
+          <span id={`${id}-count`} className={tooLong ? "text-xs text-destructive" : "text-xs text-text-secondary"} data-testid="char-count">
             {length}/{MAX_MESSAGE_LENGTH}
           </span>
           {busy && onCancel && (
