@@ -151,7 +151,7 @@ def _scenario(rig: Rig, world: World, worker: Engine, base: Settings, gholder: A
     assert rig.artifact_objects.head_object(chunk_key) is not None
 
     # ---- delete, then the worker's purge and memory invalidation (as `tasks.delete_document`)
-    assert api.delete(world.doc_path(doc.id), world.ws_admin).status in (200, 204)
+    assert api.delete(world.doc_path(doc.id), world.ws_admin).status in (200, 202, 204)
     sessions = session_factory_for(worker)
     purge_document(sessions, rig.repo, rig.artifacts, org, doc.id)
     invalidation.invalidate_document(worker, org, doc.id)

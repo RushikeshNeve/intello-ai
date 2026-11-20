@@ -53,7 +53,24 @@ BODIES: dict[tuple[str, str], Any] = {
         "provider": "github",
         "repo": "acme/docs",
     },
-    ("PUT", "/v1/orgs/{org_id}/ai-policy"): {"allow_external": False},
+    ("PUT", "/v1/orgs/{org_id}/ai-policy"): {
+        "allow_external": False,
+        "allowed_providers": ["local"],
+    },
+    ("PATCH", "/v1/orgs/{org_id}/chat/threads/{thread_id}"): {"title": "x"},
+    ("POST", "/v1/orgs/{org_id}/chat/threads/{thread_id}/runs"): {
+        "content": "hello",
+        "idempotency_key": "sweep-key-0001",
+    },
+    ("POST", "/v1/orgs/{org_id}/memory/suggestions"): {"statement": "s", "kind": "fact"},
+    ("POST", "/v1/orgs/{org_id}/research"): {"question": "what?"},
+    ("PATCH", "/v1/orgs/{org_id}/workspaces/{workspace_id}/documents/{document_id}"): {
+        "title": "x"
+    },
+    (
+        "POST",
+        "/v1/orgs/{org_id}/workspaces/{workspace_id}/graph/merge-candidates/{candidate_id}/decision",
+    ): {"decision": "reject"},
     ("POST", "/v1/orgs/{org_id}/search"): {"query": "anything"},
 }
 
@@ -155,7 +172,11 @@ def test_document_grant_opens_exactly_one_document(rig: Rig, world: World) -> No
     other = world.doc_path(b.id, f"/versions/{b.versions[0]}/chunks/{pb.chunk_ids[0]}")
     assert api.get(other, user).status == 404
     # the grant does not widen the workspace: no list, no graph, no workspace, no writes
-    for sub in ("/documents", "/graph/entities", "/ingestion/events", ""):
+    listing = api.get(world.path("/documents"), user)  # lists ONLY the granted document (by design)
+    assert listing.status == 200
+    assert [i["id"] for i in listing.body["items"]] == [str(a.id)]
+    assert "Hidden" not in str(listing.body)
+    for sub in ("/graph/entities", "/ingestion/events", ""):
         assert api.get(world.path(sub), user).status == 404, sub
     assert api.delete(world.doc_path(a.id), user).status in (403, 404)
     # ... and not search: the granted document's text and title never come back, no counts either

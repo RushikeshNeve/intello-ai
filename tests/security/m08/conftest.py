@@ -30,6 +30,7 @@ for _extra in (
     HERE,
     REPO_ROOT / "tests" / "integration" / "m04_chat",
     REPO_ROOT / "tests" / "integration" / "m06_connectors",
+    REPO_ROOT / "tests" / "integration" / "m03_runtime",
 ):
     if str(_extra) not in sys.path:
         sys.path.insert(0, str(_extra))
