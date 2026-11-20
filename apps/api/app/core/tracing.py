@@ -118,8 +118,13 @@ def bind(
     job_id: str | None = None,
 ) -> Iterator[Context]:
     """Bind correlation values for the duration of the block (None keeps the current value)."""
-    pairs = ((_trace_id, trace_id), (_span_id, span_id), (_request_id, request_id))
-    pairs += ((_org_hash, org), (_job_id, job_id))
+    pairs = [
+        (_trace_id, trace_id),
+        (_span_id, span_id),
+        (_request_id, request_id),
+        (_org_hash, org),
+        (_job_id, job_id),
+    ]
     tokens = [(var, var.set(val)) for var, val in pairs if val is not None]
     try:
         yield current()
@@ -394,9 +399,9 @@ def start_metrics_listener(port: int, *, queue_depth_url: str | None = None) -> 
                 try:
                     import redis
 
-                    client = redis.Redis.from_url(queue_depth_url, socket_timeout=1)
+                    client = redis.Redis.from_url(str(queue_depth_url), socket_timeout=1)
                     for queue in ("ingest", "maintenance", "chat", "research"):
-                        family.add_metric([queue], float(client.llen(queue)))  # type: ignore[arg-type]
+                        family.add_metric([queue], float(client.llen(queue)))
                 except Exception:  # noqa: BLE001 - a broker blip must not break the scrape
                     return
                 yield family

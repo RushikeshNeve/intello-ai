@@ -116,9 +116,13 @@ def set_runtime_override(runtime: Runtime | None) -> None:
 
 
 @worker_init.connect  # type: ignore[untyped-decorator]
-def _validate_on_worker_init(**_: Any) -> None:
+def _validate_on_worker_init(sender: Any = None, **_: Any) -> None:
     # Celery's signal dispatch swallows ordinary exceptions, so a bad configuration must end the
     # process explicitly: a worker that cannot run its pipeline must not accept messages.
+    # The signal is process-global: ignore workers of other Celery apps (e.g. throwaway test apps).
+    app_name = getattr(getattr(sender, "app", None), "main", "ukos")
+    if app_name != "ukos":
+        return
     try:
         validate_runtime(_SETTINGS)
     except WorkerConfigError as exc:

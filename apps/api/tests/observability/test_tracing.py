@@ -3,6 +3,7 @@ structured logs without content, request middleware. No database, no broker."""
 
 from __future__ import annotations
 
+import dataclasses
 import io
 import json
 import logging
@@ -196,7 +197,7 @@ def test_dispatcher_publishes_trace_headers_for_traced_rows_only() -> None:
     plain = OutboxRow(**{**traced.__dict__, "payload": {"job_id": str(job)}})
     for row, expected in ((traced, {"traceparent": TP, "org": tracing.hash_org(org)}), (plain, {})):
         headers = tracing.celery_headers(row.payload, row.org_id)
-        delivery = module.replace(module.ROUTES[row.event_type](row), headers=headers)
+        delivery = dataclasses.replace(module.ROUTES[row.event_type](row), headers=headers)
         dispatcher.publish(delivery)
         assert dict(pub.sent[-1].headers) == expected
         assert pub.sent[-1].args == (str(job),)
@@ -218,7 +219,7 @@ def test_celery_message_headers_reach_the_task_through_the_real_publisher() -> N
     app = Celery("trace-test", broker="memory://", backend="cache+memory://")
     app.conf.task_default_queue = "q"
 
-    @app.task(name="trace.echo")
+    @app.task(name="trace.echo")  # type: ignore[untyped-decorator]
     def echo() -> list[str | None]:
         request = current_task.request
         headers = {k: getattr(request, k, None) for k in ("traceparent", "request_id", "org")}
