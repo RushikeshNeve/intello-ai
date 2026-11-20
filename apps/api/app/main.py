@@ -18,6 +18,7 @@ from sqlalchemy import Engine
 
 from app.api import health, me
 from app.api.deps import validation_error_handler
+from app.core import tracing
 from app.core.config import Settings, get_settings
 from app.core.db import dispose_engines, get_engine
 from app.core.security import (
@@ -49,6 +50,8 @@ logger = logging.getLogger("ukos.app")
 
 def _configure_logging(settings: Settings) -> None:
     logging.getLogger("ukos").setLevel(settings.UKOS_LOG_LEVEL.upper())
+    # M08.02.04: JSON logs with correlation ids; optional OTLP tracing and metrics listener.
+    tracing.setup_process(settings, "api")
 
 
 @asynccontextmanager
@@ -91,6 +94,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.token_verifier = token_verifier
     app.dependency_overrides[get_token_verifier] = lambda: token_verifier
     app.dependency_overrides[get_user_provisioner] = _db_user_provisioner
+
+    if settings.METRICS_PORT:
+        tracing.metrics()
+    app.add_middleware(tracing.TraceMiddleware)
 
     origins = settings.cors_origins
     if origins:

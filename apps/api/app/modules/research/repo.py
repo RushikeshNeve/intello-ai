@@ -22,6 +22,7 @@ from sqlalchemy import Connection, func, insert, select, text
 from sqlalchemy.orm import Session
 
 from app.api.deps import KeysetCursor
+from app.core.tracing import with_trace
 from app.modules.ingestion.models import OutboxEvent
 from app.modules.research.models import (
     ACTIVE_STATES,
@@ -114,7 +115,7 @@ def create_session(
             aggregate_type=AGGREGATE_RESEARCH_SESSION,
             aggregate_id=session_id,
             event_type=EVENT_RESEARCH_SESSION_QUEUED,
-            payload={"session_id": str(session_id)},
+            payload=with_trace({"session_id": str(session_id)}),
         )
     )
     return session_id

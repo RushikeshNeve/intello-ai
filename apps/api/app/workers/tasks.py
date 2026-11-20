@@ -27,6 +27,7 @@ from sqlalchemy import Engine
 
 from app.workers import (
     chat_tasks,  # noqa: F401 - registers the ``chat.run`` task
+    observability,  # noqa: F401 - correlation ids, JSON logs, task metrics (Celery signals)
     research_tasks,  # noqa: F401 - registers the ``research.run`` task
 )
 from app.workers.celery_app import (

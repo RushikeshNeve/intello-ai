@@ -35,6 +35,7 @@ from urllib.parse import urlsplit
 import httpx
 from pydantic import ValidationError
 
+from app.core.tracing import httpx_request_hook
 from app.modules.ai.embeddings.errors import (
     EmbeddingConfigurationError,
     EmbeddingDimensionMismatch,
@@ -124,6 +125,7 @@ class EmbeddingClient:
             headers=headers,
             timeout=httpx.Timeout(timeout_seconds, connect=connect_timeout_seconds),
             follow_redirects=False,  # a redirect would carry the Authorization header elsewhere
+            event_hooks={"request": [httpx_request_hook]},
             transport=transport,
         )
 

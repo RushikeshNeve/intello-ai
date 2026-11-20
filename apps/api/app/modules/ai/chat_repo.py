@@ -32,6 +32,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import KeysetCursor
 from app.core.db import make_sessionmaker, set_tenant_context
+from app.core.tracing import with_trace
 from app.modules.ai.models_db import (
     ACTIVE_RUN_STATES,
     AGGREGATE_CHAT_RUN,
@@ -502,7 +503,7 @@ def create_run(
             aggregate_type=AGGREGATE_CHAT_RUN,
             aggregate_id=run_id,
             event_type=EVENT_CHAT_RUN_QUEUED,
-            payload={"run_id": str(run_id)},
+            payload=with_trace({"run_id": str(run_id)}),
         )
     )
     session.execute(

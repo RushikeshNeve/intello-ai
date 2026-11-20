@@ -1,0 +1,10 @@
+# Scrapes the internal metrics listeners (container port 9464, compose network only).
+global:
+  scrape_interval: 10s
+scrape_configs:
+  - job_name: api
+    static_configs: [{targets: ["api:9464"]}]
+  - job_name: worker
+    static_configs: [{targets: ["worker:9464"]}]
+  - job_name: dispatcher
+    static_configs: [{targets: ["dispatcher:9464"]}]

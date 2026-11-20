@@ -27,6 +27,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
+from app.core.tracing import httpx_request_hook
 from app.modules.ai.embeddings.client import is_local_host
 from app.modules.ai.models.errors import (
     ChatConfigurationError,
@@ -154,6 +155,7 @@ class OpenAICompatibleChat:
             timeout=httpx.Timeout(timeout_seconds, connect=connect_timeout_seconds),
             follow_redirects=False,
             transport=transport,
+            event_hooks={"request": [httpx_request_hook]},
         )
 
     def close(self) -> None:
