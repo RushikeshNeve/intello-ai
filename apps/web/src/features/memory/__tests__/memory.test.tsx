@@ -6,6 +6,7 @@ import { fakeFetcher, jsonResponse, renderWithQuery, ORG_A, ws } from "@/feature
 import { makeQueryClient } from "@/lib/query/provider";
 import { evidenceFromCitations, parseMemory } from "../api";
 import { MemoryApp } from "../memory-app";
+import { ApprovedMemoryCard, MemorySuggestionCard } from "../memory-cards";
 import { RememberButton } from "../remember-button";
 
 vi.mock("next/link", () => ({
@@ -110,5 +111,29 @@ describe("RememberButton", () => {
     await userEvent.click(screen.getByTestId("remember-open"));
     await userEvent.click(screen.getByTestId("remember-save"));
     await screen.findByTestId("remember-error");
+  });
+});
+
+describe("memory cards", () => {
+  const m = (state: string, extra = {}) => parseMemory(mem("m1", state, extra));
+  const props = { orgId: "o1", orgSlug: "acme", workspaces: [WS] };
+  it("a suggestion shows scope, source and the approval gate; an approved memory can only be revoked", () => {
+    const { unmount } = renderWithQuery(<MemorySuggestionCard memory={m("suggested")} {...props} />, { fetcher: fakeFetcher({}).fetcher });
+    expect(screen.getByText("Personal")).toBeTruthy();
+    expect(screen.getByText(/From a chat answer/)).toBeTruthy();
+    expect(screen.getByText(/Not used in answers until you approve/)).toBeTruthy();
+    expect(screen.getByTestId("approve")).toBeTruthy();
+    expect(screen.getByTestId("reject")).toBeTruthy();
+    unmount();
+    renderWithQuery(<ApprovedMemoryCard memory={m("approved", { visibility: "workspace" })} {...props} />, { fetcher: fakeFetcher({}).fetcher });
+    expect(screen.getByText("Workspace")).toBeTruthy();
+    expect(screen.queryByTestId("approve")).toBeNull();
+    expect(screen.getByTestId("delete").textContent).toBe("Revoke");
+  });
+  it("shows invalidated and stale state as text badges", () => {
+    renderWithQuery(<ApprovedMemoryCard memory={m("invalidated", { invalidated_reason: "source_deleted", evidence: [ev("stale")] })} {...props} />, { fetcher: fakeFetcher({}).fetcher });
+    expect(screen.getByText(/Invalidated \(source deleted\)/)).toBeTruthy();
+    expect(screen.getByTestId("stale-badge")).toBeTruthy();
+    expect(screen.getByTestId("delete").textContent).toBe("Delete");
   });
 });
