@@ -22,7 +22,8 @@ from app.modules.ai.models_db import CHAT_TABLES
 M04_HEAD = "0007_chat_and_ai_policy"
 M05_HEAD = "0008_graph"
 M06_HEAD = "0009_connectors"  # M06 sits on top of 0008
-HEAD = "0010_memory_research"  # M07 sits on top of 0009
+M07_HEAD = "0010_memory_research"
+HEAD = "0011_member_preapprovals"  # member pre-approvals on top of 0010
 PREVIOUS = "0006_ingestion_requeue"
 FUNCTIONS = {
     "chat_claim_run",
@@ -59,7 +60,8 @@ def test_head_is_0007(alembic_config: Config) -> None:
     assert script.get_revision(M04_HEAD).down_revision == PREVIOUS
     assert script.get_revision(M05_HEAD).down_revision == M04_HEAD
     assert script.get_revision(M06_HEAD).down_revision == M05_HEAD
-    assert script.get_revision(HEAD).down_revision == M06_HEAD
+    assert script.get_revision(M07_HEAD).down_revision == M06_HEAD
+    assert script.get_revision(HEAD).down_revision == M07_HEAD
 
 
 def test_models_are_registered_and_org_scoped() -> None:

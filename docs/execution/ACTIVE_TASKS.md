@@ -86,3 +86,4 @@ Parallel-safety (batch A): the foundation agent owns migrations, `models.py`, `c
 | (coverage) | Adversarial RLS tests for M02+M03 tables | rls-agent | agent/m03-rls-coverage | batch A | DONE |
 | M03.03.05 | Retry/dead-letter/crash-injection tests | gate-agent | agent/m03-gate | batch C | DONE (scenarios 5b, 6a-e) |
 | (gate) | M03 full-stack e2e + exit gate | gate-agent + coordinator | main | all | DONE (17/17) |
+| (feature) | Pre-approve members by email (0011, preapprovals API, Members modal) | agent | main | M08 | DONE |

@@ -23,7 +23,7 @@ from app.api.deps import (
     not_found,
 )
 from app.modules.audit import AuditEventType, record_event
-from app.modules.authorization.policy import Action, OrgRole
+from app.modules.authorization.policy import Action, OrgRole, can_assign_org_role
 from app.modules.organizations import service
 from app.modules.organizations.schemas import (
     Member,
@@ -34,6 +34,10 @@ from app.modules.organizations.schemas import (
     OrgPage,
     OrgSummary,
     OrgUpdate,
+    Preapproval,
+    PreapprovalIn,
+    PreapprovalPage,
+    PreapprovalResult,
 )
 from app.modules.organizations.service import TARGET_ORG, TARGET_USER, OrgAccess, OrgRow
 
@@ -169,6 +173,107 @@ def list_members(tenant: Tenant, org_id: uuid.UUID, page: Page) -> MemberPage:
         access.require(Action.ORG_MEMBERS_READ)
         items, next_cursor = service.list_members(session, org_id, page)
     return MemberPage(items=[_member(m) for m in items], next_cursor=next_cursor)
+
+
+def _preapproval(row: service.PreapprovalRow) -> Preapproval:
+    return Preapproval(id=row.id, email=row.email, role=row.role, created_at=row.created_at)
+
+
+@router.get("/{org_id}/members/preapprovals", response_model=PreapprovalPage)
+def list_preapprovals(tenant: Tenant, org_id: uuid.UUID) -> PreapprovalPage:
+    """Pending pre-approvals (people who get access at their first verified sign-in)."""
+    with tenant.transaction(org_id) as session:
+        access = _access(tenant, session, org_id)
+        access.require(Action.ORG_MEMBERS_MANAGE)
+        items = service.list_preapprovals(session, org_id)
+    return PreapprovalPage(items=[_preapproval(p) for p in items])
+
+
+@router.post(
+    "/{org_id}/members/preapprovals",
+    response_model=PreapprovalResult,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_preapproval(tenant: Tenant, org_id: uuid.UUID, body: PreapprovalIn) -> PreapprovalResult:
+    """Add a person by email. A user with that verified email already exists -> membership now;
+    otherwise a pending entry that the first verified sign-in with that email consumes.
+    Only owners may grant ``owner``.
+    """
+    with tenant.transaction(org_id) as session:
+        access = service.load_org_access(session, org_id, tenant.user_id, lock=True)
+        if access is None:
+            raise not_found()
+        access.require(Action.ORG_MEMBERS_MANAGE)
+        _require_assignable(access, body.role)
+        user_id = service.find_verified_user(session, body.email)
+        if user_id is not None:
+            if service.current_member_role(session, org_id, user_id) is None:
+                service.add_member(session, org_id, user_id, body.role)
+                _audit(
+                    tenant,
+                    session,
+                    AuditEventType.ORG_MEMBER_ADDED,
+                    org_id=org_id,
+                    target_type=TARGET_USER,
+                    target_id=user_id,
+                    metadata={
+                        "email": body.email,
+                        "from_role": None,
+                        "to_role": body.role.value,
+                        "via": "preapproval",
+                    },
+                )
+            member = service.get_member(session, org_id, user_id)
+            assert member is not None  # noqa: S101 - exists or just inserted
+            return PreapprovalResult(status="member_added", member=_member(member))
+        row = service.upsert_preapproval(
+            session, org_id=org_id, email=body.email, role=body.role, created_by=tenant.user_id
+        )
+        _audit(
+            tenant,
+            session,
+            AuditEventType.ORG_MEMBER_PREAPPROVED,
+            org_id=org_id,
+            target_type=TARGET_ORG,
+            target_id=row.id,
+            metadata={"email": body.email, "to_role": body.role.value},
+        )
+    return PreapprovalResult(status="pending", preapproval=_preapproval(row))
+
+
+@router.delete(
+    "/{org_id}/members/preapprovals/{preapproval_id}", status_code=status.HTTP_204_NO_CONTENT
+)
+def delete_preapproval(tenant: Tenant, org_id: uuid.UUID, preapproval_id: uuid.UUID) -> Response:
+    with tenant.transaction(org_id) as session:
+        access = service.load_org_access(session, org_id, tenant.user_id, lock=True)
+        if access is None:
+            raise not_found()
+        access.require(Action.ORG_MEMBERS_MANAGE)
+        row = service.get_preapproval(session, org_id, preapproval_id)
+        if row is None:
+            raise not_found()
+        _require_assignable(access, row.role)
+        service.delete_preapproval(session, org_id, preapproval_id)
+        _audit(
+            tenant,
+            session,
+            AuditEventType.ORG_MEMBER_PREAPPROVAL_REMOVED,
+            org_id=org_id,
+            target_type=TARGET_ORG,
+            target_id=preapproval_id,
+            metadata={"email": row.email, "to_role": row.role.value},
+        )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def _require_assignable(access: OrgAccess, role: OrgRole) -> None:
+    """Only owners grant (or withdraw a grant of) ``owner``."""
+    decision = can_assign_org_role(access.subject, None, role)
+    if not decision.allowed:
+        raise access.denied(
+            decision, Action.ORG_MEMBERS_MANAGE, target_type=TARGET_ORG, target_id=""
+        )
 
 
 @router.put("/{org_id}/members/{user_id}", response_model=Member)

@@ -18,10 +18,13 @@ import { ROLE_LABEL, type OrgRole, type OrgSummary } from "@/features/organizati
 import type { Workspace, WorkspaceRole } from "@/features/workspaces/api";
 import { actionError, canAdminWorkspace, isOrgAdmin } from "@/features/settings/permissions";
 import {
+  addPreapproval,
   assignableOrgRoles,
   getMyId,
   listMembers,
+  listPreapprovals,
   removeOrgMember,
+  removePreapproval,
   removeWorkspaceMember,
   setOrgRole,
   setWorkspaceRole,
@@ -54,7 +57,7 @@ export function TeamApp({ org, workspace }: { org: OrgSummary; workspace: Worksp
           </Button>
         }
       />
-      <InviteDialog open={inviting} onClose={() => setInviting(false)} />
+      <InviteDialog org={org} open={inviting} onClose={() => setInviting(false)} />
       <section aria-labelledby="org-members-h" className="grid gap-3">
         <h2 id="org-members-h" className="text-section font-semibold tracking-tight">
           Organization members
@@ -82,26 +85,92 @@ export function TeamApp({ org, workspace }: { org: OrgSummary; workspace: Worksp
   );
 }
 
-function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function InviteDialog({ org, open, onClose }: { org: OrgSummary; open: boolean; onClose: () => void }) {
+  const fetcher = useApiFetcher();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<OrgRole>("member");
+  const [error, setError] = useState<string | null>(null);
+  const roles = assignableOrgRoles(org.role, "member");
+  const pending = useQuery({ queryKey: teamKeys.preapprovals(org.id), retry: false, enabled: open && isOrgAdmin(org), queryFn: () => listPreapprovals(fetcher, org.id) });
+  const refresh = () => Promise.all([qc.invalidateQueries({ queryKey: teamKeys.preapprovals(org.id) }), qc.invalidateQueries({ queryKey: teamKeys.members(org.id) })]);
+
+  const add = useMutation({
+    mutationFn: () => addPreapproval(fetcher, org.id, email.trim(), role),
+    onSuccess: (r) => {
+      setError(null);
+      setEmail("");
+      toast.push({ title: r.status === "member_added" ? "Added to the organization" : "Access ready for their first sign-in", tone: "success" });
+      void refresh();
+    },
+    onError: (e) => setError(actionError(e)),
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) => removePreapproval(fetcher, org.id, id),
+    onSuccess: () => {
+      setError(null);
+      void refresh();
+    },
+    onError: (e) => setError(actionError(e)),
+  });
+  const canManage = roles.length > 0;
+
   return (
-    <Modal open={open} onClose={onClose} title="Invite a member" description="Invitations are not available yet.">
-      <div className="grid gap-3" data-testid="invite-dialog">
+    <Modal open={open} onClose={onClose} title="Invite a member" description="Give someone access by email before they have signed in.">
+      <form
+        className="grid gap-3"
+        data-testid="invite-dialog"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (canManage && email.trim()) add.mutate();
+        }}
+      >
         <div className="grid gap-1.5">
           <Label htmlFor="invite-email">Email address</Label>
-          <Input id="invite-email" type="email" disabled placeholder="name@example.com" />
+          <Input id="invite-email" type="email" required disabled={!canManage} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" />
         </div>
-        <p className="text-sm text-text-secondary">
-          Invitations are not available yet. For now, a person can join only after they have signed in once; an owner or admin can then set their role here.
-        </p>
+        <div className="grid gap-1.5">
+          <Label htmlFor="invite-role">Role</Label>
+          <select id="invite-role" className={SELECT_CLASS} disabled={!canManage} value={role} onChange={(e) => setRole(e.target.value as OrgRole)}>
+            {roles.map((r) => (
+              <option key={r} value={r}>
+                {ROLE_LABEL[r]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <p className="text-sm text-text-secondary">They will get access the first time they sign in with this email. No email is sent.</p>
+        {error && (
+          <p role="alert" className="text-sm text-danger">
+            {error}
+          </p>
+        )}
+        {pending.data && pending.data.length > 0 && (
+          <div className="grid gap-1.5" data-testid="preapproval-list">
+            <p className="text-sm font-medium">Waiting for first sign-in</p>
+            <ul className="grid gap-1">
+              {pending.data.map((p) => (
+                <li key={p.id} className="flex items-center gap-2 text-sm" data-testid="preapproval-row">
+                  <span className="min-w-0 grow truncate">{p.email}</span>
+                  <StatusBadge tone={ROLE_TONE[p.role]}>{ROLE_LABEL[p.role]}</StatusBadge>
+                  <Button type="button" variant="outline" size="sm" aria-label={`Remove pending access for ${p.email}`} disabled={remove.isPending} onClick={() => remove.mutate(p.id)}>
+                    Remove
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={onClose}>
             Close
           </Button>
-          <Button disabled data-testid="invite-send">
-            Send invitation
+          <Button type="submit" disabled={!canManage || add.isPending || !email.trim()} data-testid="invite-send">
+            Add by email
           </Button>
         </div>
-      </div>
+      </form>
     </Modal>
   );
 }

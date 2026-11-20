@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Annotated, Final
+from typing import Annotated, Final, Literal
 
-from pydantic import BaseModel, ConfigDict, StringConstraints
+from pydantic import AfterValidator, BaseModel, ConfigDict, StringConstraints
 
 from app.modules.authorization.policy import OrgRole
 
@@ -19,6 +19,14 @@ NAME_MAX_LENGTH: Final = 200
 Slug = Annotated[str, StringConstraints(pattern=SLUG_INPUT_PATTERN)]
 Name = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=NAME_MAX_LENGTH)
+]
+
+
+EMAIL_PATTERN: Final = r"^[^@\s,;<>()\"]{1,64}@[^@\s,;<>()\"]+\.[^@\s,;<>()\"]+$"
+Email = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, max_length=254, pattern=EMAIL_PATTERN),
+    AfterValidator(str.lower),
 ]
 
 
@@ -69,3 +77,28 @@ class Member(BaseModel):
 class MemberPage(BaseModel):
     items: list[Member]
     next_cursor: str | None
+
+
+class PreapprovalIn(_In):
+    email: Email
+    role: OrgRole
+
+
+class Preapproval(BaseModel):
+    id: uuid.UUID
+    email: str
+    role: OrgRole
+    created_at: datetime
+
+
+class PreapprovalPage(BaseModel):
+    items: list[Preapproval]
+
+
+class PreapprovalResult(BaseModel):
+    """``member_added``: the person already had a verified account (membership now);
+    ``pending``: ``preapproval`` is consumed at their first verified sign-in."""
+
+    status: Literal["member_added", "pending"]
+    member: Member | None = None
+    preapproval: Preapproval | None = None

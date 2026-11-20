@@ -53,6 +53,9 @@ APP_DEFINERS = [
     "memory_ws_access",
     "memory_invalidate_evidence",
     "research_cancel",
+    # Migration 0011: sign-in consumption of pre-approvals; admin-only verified-user lookup.
+    "preapproval_consume",
+    "preapproval_find_user",
 ]
 
 

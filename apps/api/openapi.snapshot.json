@@ -2154,6 +2154,109 @@
         "title": "PlanOut",
         "type": "object"
       },
+      "Preapproval": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/OrgRole"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "role",
+          "created_at"
+        ],
+        "title": "Preapproval",
+        "type": "object"
+      },
+      "PreapprovalIn": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "maxLength": 254,
+            "pattern": "^[^@\\s,;<>()\\\"]{1,64}@[^@\\s,;<>()\\\"]+\\.[^@\\s,;<>()\\\"]+$",
+            "title": "Email",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/OrgRole"
+          }
+        },
+        "required": [
+          "email",
+          "role"
+        ],
+        "title": "PreapprovalIn",
+        "type": "object"
+      },
+      "PreapprovalPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Preapproval"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "PreapprovalPage",
+        "type": "object"
+      },
+      "PreapprovalResult": {
+        "description": "``member_added``: the person already had a verified account (membership now);\n``pending``: ``preapproval`` is consumed at their first verified sign-in.",
+        "properties": {
+          "member": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Member"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "preapproval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Preapproval"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "member_added",
+              "pending"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "PreapprovalResult",
+        "type": "object"
+      },
       "PresignedUpload": {
         "properties": {
           "headers": {
@@ -5095,6 +5198,148 @@
           }
         },
         "summary": "List Members",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/members/preapprovals": {
+      "get": {
+        "description": "Pending pre-approvals (people who get access at their first verified sign-in).",
+        "operationId": "list_preapprovals_v1_orgs__org_id__members_preapprovals_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreapprovalPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Preapprovals",
+        "tags": [
+          "organizations"
+        ]
+      },
+      "post": {
+        "description": "Add a person by email. A user with that verified email already exists -> membership now;\notherwise a pending entry that the first verified sign-in with that email consumes.\nOnly owners may grant ``owner``.",
+        "operationId": "create_preapproval_v1_orgs__org_id__members_preapprovals_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreapprovalIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreapprovalResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Preapproval",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/members/preapprovals/{preapproval_id}": {
+      "delete": {
+        "operationId": "delete_preapproval_v1_orgs__org_id__members_preapprovals__preapproval_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "preapproval_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Preapproval Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Preapproval",
         "tags": [
           "organizations"
         ]

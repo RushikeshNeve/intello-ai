@@ -110,6 +110,8 @@ class User(Base):
     display_name: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(_tstz(), server_default=func.now())
     last_seen_at: Mapped[datetime] = mapped_column(_tstz(), server_default=func.now())
+    # From the OIDC ``email_verified`` claim (migration 0011); pre-approvals match only when true.
+    email_verified: Mapped[bool] = mapped_column(server_default=text("false"))
 
 
 class Organization(Base):
@@ -150,6 +152,45 @@ class OrganizationMembership(Base):
     )
     role: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(_tstz(), server_default=func.now())
+
+
+class OrgMemberPreapproval(Base):
+    """Access granted by email before the person's first sign-in (migration 0011)."""
+
+    __tablename__ = "org_member_preapprovals"
+    __table_args__ = (
+        CheckConstraint(
+            "email = lower(email) AND length(email) > 3", name="ck_org_member_preapprovals_email"
+        ),
+        CheckConstraint(_in("role", ORG_ROLES), name="ck_org_member_preapprovals_role"),
+        Index(
+            "uq_org_member_preapprovals_pending",
+            "org_id",
+            text("lower(email)"),
+            unique=True,
+            postgresql_where=text("consumed_at IS NULL"),
+        ),
+        Index(
+            "ix_org_member_preapprovals_email_pending",
+            text("lower(email)"),
+            postgresql_where=text("consumed_at IS NULL"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "organizations.id", name="fk_org_member_preapprovals_org_id", ondelete="CASCADE"
+        ),
+    )
+    email: Mapped[str] = mapped_column(Text)
+    role: Mapped[str] = mapped_column(Text)
+    created_by: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", name="fk_org_member_preapprovals_created_by")
+    )
+    created_at: Mapped[datetime] = mapped_column(_tstz(), server_default=func.now())
+    consumed_at: Mapped[datetime | None] = mapped_column(_tstz())
 
 
 class Workspace(Base):
@@ -558,6 +599,8 @@ ORG_SCOPED_TABLES: Final = (
     "research_sessions",
     "research_steps",
     "research_reports",
+    # Member pre-approvals (migration 0011).
+    "org_member_preapprovals",
 )
 RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
 

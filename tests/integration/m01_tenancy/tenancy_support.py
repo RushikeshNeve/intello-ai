@@ -22,12 +22,14 @@ class FakeVerifier:
     def __init__(self) -> None:
         self._claims: dict[str, VerifiedClaims] = {}
 
-    def register(self, token: str, *, subject: str, email: str, name: str) -> None:
+    def register(
+        self, token: str, *, subject: str, email: str, name: str, verified: bool = True
+    ) -> None:
         self._claims[token] = VerifiedClaims(
             issuer=ISSUER,
             subject=subject,
             email=email,
-            email_verified=True,
+            email_verified=verified,
             name=name,
             audience=("ukos-api",),
             expires_at=datetime.now(UTC) + timedelta(hours=1),

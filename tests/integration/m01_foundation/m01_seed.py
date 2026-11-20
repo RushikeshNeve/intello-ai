@@ -93,6 +93,13 @@ def seed_tenant(engine: Engine, *, documents: bool = True) -> Tenant:
             ),
             {"id": uuid.uuid4(), "o": org, "u": owner, "t": str(org)},
         )
+        conn.execute(
+            text(
+                "INSERT INTO org_member_preapprovals (id, org_id, email, role, created_by)"
+                " VALUES (:id, :o, :e, 'member', :u)"
+            ),
+            {"id": uuid.uuid4(), "o": org, "e": f"pending-{org}@seed.test", "u": owner},
+        )
         # M02 tables (migration 0003): one source/document/version/upload session per tenant, so
         # "every org-scoped table has rows" holds for the whole schema.
         if documents:

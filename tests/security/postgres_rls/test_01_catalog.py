@@ -16,6 +16,8 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     "workspace_memberships": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "resource_grants": {"SELECT", "INSERT", "UPDATE"},
     "audit_events": {"SELECT", "INSERT"},
+    # Migration 0011: consumption (UPDATE) only via the preapproval_consume definer.
+    "org_member_preapprovals": {"SELECT", "INSERT", "DELETE"},
     # M02 (migration 0003): INSERT table-wide, UPDATE only on named columns (column-level grants
     # do not show up in has_table_privilege), never DELETE. Deep coverage is a later task.
     "sources": {"SELECT", "INSERT"},

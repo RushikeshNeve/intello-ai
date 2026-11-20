@@ -1,6 +1,7 @@
 /**
- * Members API client (contract m01 §4). There is NO workspace member list and NO invitation endpoint:
- * workspace access is set per user id (PUT/DELETE) and members come from the org member list.
+ * Members API client (contract m01 §4). There is NO workspace member list and no email is sent:
+ * workspace access is set per user id (PUT/DELETE), members come from the org member list, and a person who has
+ * never signed in is added by pre-approving their email.
  */
 import { ApiError, invalid, isRecord, listAll, oneOf, requestJson, str, type ApiPath, type Fetcher } from "@/features/organizations/api/http";
 import { ORG_ROLES, type OrgRole } from "@/features/organizations/api/orgs";
@@ -23,11 +24,46 @@ const ws = (orgId: string, workspaceId: string) => `${org(orgId)}/workspaces/${e
 
 export const teamKeys = {
   members: (orgId: string) => ["org", orgId, "members"] as const,
+  preapprovals: (orgId: string) => ["org", orgId, "preapprovals"] as const,
   me: () => ["me"] as const,
 };
 
 export function listMembers(fetcher: Fetcher, orgId: string): Promise<OrgMember[]> {
   return listAll(fetcher, `${org(orgId)}/members` as ApiPath, parseMember);
+}
+
+/** Someone pre-approved by email: they get access the first time they sign in with it. */
+export type Preapproval = { id: string; email: string; role: OrgRole; created_at: string };
+export type PreapprovalResult = { status: "member_added" | "pending" };
+
+export function parsePreapproval(v: unknown): Preapproval {
+  if (!isRecord(v)) invalid();
+  return { id: str(v, "id"), email: str(v, "email"), role: oneOf(v, "role", ORG_ROLES), created_at: str(v, "created_at") };
+}
+
+const preapprovalsPath = (orgId: string) => `${org(orgId)}/members/preapprovals` as ApiPath;
+
+export function listPreapprovals(fetcher: Fetcher, orgId: string): Promise<Preapproval[]> {
+  return requestJson(fetcher, preapprovalsPath(orgId), (b) => {
+    if (!isRecord(b) || !Array.isArray(b.items)) invalid();
+    return b.items.map(parsePreapproval);
+  });
+}
+
+export function addPreapproval(fetcher: Fetcher, orgId: string, email: string, role: OrgRole): Promise<PreapprovalResult> {
+  return requestJson(
+    fetcher,
+    preapprovalsPath(orgId),
+    (b) => {
+      if (!isRecord(b)) invalid();
+      return { status: oneOf(b, "status", ["member_added", "pending"] as const) };
+    },
+    { method: "POST", body: JSON.stringify({ email, role }), headers: { "content-type": "application/json" } },
+  );
+}
+
+export function removePreapproval(fetcher: Fetcher, orgId: string, id: string): Promise<void> {
+  return del(fetcher, `${preapprovalsPath(orgId)}/${encodeURIComponent(id)}` as ApiPath);
 }
 
 /** `GET /v1/me` → id only (used to mark the caller's own row). */

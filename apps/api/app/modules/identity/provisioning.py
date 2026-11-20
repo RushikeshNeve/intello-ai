@@ -36,15 +36,21 @@ USER_PROVISIONED = "user.provisioned"
 # narrower scope) keeps the stored value instead of erasing it.
 _UPSERT_USER = text(
     """
-    INSERT INTO users (id, issuer, subject, email, display_name, created_at, last_seen_at)
-    VALUES (:id, :issuer, :subject, :email, :display_name, now(), now())
+    INSERT INTO users (id, issuer, subject, email, email_verified, display_name, created_at,
+                       last_seen_at)
+    VALUES (:id, :issuer, :subject, :email, :email_verified, :display_name, now(), now())
     ON CONFLICT (issuer, subject) DO UPDATE SET
+        email_verified = CASE WHEN EXCLUDED.email IS NULL THEN users.email_verified
+                              ELSE EXCLUDED.email_verified END,
         email = COALESCE(EXCLUDED.email, users.email),
         display_name = COALESCE(EXCLUDED.display_name, users.display_name),
         last_seen_at = now()
     RETURNING id, email, display_name
     """
 )
+
+
+_CONSUME_PREAPPROVALS = text("SELECT preapproval_consume(:uid)")
 
 
 class DbUserProvisioner:
@@ -64,15 +70,19 @@ class DbUserProvisioner:
                     "issuer": claims.issuer,
                     "subject": claims.subject,
                     "email": claims.email,
+                    "email_verified": claims.email_verified and claims.email is not None,
                     "display_name": claims.name,
                 },
             ).one()
             user_id = uuid.UUID(str(row.id))
+            set_tenant_context(session, user_id=user_id, org_id=None)
             if user_id == candidate_id:
-                set_tenant_context(session, user_id=user_id, org_id=None)
                 _record_user_provisioned(
                     session, user_id=user_id, email_verified=claims.email_verified
                 )
+            if claims.email_verified and claims.email is not None:
+                # Pre-approved memberships (migration 0011); matches the VERIFIED email only.
+                session.execute(_CONSUME_PREAPPROVALS, {"uid": user_id})
         return Principal(
             user_id=user_id,
             issuer=claims.issuer,

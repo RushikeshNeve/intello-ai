@@ -24,6 +24,8 @@ CONTRACT_EVENT_TYPES = {
     "org.member.added",
     "org.member.role_changed",
     "org.member.removed",
+    "org.member.preapproved",
+    "org.member.preapproval_removed",
     "workspace.created",
     "workspace.updated",
     "workspace.deleted",

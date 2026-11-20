@@ -78,12 +78,35 @@ describe("TeamApp", () => {
     await waitFor(() => expect(put).toHaveBeenCalled());
   });
 
-  it("the invite dialog is disabled and honest", async () => {
-    mount(<TeamApp org={orgWith("owner")} workspace={WS_ADMIN} />, base());
+  it("pre-approves by email, lists the pending entry and removes it", async () => {
+    let pending: unknown[] = [];
+    const post = vi.fn(() => {
+      pending = [{ id: "p-1", email: "New.Person@x.io", role: "member", created_at: "2026-11-20T00:00:00Z" }];
+      return jsonResponse(201, { status: "pending", member: null, preapproval: pending[0] });
+    });
+    const del = vi.fn(() => {
+      pending = [];
+      return jsonResponse(204, null);
+    });
+    const api = mount(
+      <TeamApp org={orgWith("admin")} workspace={WS_ADMIN} />,
+      base({
+        [`GET ${O}/members/preapprovals`]: () => jsonResponse(200, { items: pending }),
+        [`POST ${O}/members/preapprovals`]: post,
+        [`DELETE ${O}/members/preapprovals/p-1`]: del,
+      }),
+    );
     await userEvent.click(screen.getByTestId("invite-open"));
     const dialog = screen.getByRole("dialog", { name: /invite a member/i });
-    expect(within(dialog).getAllByText(/invitations are not available yet/i).length).toBeGreaterThan(0);
-    expect((within(dialog).getByLabelText("Email address") as HTMLInputElement).disabled).toBe(true);
-    expect((within(dialog).getByTestId("invite-send") as HTMLButtonElement).disabled).toBe(true);
+    expect(within(dialog).getByText(/no email is sent/i)).toBeTruthy();
+    expect(within(dialog).queryByRole("option", { name: "Owner" })).toBeNull();
+    await userEvent.type(within(dialog).getByLabelText("Email address"), "New.Person@x.io");
+    await userEvent.click(within(dialog).getByTestId("invite-send"));
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    expect(api.calls.find((c) => c.method === "POST")?.body).toBe(JSON.stringify({ email: "New.Person@x.io", role: "member" }));
+    await within(dialog).findByText("New.Person@x.io");
+    await userEvent.click(within(dialog).getByRole("button", { name: /remove pending access for new.person@x.io/i }));
+    await waitFor(() => expect(del).toHaveBeenCalled());
+    await waitFor(() => expect(within(dialog).queryByText("New.Person@x.io")).toBeNull());
   });
 });

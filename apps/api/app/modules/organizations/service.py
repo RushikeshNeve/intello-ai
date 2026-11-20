@@ -12,12 +12,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Final
 
-from sqlalchemy import Row, Select, and_, delete, func, insert, select, tuple_, update
+from sqlalchemy import Row, Select, and_, delete, func, insert, select, text, tuple_, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import AuthzDenied, KeysetCursor, Pagination
-from app.core.models import Organization, OrganizationMembership, User
+from app.core.models import Organization, OrganizationMembership, OrgMemberPreapproval, User
 from app.modules.authorization.policy import (
     Action,
     Decision,
@@ -313,4 +313,64 @@ def remove_member(session: Session, org_id: uuid.UUID, user_id: uuid.UUID) -> No
         delete(OrganizationMembership)
         .where(OrganizationMembership.org_id == org_id, OrganizationMembership.user_id == user_id)
         .execution_options(synchronize_session=False)
+    )
+
+
+@dataclass(frozen=True)
+class PreapprovalRow:
+    id: uuid.UUID
+    email: str
+    role: OrgRole
+    created_at: datetime
+
+
+def find_verified_user(session: Session, email: str) -> uuid.UUID | None:
+    """The one user with this VERIFIED email (definer: ``users`` RLS hides other orgs' users)."""
+    found = session.execute(text("SELECT preapproval_find_user(:e)"), {"e": email}).scalar_one()
+    return uuid.UUID(str(found)) if found is not None else None
+
+
+def list_preapprovals(session: Session, org_id: uuid.UUID) -> list[PreapprovalRow]:
+    rows = session.execute(
+        select(
+            OrgMemberPreapproval.id,
+            OrgMemberPreapproval.email,
+            OrgMemberPreapproval.role,
+            OrgMemberPreapproval.created_at,
+        )
+        .where(OrgMemberPreapproval.org_id == org_id, OrgMemberPreapproval.consumed_at.is_(None))
+        .order_by(OrgMemberPreapproval.created_at, OrgMemberPreapproval.id)
+    ).all()
+    return [PreapprovalRow(r.id, r.email, OrgRole(r.role), r.created_at) for r in rows]
+
+
+def get_preapproval(
+    session: Session, org_id: uuid.UUID, preapproval_id: uuid.UUID
+) -> PreapprovalRow | None:
+    return next((p for p in list_preapprovals(session, org_id) if p.id == preapproval_id), None)
+
+
+def upsert_preapproval(
+    session: Session, *, org_id: uuid.UUID, email: str, role: OrgRole, created_by: uuid.UUID
+) -> PreapprovalRow:
+    """One pending entry per (org, email): a repeat replaces the role."""
+    existing = next((p for p in list_preapprovals(session, org_id) if p.email == email), None)
+    if existing is not None:
+        delete_preapproval(session, org_id, existing.id)
+    new_id = uuid.uuid4()
+    session.execute(
+        insert(OrgMemberPreapproval).values(
+            id=new_id, org_id=org_id, email=email, role=role.value, created_by=created_by
+        )
+    )
+    row = get_preapproval(session, org_id, new_id)
+    assert row is not None  # noqa: S101 - just inserted in this transaction
+    return row
+
+
+def delete_preapproval(session: Session, org_id: uuid.UUID, preapproval_id: uuid.UUID) -> None:
+    session.execute(
+        delete(OrgMemberPreapproval).where(
+            OrgMemberPreapproval.id == preapproval_id, OrgMemberPreapproval.org_id == org_id
+        )
     )

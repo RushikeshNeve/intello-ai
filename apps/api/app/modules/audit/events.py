@@ -43,6 +43,8 @@ class AuditEventType(StrEnum):
     ORG_MEMBER_ADDED = "org.member.added"
     ORG_MEMBER_ROLE_CHANGED = "org.member.role_changed"
     ORG_MEMBER_REMOVED = "org.member.removed"
+    ORG_MEMBER_PREAPPROVED = "org.member.preapproved"
+    ORG_MEMBER_PREAPPROVAL_REMOVED = "org.member.preapproval_removed"
     WORKSPACE_CREATED = "workspace.created"
     WORKSPACE_UPDATED = "workspace.updated"
     WORKSPACE_DELETED = "workspace.deleted"

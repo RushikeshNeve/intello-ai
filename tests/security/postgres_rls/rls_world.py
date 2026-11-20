@@ -116,6 +116,13 @@ def _tenant(conn: Connection, subjects: dict[uuid.UUID, str], label: str) -> Ten
         ),
         {"id": audit, "o": org, "u": owner, "t": str(org), "m": marker},
     )
+    conn.execute(
+        text(
+            "INSERT INTO org_member_preapprovals (id, org_id, email, role, created_by)"
+            " VALUES (:id, :o, :e, 'member', :u)"
+        ),
+        {"id": uuid.uuid4(), "o": org, "e": f"{marker}@pending.test", "u": owner},
+    )
     return Tenant(
         label=label,
         org_id=org,
@@ -236,6 +243,15 @@ def _ins_ae(w: World, t: Tenant) -> tuple[str, dict[str, Any]]:
     )
 
 
+def _ins_pa(w: World, t: Tenant) -> tuple[str, dict[str, Any]]:
+    return (
+        "INSERT INTO org_member_preapprovals (id, org_id, email, role, created_by)"
+        " VALUES (:id, :o, :e, 'admin', :u)",
+        {"id": uuid.uuid4(), "o": t.org_id, "e": f"evil-{uuid.uuid4().hex[:8]}@x.test",
+         "u": t.owner_id},
+    )  # fmt: skip
+
+
 ORG_TABLE_SPECS: dict[str, TableSpec] = {
     s.name: s
     for s in (
@@ -251,6 +267,7 @@ ORG_TABLE_SPECS: dict[str, TableSpec] = {
         TableSpec("resource_grants", "org_id", "id::text", "permission = 'manage'",
                   "org_id = CAST(:other AS uuid)", False, _ins_rg),
         TableSpec("audit_events", "org_id", "id::text", None, None, False, _ins_ae),
+        TableSpec("org_member_preapprovals", "org_id", "id::text", None, None, True, _ins_pa),
     )
 }  # fmt: skip
 

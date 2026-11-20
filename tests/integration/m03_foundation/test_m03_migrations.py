@@ -19,7 +19,8 @@ from app.core.models import ORG_SCOPED_TABLES, RLS_TABLES, Base
 from app.modules.ingestion.models import INGESTION_TABLES
 
 REVISION = "0005_ingestion"
-HEAD = "0010_memory_research"  # M07: memory + research on top of 0009
+HEAD = "0011_member_preapprovals"  # member pre-approvals on top of 0010
+M07_HEAD = "0010_memory_research"  # M07: memory + research on top of 0009
 M06_HEAD = "0009_connectors"  # M06: connectors on top of 0008
 M05_HEAD = "0008_graph"  # M05: graph identity + merge review on top of 0007
 M04_HEAD = "0007_chat_and_ai_policy"  # M04: chat + ai policy on top of 0006
@@ -74,7 +75,8 @@ def _role(engine: Engine, name: str) -> tuple[Any, ...] | None:
 def test_head_is_0007_on_top_of_the_m03_chain(alembic_config: Config) -> None:
     script = ScriptDirectory.from_config(alembic_config)
     assert script.get_heads() == [HEAD]
-    assert script.get_revision(HEAD).down_revision == M06_HEAD
+    assert script.get_revision(HEAD).down_revision == M07_HEAD
+    assert script.get_revision(M07_HEAD).down_revision == M06_HEAD
     assert script.get_revision(M06_HEAD).down_revision == M05_HEAD
     assert script.get_revision(M05_HEAD).down_revision == M04_HEAD
     assert script.get_revision(M04_HEAD).down_revision == M03_HEAD
