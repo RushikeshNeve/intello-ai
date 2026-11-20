@@ -48,5 +48,12 @@ Branches `agent/m09-<track>`; merge order F1, then A/B/D, then C; coordinator ru
 - One HTTP e2e per track in the existing `tests/e2e/web_*` style: A search then open document; B ask, citation, evidence panel; C graph/memory/research load with real API data; D members list + AI-policy save (+ sources list when a fixture exists).
 - Tracks run only their own suites; `TEST_DEBT.md` untouched by F0.
 
+## Prototype addendum (design-reference merged; per-view findings in the status doc)
+- Brand assets exist: the shell agent copies `design-reference/assets/intello-{prism,lockup-light,lockup-dark,favicon-monochrome}.svg` unchanged to `apps/web/public/brand/` in F1; favicon from the monochrome SVG. This closes the "inputs missing" item; pixel decisions are read from `design-reference/index.html`.
+- Prototype tokens match DESIGN_TOKENS.md (`--navy, --ink, --muted, --line, --blue, --violet, --teal, --bg #f8fafc, --r 16px, --sidebar 254px`). It loads Inter from Google Fonts: not acceptable for a local-first build/runtime; keep the system stack (decision pending, question 2).
+- Nav is two groups, Workspace (7 views) and Manage (4 views, count badge on Activity); `features/shell/nav.ts` encodes exactly this with per-item enabled flags. Omit or disable, never mock: storage meter, notifications bell, "+ Collection", graph "Evolution", research "Shared", "Sync all", Invite member, Usage/Notifications settings tabs.
+- Metric cards on Home/Library/Activity map to backend gaps 1 and 2; "trusted answers" and "connected concepts" have no data source and are dropped until one exists.
+- Prototype modals become base-ui dialogs (focus trap, Esc, focus return).
+
 ## Risks
 Shell markup changes can break e2e selectors and `data-testid`s (restyle via variables first). Spec nav is flat but Library, Graph, Integrations and Activity are workspace-scoped: the shell needs a workspace switcher and a default workspace.
