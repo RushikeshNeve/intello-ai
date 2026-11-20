@@ -68,7 +68,7 @@ async function drain(finished, timeout = 600_000) {
 }
 
 async function rushdbChunks(orgId) {
-  const out = sh(`node ${ROOT}scripts/ops/rushdb.mjs snapshot ${RUSHDB_URL} ${RUSHDB_TOKEN} ${orgId}`);
+  const out = sh(`node "${ROOT}scripts/ops/rushdb.mjs" snapshot ${RUSHDB_URL} ${RUSHDB_TOKEN} ${orgId}`);
   return JSON.parse(out)[orgId];
 }
 

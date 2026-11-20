@@ -47,8 +47,13 @@ try {
   assert.ok(workerLines.some((l) => l.job_id), "worker lines carry the job id");
 
   // the logs never carry content, tokens or the raw org id
-  const all = ["api", "dispatcher", "worker"].map((s) => sh(`docker logs ${PROJECT}-${s}-1 2>&1`, { maxBuffer: 256 * 1024 * 1024 })).join("\n");
-  for (const bad of [secretText, marker, t.orgId, "X-Amz-Signature", "eyJ"]) assert.ok(!all.includes(bad), `logs must not contain ${bad.slice(0, 12)}...`);
+  for (const svc of ["api", "dispatcher", "worker"]) {
+    const text = sh(`docker logs ${PROJECT}-${svc}-1 2>&1`, { maxBuffer: 256 * 1024 * 1024 });
+    for (const bad of [secretText, marker, t.orgId, "X-Amz-Signature", "eyJ"]) {
+      const hit = text.split(/\r?\n/).find((l) => l.includes(bad));
+      assert.ok(!hit, `${svc} log must not contain ${bad.slice(0, 12)}...: ${(hit ?? "").slice(0, 300)}`);
+    }
+  }
   console.log("TRACE PROPAGATION OK: api -> outbox -> dispatcher -> celery -> worker share one trace id and request id; logs contain no content, org id or token");
 } catch (e) {
   console.error(e);

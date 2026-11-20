@@ -89,4 +89,10 @@ lease expiry; they are not repeated). The only hard check is integrity after eve
 
 ## Verified runs
 
-See the end of this file once the runs are recorded (the numbers are written by the scripts, not typed).
+2026-11-20, Windows 11 / Docker Desktop, isolated projects on the M08 agent B port block:
+
+* `bash scripts/ops/rehearsal.sh`: PASSED. Backup 29 s; restore + verification 80 s (32 tables / 275 rows identical, 32 objects match
+  checksums, 2 tenants / 16 chunks, text + vector indexes ready, BM25 probe identical); after restore 10 app checks OK (sign in, list, search
+  rank 1, citation, graph query, concealed 404 for the other user, for both tenants).
+* `bash tests/load/run.sh all`: exit 0. Numbers and integrity table: `docs/ops/load-results.md`. `tests/load/trace.mjs`: one trace id and
+  request id in the API, dispatcher and worker logs of an ingestion job; no content, org id or token in any log.

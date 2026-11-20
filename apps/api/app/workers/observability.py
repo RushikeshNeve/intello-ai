@@ -28,6 +28,9 @@ log = logging.getLogger("ukos.worker")
 _stacks: dict[str, ExitStack] = {}
 _started: dict[str, float] = {}
 _settings = get_worker_settings()
+# Only these tasks take a job/run id as first argument; the others (reconcile, delete_document, ...)
+# take an org id there, which must never reach the logs.
+_JOB_TASKS = frozenset({"ingest.run_job", "chat.run", "research.run"})
 
 
 @setup_logging.connect  # type: ignore[untyped-decorator]
@@ -60,7 +63,11 @@ def _headers_of(task: Any) -> dict[str, Any]:
 def _prerun(task_id: str, task: Any, args: Any = None, **_: Any) -> None:
     headers = {k: v for k, v in _headers_of(task).items() if v}
     stack = ExitStack()
-    stack.enter_context(tracing.bind_from_headers(headers, job_id=str(args[0]) if args else None))
+    stack.enter_context(
+        tracing.bind_from_headers(
+            headers, job_id=str(args[0]) if args and task.name in _JOB_TASKS else None
+        )
+    )
     stack.enter_context(tracing.span(f"task {task.name}", **{"task.name": task.name}))
     _stacks[task_id] = stack
     _started[task_id] = time.perf_counter()
