@@ -27,5 +27,18 @@ mypy go through `bash scripts/dev/linux-runner/run.sh` (host constraint). Update
 Known gaps accepted for the baseline: `docs/execution/TEST_DEBT.md` (thorough testing pass), `docs/execution/POST_M09_BACKLOG.md`.
 CI workflows (`.github/workflows/`) have not run on GitHub yet; branch-protection settings: `docs/release/CI.md`.
 
-## M08.03 run results
-(Filled from the commands above on 2026-11-20; see the handoff for the exact output.)
+## M08.03 run results (2026-11-20, branch `agent/m08-quality`)
+Docker Desktop's engine stopped answering (HTTP 500, then hangs) during the first acceptance build and did not recover, so every
+step that needs the Linux runner or compose was NOT run in this task. Honest status per gate:
+
+| Gate | Result |
+|---|---|
+| ruff check + format on `apps/api` | PASS (host: `297 files already formatted`, `All checks passed`) |
+| ruff on repo `tests/` | ADVISORY: 72 pre-existing findings + 3 files to format in other owners' trees (TEST_DEBT); CI step is `continue-on-error` |
+| OpenAPI snapshot test | PASS on host (1 passed); mutation check (one path removed) fails with the added-route message; snapshot has 51 paths |
+| Evaluation gate `--require-baseline` | PASS (host) |
+| Web lint, typecheck, vitest, build | PASS (host Node 24: lint clean, typecheck clean, 39 files / 500 tests, `next build` OK) |
+| `docker compose config`, secret scan | PASS via `bash scripts/ci/run_local.sh compose secrets` |
+| mypy strict, full unit suite (`pytest tests`) | NOT RUN (needs the Linux runner; Docker down). Run: `bash scripts/ci/run_local.sh api` |
+| Dependency audit | NOT RUN (needs network/runner): `bash scripts/ci/run_local.sh audit` |
+| Acceptance `tests/e2e/acceptance/run.sh` | NOT RUN to completion: the first start failed when the Docker engine died mid-build. Syntax checked (`bash -n`, `node --check`); the flows are untested against a live stack. Run it and record the result here before tagging |
