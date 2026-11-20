@@ -37,4 +37,32 @@ Component owner, implementation status, tests, screenshots: appended per slice b
 - Search: scope select (Workspace), tabs All/Documents/Code/Concepts, "N results ranked", related-concepts card. Library: 3 stat cards, type filter chips (PDF/Code/Spreadsheets/Web/Media), "+ Collection" (no collections API: omit), source preview, embedded graph teaser.
 - Ask: new conversation, grounded answer with numbered citations and a right-hand evidence panel. Graph: Relationships/Evolution toggle (Evolution has no API: omit), type filters Concepts/Documents/Projects, inspector with evidence-backed relationships. Research: saved investigations tabs All/Shared (no sharing API). Memory: pending vs approved, "+ Add memory" (maps to POST /memory/suggestions only if the contract allows; verify).
 - Integrations: "Browse all", "Sync all" (API has per-source sync only), connected/available tabs. Activity: Jobs today / Completed / In progress tiles, table (job, type, status, progress, updated), job-detail modal with checkpoints. People: Invite member (blocked), member table (member, email, role, access). Settings tabs: General, AI & Model Policy, Privacy & Retention, Usage & Limits, Notifications (only AI policy has an API).
-- Dialogs are a plain `.modal` + backdrop (no focus trap): rebuild on base-ui `Dialog`.
+- Dialogs are a plain `.modal` + backdrop (no focus trap): rebuilt as `Modal`/`Drawer` in `components/ui/overlay.tsx` (F1).
+
+## Shell rows (F1, branch `agent/m09-f1-shell`)
+| Item | Status | Notes |
+|---|---|---|
+| Design tokens (CSS vars + Tailwind theme), Inter self-hosted (`@fontsource-variable/inter`, no Google Fonts), light-first, dark basic | done | `app/globals.css`. `--text-secondary` is `#5B6680`: 5.49:1 on canvas `#F8FAFC`, 5.74:1 on white (reference `#748098` measured 3.80:1, rejected). Inputs use `--input #8592AB` (about 3:1, WCAG 1.4.11). |
+| Brand (4 SVGs in `public/brand/`, `BrandMark`/`BrandLockup`, favicon = prism, title "Intello") | done | `favicon.ico` removed; icon set via metadata. |
+| `AppShell` (sidebar 254/218, drawer <=720px, top bar 69/61, breadcrumb, command trigger, help modal, user menu with sign-out, Org + Workspace switchers, usage placeholder) | done | Applied to every `/o/[org]/**` page via `app/(app)/o/[orgSlug]/layout.tsx`. `/home` and org error states use the slim `AppHeader`. |
+| Sidebar nav | done | Home, Search, Ask, Library, Graph, Research, Memory map to existing routes; Integrations, Activity, People (`/team`), Settings are placeholder routes (`SHOW_REDESIGN_PLACEHOLDERS` in `features/shell/nav-config.ts`). |
+| Placeholder routes `/o/[org]/w/[ws]/{integrations,activity,team,settings}` | done | The owning track REPLACES each `page.tsx`. |
+| Primitives (below), skip link, landmarks, focus-ring tokens | done | vitest: `components/ui/__tests__/ui.test.tsx`, `features/shell/__tests__/shell.test.tsx`. |
+| TanStack Query | already present | `@tanstack/react-query` + `lib/query/provider.tsx` (mounted in `app/(app)/layout.tsx`). Not changed. |
+| Not in F1 | | Usage/plan numbers (placeholder, disabled), storage meter, sidebar user card (user lives in the top-bar menu), per-screen restyle of feature internals, dark-mode polish. |
+
+## Shared contracts (feature tracks reuse these; do NOT edit them, ask the shell owner)
+Rule: feature tracks may add files under `features/<their feature>/**` and replace their own `page.tsx`. They must not edit `globals.css`, any `layout.tsx`, `features/shell/**`, `components/ui/**`, `components/brand/**`, `lib/query/**`, `features/palette/**`, `features/theme/**`. Need something new in a shared file? Put it in your feature folder and tell the coordinator.
+- Tokens (`app/globals.css`): Tailwind classes `bg-canvas bg-surface text-text-primary text-text-secondary border-border-subtle text-brand-indigo|blue|violet|teal bg-info-soft|success-soft|warning-soft|danger-soft|violet-soft text-info|success|warning|danger rounded-card (16px) rounded-control (10px) shadow-card shadow-pop text-title|section|card-title|meta tracking-title`, the `focus-ring` utility, and all shadcn names (`bg-background text-muted-foreground border-border bg-primary ...`) mapped onto the brand tokens. Motion: `--duration-fast|base|panel` (120/180/260ms); reduced motion is killed globally.
+- Shell provides `<main id="main">`, content padding (17/28/42px), sidebar, top bar, skip link, offline banner. Pages render only their own content (no `<main>`, no outer page padding) and one `PageHeader` (it owns the `h1` with `tabIndex={-1}` for `RouteFocus`).
+- `@/components/ui/page-header`: `PageHeader({title, eyebrow?, description?, actions?, titleTestId?})`, `Eyebrow`.
+- `@/components/ui/surface`: `SurfaceCard` (`as?` div|section|article|li), `MetricCard({label, value, hint?, icon?})` (real values only).
+- `@/components/ui/badges`: `StatusBadge({tone})` (neutral|info|success|warning|danger|violet; always with text), `ScopeBadge({scope})` (personal|workspace|organization), `FileTypeBadge({type})` (file name or MIME), `fileTypeLabel()`.
+- `@/components/ui/states`: `EmptyState`, `ErrorState({onRetry?})` (role=alert), `OfflineBanner` (already mounted by the shell). `@/components/ui/skeleton`: `Skeleton`.
+- `@/components/ui/overlay`: `Modal`, `Drawer({side})` (aria-modal, focus trap, Escape, focus return, scroll lock; `title` required), `useFocusTrap`. The base-ui `components/ui/dialog.tsx` stays available.
+- `@/components/ui/tabs`: `Tabs` + `tabId/tabPanelId`. `@/components/ui/toast`: `useToast().push({title, description?, tone?})` (provider in `(app)/layout.tsx`). `@/components/ui/truncate`: `Truncate({text, lines})` (full text stays in DOM and `title`).
+- Unchanged API, new colours via tokens: `components/ui/{button,badge,input,select,table,dropdown-menu,dialog,progress,label}`. Brand: `@/components/brand/brand` (`BrandMark`, `BrandLockup`).
+- Read-only shell helpers: `features/shell/states` (`PageLoading`, `ScopeNotFound`, `ServiceUnavailable`), `features/shell/current-workspace` (`useCurrentWorkspace(orgId, workspaces)`: URL workspace, else last used in this org, else first), `features/shell/nav-config` (`buildNav`, `SHOW_REDESIGN_PLACEHOLDERS`).
+- Palette: `features/palette/command-palette.tsx` (trigger restyled only; items in `features/palette/model.ts`).
+- Test helper: `features/shell/__tests__/match-media.ts` (`stubMatchMedia()`): jsdom has no `matchMedia`; any test rendering `AppShell` or `ThemeToggle` needs it.
+- Visual QA pending (no browser in F1): run a pass at 360/768/1280 when a browser session is available.
