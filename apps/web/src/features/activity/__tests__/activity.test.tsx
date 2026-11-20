@@ -3,8 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ActivityApp, stepState } from "../activity-app";
-import { deriveFromDocuments, parseJobsPage } from "../api";
-import type { Document } from "@/features/documents/types";
+import { parseJobsPage } from "../api";
 import { jsonResponse, mount, orgWith, W, WS_ADMIN } from "@/features/settings/__tests__/helpers";
 
 vi.mock("next/link", () => ({
@@ -17,20 +16,19 @@ vi.mock("next/link", () => ({
 afterEach(cleanup);
 
 const ing = (state: string, extra = {}) => ({ state, stage: null, attempts_label: null, error_code: null, message: null, updated_at: "2026-11-10T10:00:00Z", can_retry: false, ...extra });
-const doc = (id: string, title: string, ingestion: unknown, updated = "2026-11-10T09:00:00Z") => ({
-  id,
-  org_id: "o",
-  workspace_id: "w",
+const job = (id: string, title: string, state: string, extra = {}) => ({
+  document_id: id,
   title,
-  created_by: null,
-  created_at: updated,
-  updated_at: updated,
-  version_count: 1,
-  latest_version: null,
-  permissions: { write: true, manage: true },
-  ingestion,
+  version_id: `v-${id}`,
+  state,
+  stage: null,
+  error_code: null,
+  message: null,
+  attempts: 1,
+  updated_at: "2026-11-10T10:00:00Z",
+  ...extra,
 });
-const docsBody = (items: unknown[]) => ({ items, next_cursor: null, can_upload: true });
+const jobsBody = (items: unknown[], counts = {}, next_cursor: string | null = null) => ({ items, counts, next_cursor });
 
 describe("activity api", () => {
   it("parses the stub contract", () => {
@@ -44,13 +42,6 @@ describe("activity api", () => {
     expect(() => parseJobsPage({ items: [{ document_id: "d", state: "bogus" }] })).toThrow();
   });
 
-  it("derives a list and counts from documents (skips unprocessed, newest first)", () => {
-    const docs = [doc("a", "A", ing("ready"), "2026-11-01T00:00:00Z"), doc("b", "B", ing("failed", { updated_at: "2026-11-12T00:00:00Z" })), doc("c", "C", ing("none")), doc("d", "D", null)];
-    const page = deriveFromDocuments(docs as unknown as Document[]);
-    expect(page.items.map((i) => i.document_id)).toEqual(["b", "a"]);
-    expect(page.counts).toMatchObject({ ready: 1, failed: 1, queued: 0 });
-  });
-
   it("stepState marks the failing stage", () => {
     expect(stepState(0, { ...ing("failed", { stage: "chunk" }), attempts_label: null } as never)).toBe("done");
     expect(stepState(1, ing("failed", { stage: "chunk" }) as never)).toBe("stopped");
@@ -59,38 +50,46 @@ describe("activity api", () => {
 });
 
 describe("ActivityApp", () => {
-  it("falls back to documents when the jobs route is 404, with an honest notice and counts", async () => {
+  it("lists jobs and counts from the jobs route and filters server-side", async () => {
+    const urls: string[] = [];
     mount(<ActivityApp org={orgWith("owner")} workspace={WS_ADMIN} />, {
-      [`GET ${W}/documents`]: () => jsonResponse(200, docsBody([doc("a", "Alpha", ing("ready")), doc("b", "Beta", ing("failed", { error_code: "timeout" }))])),
+      [`GET ${W}/ingestion/jobs`]: (_init, url) => {
+        urls.push(url.search);
+        const failedOnly = url.search.includes("state=failed");
+        return jsonResponse(200, jobsBody(failedOnly ? [job("b", "Beta", "failed", { error_code: "timeout" })] : [job("a", "Alpha", "ready"), job("b", "Beta", "failed", { error_code: "timeout" })], { ready: 1, failed: 1 }));
+      },
     });
     expect(screen.getByRole("status", { name: /loading activity/i })).toBeTruthy();
-    expect(await screen.findByTestId("activity-fallback")).toBeTruthy();
+    expect(await screen.findByText("Alpha")).toBeTruthy();
     expect(screen.getAllByTestId("job-row")).toHaveLength(2);
     expect(screen.getByTestId("activity-counts").textContent).toMatch(/Failed1/);
-    await userEvent.click(screen.getByRole("button", { name: "Ready" }));
-    expect(screen.getAllByTestId("job-row")).toHaveLength(1);
+    await userEvent.click(screen.getByRole("button", { name: "Failed" }));
+    await waitFor(() => expect(screen.getAllByTestId("job-row")).toHaveLength(1));
+    expect(urls.some((u) => u.includes("state=failed"))).toBe(true);
   });
 
-  it("uses the jobs route when it exists (no fallback notice)", async () => {
+  it("loads the next page with the cursor", async () => {
     mount(<ActivityApp org={orgWith("owner")} workspace={WS_ADMIN} />, {
-      [`GET ${W}/ingestion/jobs`]: () =>
-        jsonResponse(200, { items: [{ document_id: "d1", title: "Gamma", version_id: "v1", state: "processing", stage: "embed", error_code: null, message: null, updated_at: "2026-11-10T10:00:00Z" }], counts: { processing: 1 }, next_cursor: null }),
+      [`GET ${W}/ingestion/jobs`]: (_init, url) =>
+        jsonResponse(200, url.search.includes("cursor=c1") ? jobsBody([job("b", "Beta", "ready")], { ready: 2 }) : jobsBody([job("a", "Alpha", "ready")], { ready: 2 }, "c1")),
     });
-    expect(await screen.findByText("Gamma")).toBeTruthy();
-    expect(screen.queryByTestId("activity-fallback")).toBeNull();
+    await userEvent.click(await screen.findByRole("button", { name: /load more/i }));
+    expect(await screen.findByText("Beta")).toBeTruthy();
+    expect(screen.getAllByTestId("job-row")).toHaveLength(2);
   });
 
-  it("empty and error states", async () => {
-    mount(<ActivityApp org={orgWith("owner")} workspace={WS_ADMIN} />, { [`GET ${W}/documents`]: () => jsonResponse(200, docsBody([])) });
+  it("empty and error states (no invented numbers on error)", async () => {
+    mount(<ActivityApp org={orgWith("owner")} workspace={WS_ADMIN} />, { [`GET ${W}/ingestion/jobs`]: () => jsonResponse(200, jobsBody([])) });
     expect(await screen.findByTestId("activity-empty")).toBeTruthy();
     cleanup();
     mount(<ActivityApp org={orgWith("owner")} workspace={WS_ADMIN} />, { [`GET ${W}/ingestion/jobs`]: () => jsonResponse(503, { detail: "x" }) });
     expect(await screen.findByTestId("activity-error")).toBeTruthy();
+    expect(screen.queryByTestId("activity-counts")).toBeNull();
   });
 
   it("opens the detail drawer with checkpoints and events", async () => {
     mount(<ActivityApp org={orgWith("owner")} workspace={WS_ADMIN} />, {
-      [`GET ${W}/documents`]: () => jsonResponse(200, docsBody([doc("a", "Alpha", ing("failed", { stage: "embed", error_code: "timeout" }))])),
+      [`GET ${W}/ingestion/jobs`]: () => jsonResponse(200, jobsBody([job("a", "Alpha", "failed", { stage: "embed", error_code: "timeout" })], { failed: 1 })),
       [`GET ${W}/documents/a/ingestion`]: () =>
         jsonResponse(200, { ...ing("failed", { stage: "embed", error_code: "timeout" }), document_id: "a", events: [{ id: 1, type: "queued", label: "Queued", stage: null, attempt: 1, at: "2026-11-10T09:00:00Z" }] }),
     });

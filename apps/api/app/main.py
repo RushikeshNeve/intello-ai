@@ -38,11 +38,13 @@ from app.modules.graph.router_review import router as graph_review_router
 from app.modules.identity.oidc import OidcTokenVerifier
 from app.modules.identity.provisioning import DbUserProvisioner
 from app.modules.ingestion.capabilities_router import router as capabilities_router
+from app.modules.ingestion.jobs_list import router as ingestion_jobs_router
 from app.modules.ingestion.router import router as ingestion_router
 from app.modules.memory.router import router as memory_router
 from app.modules.organizations.router import router as organizations_router
 from app.modules.research.router import router as research_router
 from app.modules.retrieval.router import router as retrieval_router
+from app.modules.workspaces.overview import router as overview_router
 from app.modules.workspaces.router import router as workspaces_router
 
 logger = logging.getLogger("ukos.app")
@@ -115,6 +117,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(workspaces_router)
     app.include_router(documents_router)
     app.include_router(ingestion_router)
+    app.include_router(ingestion_jobs_router)
+    app.include_router(overview_router)
     app.include_router(capabilities_router)
     app.include_router(url_capture_router)
     app.include_router(retrieval_router)

@@ -35,8 +35,8 @@ The user supplies `design-reference/` (index.html, `assets/intello-prism.svg`, `
 Branches `agent/m09-<track>`; merge order F1, then A/B/D, then C; coordinator runs the full suite once.
 
 ## Backend gaps (all "needs backend work"; additive, read-only, no contract breaks)
-1. Home metrics: `GET {W}/overview` (document counts by ingestion state, sources, pending memories, research sessions; permission-filtered, never counts of unauthorized docs). Optional: Home ships without tiles.
-2. Jobs list: `GET {W}/ingestion/jobs?state=&cursor=` plus counts by state, authoritative from PostgreSQL. Interim: merge per-document `ingestion` summaries from the documents list.
+1. DONE. `GET {W}/overview` -> `{documents_total, documents{queued,processing,ready,failed,unsupported,no_text,cancelled}, sources, pending_memories (own, this workspace), research{total, by_state} (own), recent_chat_threads (own, last 30 days)}`. Counts only; documents use the caller's visibility (grant-only users count granted documents). 404 like the catalog for non-members. Home tiles hide on error.
+2. DONE. `GET {W}/ingestion/jobs?state=&cursor=&limit=` -> `{items[{document_id,title,version_id,state,stage,error_code,message,attempts,updated_at}], counts, next_cursor}`: newest job of each live document's latest version, newest first, `counts` ignore the `state` filter. No migration. The interim documents-list merge is removed.
 3. Usage summary: `GET {O}/usage` (tokens/requests/storage per period); needs a metering source. If none, Usage stays a documented disabled panel.
 4. Invitations: no endpoint (member PUT needs an existing `user_id`); invite dialog blocked. Not small (touches identity): defer unless the user asks.
 5. Exist but unwired in the UI: `/sources`, org `/members`, `/ai-policy`, graph merge-candidates.

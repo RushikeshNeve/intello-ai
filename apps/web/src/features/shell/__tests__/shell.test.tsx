@@ -65,7 +65,6 @@ describe("nav model", () => {
       ["settings", "/o/acme/w/notes/settings"],
     ]);
     expect(buildNav("acme", null).filter((e) => e.href === null).map((e) => e.id)).toEqual(["library", "graph", "integrations", "activity", "people", "settings"]);
-    expect(buildNav("acme", "notes", false).some((e) => e.placeholder)).toBe(false);
   });
 
   it("matches by path segment: chat threads are Ask, Home is exact", () => {

@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ActivityIcon, InfoIcon } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { ActivityIcon } from "lucide-react";
+import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Drawer } from "@/components/ui/overlay";
@@ -17,7 +17,7 @@ import { getIngestion, isTerminal, type IngestionSummary, type Stage } from "@/f
 import { IngestionBadge } from "@/features/documents/ingestion/status-badge";
 import { displayKind, failureMessage, PROGRESS_STEPS, STAGE_LABELS, stepIndex } from "@/features/documents/ingestion/messages";
 import { actionError, formatWhen } from "@/features/settings/permissions";
-import { activityKey, JOB_STATES, loadActivity, type JobItem, type JobState } from "./api";
+import { activityKey, JOB_STATES, loadJobs, type JobItem, type JobState } from "./api";
 
 const COUNT_LABEL: Record<JobState, string> = {
   queued: "Queued",
@@ -43,12 +43,17 @@ export function ActivityApp({ org, workspace }: { org: OrgSummary; workspace: Wo
   const fetcher = useApiFetcher();
   const [filter, setFilter] = useState<JobState | "all">("all");
   const [open, setOpen] = useState<JobItem | null>(null);
-  const q = useQuery({
-    queryKey: activityKey(org.id, workspace.id),
+  const q = useInfiniteQuery({
+    queryKey: [...activityKey(org.id, workspace.id), filter],
     retry: false,
-    queryFn: ({ signal }) => loadActivity(fetcher, org.id, workspace.id, signal),
-    refetchInterval: (query) => ((query.state.data?.page.counts.queued ?? 0) + (query.state.data?.page.counts.processing ?? 0) > 0 ? 5000 : false),
+    placeholderData: keepPreviousData,
+    initialPageParam: null as string | null,
+    queryFn: ({ signal, pageParam }) => loadJobs(fetcher, org.id, workspace.id, filter, pageParam, signal),
+    getNextPageParam: (last) => last.next_cursor,
+    refetchInterval: (query) => ((query.state.data?.pages[0]?.counts.queued ?? 0) + (query.state.data?.pages[0]?.counts.processing ?? 0) > 0 ? 5000 : false),
   });
+  const counts = q.data?.pages[0]?.counts;
+  const items = q.data?.pages.flatMap((p) => p.items) ?? [];
   const docBase = `/o/${encodeURIComponent(org.slug)}/w/${encodeURIComponent(workspace.slug)}/documents`;
 
   return (
@@ -63,18 +68,9 @@ export function ActivityApp({ org, workspace }: { org: OrgSummary; workspace: Wo
         <ErrorState testId="activity-error" title="We couldn't load activity" description={actionError(q.error)} onRetry={() => void q.refetch()} />
       ) : (
         <>
-          {q.data.source === "derived" && (
-            <p className="flex items-start gap-2 rounded-control bg-info-soft p-3 text-sm text-info" data-testid="activity-fallback">
-              <InfoIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-              <span>
-                The live job feed is not available on this server yet. This list shows the latest processing state of each document
-                {q.data.truncated ? " (the 200 most recently updated documents only)" : ""}.
-              </span>
-            </p>
-          )}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7" data-testid="activity-counts">
             {JOB_STATES.map((s) => (
-              <MetricCard key={s} label={COUNT_LABEL[s]} value={q.data.page.counts[s]} />
+              <MetricCard key={s} label={COUNT_LABEL[s]} value={counts?.[s] ?? 0} />
             ))}
           </div>
           <div role="group" aria-label="Filter by state" className="flex flex-wrap gap-1">
@@ -84,7 +80,12 @@ export function ActivityApp({ org, workspace }: { org: OrgSummary; workspace: Wo
               </Button>
             ))}
           </div>
-          <JobList items={q.data.page.items.filter((j) => filter === "all" || j.state === filter)} total={q.data.page.items.length} onOpen={setOpen} />
+          <JobList items={items} total={filter === "all" ? items.length : JOB_STATES.reduce((n, s) => n + (counts?.[s] ?? 0), 0)} onOpen={setOpen} />
+          {q.hasNextPage && (
+            <Button variant="outline" className="justify-self-start" disabled={q.isFetchingNextPage} onClick={() => void q.fetchNextPage()}>
+              {q.isFetchingNextPage ? "Loading..." : "Load more"}
+            </Button>
+          )}
         </>
       )}
       <Drawer open={open !== null} onClose={() => setOpen(null)} title={open?.title ?? "Job details"} description="Processing checkpoints for the latest version.">

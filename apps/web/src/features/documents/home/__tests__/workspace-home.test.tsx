@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { fakeFetcher, jsonResponse, renderWithQuery } from "@/features/organizations/__tests__/helpers";
 import { makeQueryClient } from "@/lib/query/provider";
@@ -17,8 +17,20 @@ vi.mock("next/link", () => ({
 }));
 afterEach(cleanup);
 
-function mount(items: unknown[], next_cursor: string | null = null) {
-  const { fetcher } = fakeFetcher({ [`GET ${WS}/documents`]: () => jsonResponse(200, { items, next_cursor, can_upload: true }) });
+const OVERVIEW = {
+  documents_total: 5,
+  documents: { queued: 1, processing: 1, ready: 2, failed: 0, unsupported: 0, no_text: 0, cancelled: 0 },
+  sources: 3,
+  pending_memories: 4,
+  research: { total: 2, by_state: { done: 2 } },
+  recent_chat_threads: 7,
+};
+
+function mount(items: unknown[], overview: () => Response = () => jsonResponse(200, OVERVIEW)) {
+  const { fetcher } = fakeFetcher({
+    [`GET ${WS}/documents`]: () => jsonResponse(200, { items, next_cursor: null, can_upload: true }),
+    [`GET ${WS}/overview`]: overview,
+  });
   const client = makeQueryClient();
   client.setDefaultOptions({ queries: { retry: false } });
   return renderWithQuery(
@@ -28,18 +40,23 @@ function mount(items: unknown[], next_cursor: string | null = null) {
 }
 
 describe("WorkspaceHome", () => {
-  it("shows only figures derived from the document list, with no invented tiles", async () => {
+  it("shows the tiles from the overview endpoint, with no invented tiles", async () => {
     mount([makeDoc({ id: "d-1", title: "One" }), makeDoc({ id: "d-2", title: "Two" })]);
     const metrics = await screen.findByTestId("home-metrics");
     await within(metrics).findByText("Documents");
-    expect(within(metrics).getByText("2")).toBeTruthy();
+    expect(metrics.textContent).toMatch(/Documents5/);
+    expect(metrics.textContent).toMatch(/Ready to search2/);
+    expect(metrics.textContent).toMatch(/Processing2/);
+    expect(metrics.textContent).toMatch(/Sources3/);
+    expect(metrics.textContent).toMatch(/Memories to review4/);
     expect(metrics.textContent).not.toMatch(/trusted|concept/i);
     expect(screen.getAllByTestId("recent-document")).toHaveLength(2);
   });
 
-  it("marks the count as a lower bound when more pages exist", async () => {
-    mount([makeDoc()], "cursor-1");
-    expect(await screen.findByText("1+")).toBeTruthy();
+  it("hides the tiles when the overview fails (no fake numbers)", async () => {
+    mount([makeDoc()], () => jsonResponse(503, { detail: "x" }));
+    await screen.findAllByTestId("recent-document");
+    await waitFor(() => expect(screen.queryByTestId("home-metrics")).toBeNull());
   });
 
   it("shows an empty state for a workspace without documents", async () => {

@@ -1394,6 +1394,139 @@
         "title": "ItemCounts",
         "type": "object"
       },
+      "JobItem": {
+        "properties": {
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "state": {
+            "enum": [
+              "queued",
+              "processing",
+              "ready",
+              "failed",
+              "unsupported",
+              "no_text",
+              "cancelled"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version_id": {
+            "format": "uuid",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "document_id",
+          "title",
+          "version_id",
+          "state",
+          "stage",
+          "error_code",
+          "message",
+          "attempts",
+          "updated_at"
+        ],
+        "title": "JobItem",
+        "type": "object"
+      },
+      "JobsList": {
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "enum": [
+                "queued",
+                "processing",
+                "ready",
+                "failed",
+                "unsupported",
+                "no_text",
+                "cancelled"
+              ]
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/JobItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "counts",
+          "next_cursor"
+        ],
+        "title": "JobsList",
+        "type": "object"
+      },
       "LimitsIn": {
         "additionalProperties": false,
         "description": "Every field can only LOWER the configured ceiling (a higher value is a 422).",
@@ -2136,6 +2269,78 @@
           }
         },
         "title": "OrgUpdate",
+        "type": "object"
+      },
+      "Overview": {
+        "properties": {
+          "documents": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "enum": [
+                "queued",
+                "processing",
+                "ready",
+                "failed",
+                "unsupported",
+                "no_text",
+                "cancelled"
+              ]
+            },
+            "title": "Documents",
+            "type": "object"
+          },
+          "documents_total": {
+            "title": "Documents Total",
+            "type": "integer"
+          },
+          "pending_memories": {
+            "title": "Pending Memories",
+            "type": "integer"
+          },
+          "recent_chat_threads": {
+            "title": "Recent Chat Threads",
+            "type": "integer"
+          },
+          "research": {
+            "$ref": "#/components/schemas/OverviewResearch"
+          },
+          "sources": {
+            "title": "Sources",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "documents_total",
+          "documents",
+          "sources",
+          "pending_memories",
+          "research",
+          "recent_chat_threads"
+        ],
+        "title": "Overview",
+        "type": "object"
+      },
+      "OverviewResearch": {
+        "properties": {
+          "by_state": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By State",
+            "type": "object"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "by_state",
+          "total"
+        ],
+        "title": "OverviewResearch",
         "type": "object"
       },
       "PlanOut": {
@@ -8009,6 +8214,113 @@
         ]
       }
     },
+    "/v1/orgs/{org_id}/workspaces/{workspace_id}/ingestion/jobs": {
+      "get": {
+        "operationId": "list_jobs_v1_orgs__org_id__workspaces__workspace_id__ingestion_jobs_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "queued",
+                    "processing",
+                    "ready",
+                    "failed",
+                    "unsupported",
+                    "no_text",
+                    "cancelled"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 2048,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobsList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Jobs",
+        "tags": [
+          "ingestion"
+        ]
+      }
+    },
     "/v1/orgs/{org_id}/workspaces/{workspace_id}/members/{user_id}": {
       "delete": {
         "operationId": "delete_workspace_member_v1_orgs__org_id__workspaces__workspace_id__members__user_id__delete",
@@ -8132,6 +8444,59 @@
           }
         },
         "summary": "Put Workspace Member",
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/workspaces/{workspace_id}/overview": {
+      "get": {
+        "operationId": "get_overview_v1_orgs__org_id__workspaces__workspace_id__overview_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Overview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Overview",
         "tags": [
           "workspaces"
         ]

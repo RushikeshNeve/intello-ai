@@ -15,10 +15,11 @@ import { MetricCard, SurfaceCard } from "@/components/ui/surface";
 import { useApiFetcher } from "@/lib/query/provider";
 import { listDocuments } from "../api";
 import { formatDate } from "../format";
-import { isTerminal, IngestionBadge } from "../ingestion";
+import { IngestionBadge } from "../ingestion";
 import { documentKeys } from "../keys";
+import { getOverview, overviewKey } from "@/features/workspaces/overview-api";
 
-/** Window the tiles are computed over: the first page of the real list API (newest first). */
+/** Page size of the recent-documents list (newest first). */
 export const HOME_PAGE_SIZE = 25;
 const RECENT = 5;
 
@@ -33,8 +34,8 @@ export type WorkspaceHomeProps = {
 };
 
 /**
- * Workspace home. Every number comes from `GET {W}/documents`; nothing is estimated. When more documents exist than
- * one page holds, the count says "N+" instead of guessing.
+ * Workspace home. Tiles come from `GET {W}/overview` (permission-filtered counts; hidden when it fails, never
+ * estimated); the recent list comes from `GET {W}/documents`.
  */
 export function WorkspaceHome(p: WorkspaceHomeProps) {
   const router = useRouter();
@@ -49,9 +50,12 @@ export function WorkspaceHome(p: WorkspaceHomeProps) {
   });
   const data = query.data;
   const items = data?.items ?? [];
-  const more = !!data?.next_cursor;
-  const processing = items.filter((d) => d.ingestion !== null && !isTerminal(d.ingestion.state)).length;
-  const count = (n: number) => (more ? `${n}+` : String(n));
+  const overview = useQuery({
+    queryKey: overviewKey(p.orgId, p.workspaceId),
+    retry: false,
+    queryFn: ({ signal }) => getOverview(fetcher, p.orgId, p.workspaceId, signal),
+  });
+  const ov = overview.data;
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -91,17 +95,22 @@ export function WorkspaceHome(p: WorkspaceHomeProps) {
         </button>
       </form>
 
-      <section aria-label="Workspace figures" className="grid gap-3 sm:grid-cols-3" data-testid="home-metrics">
-        {query.isPending ? (
-          Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="h-28 rounded-card" />)
-        ) : data ? (
-          <>
-            <MetricCard label="Documents" value={count(items.length)} hint={more ? `Newest ${HOME_PAGE_SIZE} counted` : undefined} icon={<FileTextIcon className="size-4" />} />
-            <MetricCard label="Ready to search" value={count(items.filter((d) => d.ingestion?.state === "ready").length)} />
-            <MetricCard label="Processing" value={count(processing)} />
-          </>
-        ) : null}
-      </section>
+      {overview.isPending ? (
+        <section aria-label="Workspace figures" className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6" data-testid="home-metrics">
+          {Array.from({ length: 6 }, (_, i) => (
+            <Skeleton key={i} className="h-28 rounded-card" />
+          ))}
+        </section>
+      ) : ov ? (
+        <section aria-label="Workspace figures" className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6" data-testid="home-metrics">
+          <MetricCard label="Documents" value={ov.documents_total} icon={<FileTextIcon className="size-4" />} />
+          <MetricCard label="Ready to search" value={ov.documents.ready} />
+          <MetricCard label="Processing" value={ov.documents.queued + ov.documents.processing} />
+          <MetricCard label="Sources" value={ov.sources} />
+          <MetricCard label="Memories to review" value={ov.pending_memories} />
+          <MetricCard label="Research sessions" value={ov.research.total} />
+        </section>
+      ) : null}
 
       <section aria-labelledby="recent-docs-heading" className="grid gap-3">
         <div className="flex items-center justify-between gap-3">

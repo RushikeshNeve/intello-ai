@@ -88,3 +88,4 @@ Parallel-safety (batch A): the foundation agent owns migrations, `models.py`, `c
 | (gate) | M03 full-stack e2e + exit gate | gate-agent + coordinator | main | all | DONE (17/17) |
 | (feature) | Pre-approve members by email (0011, preapprovals API, Members modal) | agent | main | M08 | DONE |
 | M10 prep | Prod overlay + Caddy + Dex prod config, .env.prod.example, deploy/rollback/backup/preflight scripts, Redis web session store, prod smoke, runbook + release checklist + cost sheet | deploy-prep-agent | main | M09 | PREPARED, NOT DEPLOYED (no account/target approved; untested on a VM) |
+| M09 backend gaps 1+2 | `GET {W}/overview` + `GET {W}/ingestion/jobs`; Home tiles and Activity wired; placeholder code removed | agent | main | M09 | DONE (m03_status 56+4 db tests, unit 2084, vitest, tsc; e2e not run) |

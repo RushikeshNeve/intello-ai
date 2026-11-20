@@ -1,17 +1,9 @@
 /**
- * Activity & Jobs client.
- *
- * STUB CONTRACT (the backend route does not exist yet; a read-only route is approved for later):
- *   GET /v1/orgs/{o}/workspaces/{w}/ingestion/jobs?limit=&cursor=&state=
- *   -> { items: [{document_id, title, version_id, state, stage, error_code, message, updated_at}],
- *        counts: {queued, processing, ready, failed, unsupported, no_text, cancelled},
- *        next_cursor }
- * While the route answers 404 the page derives a best-effort list from the documents list (each document carries
- * `ingestion`), clearly labelled as such.
+ * Activity & Jobs client: `GET /v1/orgs/{o}/workspaces/{w}/ingestion/jobs?state=&cursor=&limit=` ->
+ * `{items: [{document_id, title, version_id, state, stage, error_code, message, attempts, updated_at}],
+ *   counts: {queued, ..., cancelled}, next_cursor}`. Counts and items are permission-filtered by the server.
  */
-import { invalid, isRecord, requestJson, ApiError, type ApiPath, type Fetcher } from "@/features/organizations/api/http";
-import { listDocuments } from "@/features/documents/api";
-import type { Document } from "@/features/documents/types";
+import { invalid, isRecord, requestJson, type ApiPath, type Fetcher } from "@/features/organizations/api/http";
 import { type IngestionState } from "@/features/documents/ingestion/api";
 
 export const JOB_STATES = ["queued", "processing", "ready", "failed", "unsupported", "no_text", "cancelled"] as const;
@@ -25,11 +17,11 @@ export type JobItem = {
   stage: string | null;
   error_code: string | null;
   message: string | null;
+  attempts: number;
   updated_at: string | null;
 };
 export type JobCounts = Record<JobState, number>;
 export type JobsPage = { items: JobItem[]; counts: JobCounts; next_cursor: string | null };
-export type ActivityData = { source: "api" | "derived"; page: JobsPage; truncated: boolean };
 
 export const emptyCounts = (): JobCounts => ({ queued: 0, processing: 0, ready: 0, failed: 0, unsupported: 0, no_text: 0, cancelled: 0 });
 
@@ -46,6 +38,7 @@ export function parseJobItem(v: unknown): JobItem {
     stage: optStr(v.stage),
     error_code: optStr(v.error_code),
     message: optStr(v.message),
+    attempts: typeof v.attempts === "number" ? v.attempts : 0,
     updated_at: optStr(v.updated_at),
   };
 }
@@ -57,43 +50,17 @@ export function parseJobsPage(body: unknown): JobsPage {
   return { items: body.items.map(parseJobItem), counts, next_cursor: optStr(body.next_cursor) };
 }
 
-/** Best-effort list from documents' `ingestion` summaries; documents without a processed version are left out. */
-export function deriveFromDocuments(docs: readonly Document[], nextCursor: string | null = null): JobsPage {
-  const counts = emptyCounts();
-  const items: JobItem[] = [];
-  for (const d of docs) {
-    const i = d.ingestion;
-    if (!i || !isJobState(i.state)) continue; // "none" / unknown
-    counts[i.state] += 1;
-    items.push({
-      document_id: d.id,
-      title: d.title,
-      version_id: d.latest_version?.id ?? null,
-      state: i.state,
-      stage: i.stage,
-      error_code: i.error_code,
-      message: i.message,
-      updated_at: i.updated_at ?? d.updated_at,
-    });
-  }
-  items.sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? ""));
-  return { items, counts, next_cursor: nextCursor };
-}
-
 export const activityKey = (orgId: string, workspaceId: string) => ["org", orgId, "workspace", workspaceId, "activity"] as const;
 
 const wsBase = (o: string, w: string) => `/v1/orgs/${encodeURIComponent(o)}/workspaces/${encodeURIComponent(w)}`;
 
-/** Jobs route first; a 404 (route missing) falls back to the documents list. Other errors propagate. */
-export async function loadActivity(fetcher: Fetcher, orgId: string, workspaceId: string, signal?: AbortSignal): Promise<ActivityData> {
-  try {
-    const page = await requestJson(fetcher, `${wsBase(orgId, workspaceId)}/ingestion/jobs?limit=100` as ApiPath, parseJobsPage, { signal });
-    return { source: "api", page, truncated: page.next_cursor !== null };
-  } catch (err) {
-    if (!(err instanceof ApiError) || err.status !== 404) throw err;
-  }
-  const docs = await listDocuments(fetcher, orgId, workspaceId, { limit: 200, sort: "updated_at", order: "desc" });
-  return { source: "derived", page: deriveFromDocuments(docs.items, docs.next_cursor), truncated: docs.next_cursor !== null };
+export const PAGE_SIZE = 50;
+
+export function loadJobs(fetcher: Fetcher, orgId: string, workspaceId: string, state: JobState | "all", cursor: string | null, signal?: AbortSignal): Promise<JobsPage> {
+  const q = new URLSearchParams({ limit: String(PAGE_SIZE) });
+  if (state !== "all") q.set("state", state);
+  if (cursor) q.set("cursor", cursor);
+  return requestJson(fetcher, `${wsBase(orgId, workspaceId)}/ingestion/jobs?${q.toString()}` as ApiPath, parseJobsPage, { signal });
 }
 
 export function isActive(state: IngestionState): boolean {
