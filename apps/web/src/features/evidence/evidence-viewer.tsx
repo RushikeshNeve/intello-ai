@@ -10,8 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useApiFetcher } from "@/lib/query/provider";
 import type { Version } from "@/features/documents/types";
 import { Preview } from "@/features/documents/viewer/preview";
-import { getChunk, toEvidenceErrorCode, type EvidenceErrorCode } from "./api";
-import { CellView, LineView } from "./locator-views";
+import { getChunk, toEvidenceErrorCode } from "./api";
+import { ChunkBody, ERROR_COPY, pageLabel } from "./chunk-body";
 import { HighlightedText } from "./highlighted-text";
 import { documentHref, evidenceHref } from "./links";
 
@@ -31,24 +31,6 @@ export type EvidenceViewerProps = {
 };
 
 export const evidenceKey = (orgId: string, chunkId: string) => ["org", orgId, "evidence", chunkId] as const;
-
-const ERROR_COPY: Record<EvidenceErrorCode, { title: string; body: string; retry: boolean }> = {
-  not_found: { title: "This passage isn't available", body: "It may have been removed, or your account may not have access to it.", retry: false },
-  gone: {
-    title: "The source text is no longer available",
-    body: "The stored text for this passage can't be read any more. The document itself may still be open on the right.",
-    retry: false,
-  },
-  unavailable: { title: "Temporarily unavailable", body: "The document store isn't answering right now. Your data is safe; try again in a moment.", retry: true },
-  network: { title: "We couldn't reach the server", body: "Check your connection and try again.", retry: true },
-  unauthenticated: { title: "Please sign in again", body: "Your session has ended.", retry: false },
-  unknown: { title: "Something went wrong", body: "We couldn't load this passage. Try again.", retry: true },
-};
-
-function pageLabel(start: number | null, end: number | null): string | null {
-  if (start === null) return null;
-  return end !== null && end !== start ? `pages ${start}–${end}` : `page ${start}`;
-}
 
 /**
  * Split view for one piece of evidence. Left: the chunk text (from the artifact store, via the API) with
@@ -148,27 +130,7 @@ export function EvidenceViewer({ orgId, orgSlug, workspaceId, workspaceRef, docu
                   <ChevronRightIcon aria-hidden="true" />
                 </Button>
               </div>
-              {chunk.heading_path.length > 0 && (
-                <p className="text-xs text-muted-foreground" data-testid="evidence-headings">
-                  {chunk.heading_path.join(" › ")}
-                </p>
-              )}
-              {(() => {
-                const line = chunk.locators.find((l) => l.kind === "line" && l.line_start !== null);
-                const cell = chunk.locators.find((l) => l.kind === "cell");
-                if (line) return <LineView text={chunk.text} startLine={line.line_start!} highlight={{ start: line.line_start!, end: line.line_end ?? line.line_start! }} />;
-                if (cell) return <CellView text={chunk.text} locator={cell} />;
-                return (
-                  <blockquote
-                    tabIndex={0}
-                    aria-label="Passage text"
-                    className="max-h-[65vh] overflow-auto rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed break-words whitespace-pre-wrap"
-                    data-testid="evidence-text"
-                  >
-                    {chunk.text}
-                  </blockquote>
-                );
-              })()}
+              <ChunkBody chunk={chunk} />
             </>
           ) : null}
         </section>
