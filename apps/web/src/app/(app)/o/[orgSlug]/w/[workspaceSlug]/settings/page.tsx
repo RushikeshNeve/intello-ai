@@ -1,8 +1,12 @@
-import { PlaceholderScreen } from "@/features/shell/placeholder";
+import { SettingsApp } from "@/features/settings";
+import { WorkspaceScopePage } from "@/features/settings/scope-page";
 
 export const metadata = { title: "Settings" };
 
-/** Placeholder: replaced by the owning redesign track (see docs/execution/FRONTEND_REDESIGN_STATUS.md). */
-export default function Page() {
-  return <PlaceholderScreen title="Settings" description="Workspace and organization settings." />;
+export default function Page({ params }: PageProps<"/o/[orgSlug]/w/[workspaceSlug]/settings">) {
+  return (
+    <WorkspaceScopePage params={params} segment="settings">
+      {({ org, workspace }) => <SettingsApp org={org} workspace={workspace} />}
+    </WorkspaceScopePage>
+  );
 }
