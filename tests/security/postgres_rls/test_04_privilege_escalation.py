@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import pytest
-from app.core.models import RLS_TABLES
 from rls_world import World, app_tx, expect_denied, scalar
 from sqlalchemy import Engine, text
 from sqlalchemy.exc import DBAPIError
+
+from app.core.models import RLS_TABLES
 
 
 @pytest.mark.parametrize(

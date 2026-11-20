@@ -25,7 +25,10 @@ from typing import Any
 from celery.signals import worker_init
 from sqlalchemy import Engine
 
-from app.workers import chat_tasks  # noqa: F401 - registers the ``chat.run`` task
+from app.workers import (
+    chat_tasks,  # noqa: F401 - registers the ``chat.run`` task
+    research_tasks,  # noqa: F401 - registers the ``research.run`` task
+)
 from app.workers.celery_app import (
     TASK_CONNECTOR_SYNC,
     TASK_DELETE_DOCUMENT,
@@ -140,7 +143,16 @@ def run_job(job_id: str) -> str:
 
 
 def delete_document(org_id: str, document_id: str) -> None:
-    get_runtime().delete_handler.handle(uuid.UUID(org_id), uuid.UUID(document_id))
+    runtime = get_runtime()
+    runtime.delete_handler.handle(uuid.UUID(org_id), uuid.UUID(document_id))
+    # M07: memories citing the deleted document are no longer valid (best effort: the sweep and
+    # the lazy read-time check are the backstops).
+    try:
+        from app.modules.memory.invalidation import invalidate_document
+
+        invalidate_document(runtime.engine, uuid.UUID(org_id), uuid.UUID(document_id))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("memory invalidation after document delete failed (%s)", type(exc).__name__)
 
 
 _connector_override: Any = None

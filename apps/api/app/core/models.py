@@ -553,6 +553,11 @@ ORG_SCOPED_TABLES: Final = (
     # M05 (migration 0008, docs/architecture/m05-contracts.md §3).
     "graph_entities",
     "entity_merge_candidates",
+    # M07 (migration 0010, docs/architecture/m07-contracts.md section 2).
+    "memories",
+    "research_sessions",
+    "research_steps",
+    "research_reports",
 )
 RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
 
@@ -563,3 +568,5 @@ from app.modules.ai import models_db as _ai_models  # noqa: E402, F401
 from app.modules.connectors import models as _connector_models  # noqa: E402, F401
 from app.modules.graph import models as _graph_models  # noqa: E402, F401
 from app.modules.ingestion import models as _ingestion_models  # noqa: E402, F401
+from app.modules.memory import models as _memory_models  # noqa: E402, F401
+from app.modules.research import models as _research_models  # noqa: E402, F401

@@ -42,7 +42,18 @@ M04_WORKER_DEFINERS = ["chat_claim_run", "chat_reap_expired_runs", "chat_readabl
 # M06 (migration 0009): the scheduler tick (worker) and the unauthenticated webhook's source
 # lookup (app; returns org + sealed secret by source id). Depth: test_18_connector_tables.py.
 M06_WORKER_DEFINERS = ["connector_enqueue_due_syncs"]
-APP_DEFINERS = ["ingest_requeue_job", "chat_cancel_run", "connector_webhook_lookup"]
+# M07 (migration 0010): worker-only maintenance/claim definers; the app role may call the memory
+# standing check (also used by the memories policies), the evidence invalidation (acts only on the
+# context org) and a creator's own research cancel. Depth: test_19_m07_tables.py.
+M07_WORKER_DEFINERS = ["memory_sweep", "research_claim_session", "research_reap_expired"]
+APP_DEFINERS = [
+    "ingest_requeue_job",
+    "chat_cancel_run",
+    "connector_webhook_lookup",
+    "memory_ws_access",
+    "memory_invalidate_evidence",
+    "research_cancel",
+]
 
 
 def test_expected_definer_inventory(admin_engine: Engine, migrated: None) -> None:
@@ -52,6 +63,7 @@ def test_expected_definer_inventory(admin_engine: Engine, migrated: None) -> Non
             *M03_DEFINERS,
             *M04_WORKER_DEFINERS,
             *M06_WORKER_DEFINERS,
+            *M07_WORKER_DEFINERS,
             *APP_DEFINERS,
         ]
     )

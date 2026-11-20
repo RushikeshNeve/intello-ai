@@ -5,10 +5,11 @@ from __future__ import annotations
 import uuid
 
 import pytest
-from app.core.db import tenant_session
-from app.core.models import RLS_TABLES
 from rls_world import ORG_TABLE_SPECS, World, admin_count, app_tx, expect_denied, scalar
 from sqlalchemy import Engine, text
+
+from app.core.db import tenant_session
+from app.core.models import RLS_TABLES
 
 ALL_TABLES = RLS_TABLES  # users + every org-scoped table
 
@@ -16,13 +17,13 @@ ALL_TABLES = RLS_TABLES  # users + every org-scoped table
 @pytest.mark.parametrize("table", ALL_TABLES)
 def test_select_unset_context_sees_nothing(app_engine: Engine, world: World, table: str) -> None:
     with app_tx(app_engine) as conn:  # no set_config at all
-        assert scalar(conn, f"SELECT count(*) FROM {table}") == 0  # noqa: S608
+        assert scalar(conn, f"SELECT count(*) FROM {table}") == 0
 
 
 @pytest.mark.parametrize("table", ALL_TABLES)
 def test_select_empty_context_sees_nothing(app_engine: Engine, world: World, table: str) -> None:
     with tenant_session(user_id=None, org_id=None, engine=app_engine) as session:
-        assert session.execute(text(f"SELECT count(*) FROM {table}")).scalar() == 0  # noqa: S608
+        assert session.execute(text(f"SELECT count(*) FROM {table}")).scalar() == 0
 
 
 @pytest.mark.parametrize("table", ORG_TABLE_SPECS)
@@ -46,7 +47,7 @@ def test_update_without_context_affects_nothing(
 ) -> None:
     spec = ORG_TABLE_SPECS[table]
     with app_tx(app_engine) as conn:
-        result = conn.execute(text(f"UPDATE {table} SET {spec.update_set}"))  # noqa: S608
+        result = conn.execute(text(f"UPDATE {table} SET {spec.update_set}"))
         assert result.rowcount == 0
 
 
@@ -59,14 +60,14 @@ def test_users_update_without_context_affects_nothing(app_engine: Engine, world:
 def test_delete_without_context_denied_or_noop(
     app_engine: Engine, admin_engine: Engine, world: World, table: str
 ) -> None:
-    before = admin_count(admin_engine, f"SELECT count(*) FROM {table}")  # noqa: S608
+    before = admin_count(admin_engine, f"SELECT count(*) FROM {table}")
     spec = ORG_TABLE_SPECS.get(table)
     if spec is not None and spec.has_delete_grant:
         with app_tx(app_engine) as conn:
-            assert conn.execute(text(f"DELETE FROM {table}")).rowcount == 0  # noqa: S608
+            assert conn.execute(text(f"DELETE FROM {table}")).rowcount == 0
     else:
-        expect_denied(app_engine, f"DELETE FROM {table}", match="permission denied")  # noqa: S608
-    assert admin_count(admin_engine, f"SELECT count(*) FROM {table}") == before  # noqa: S608
+        expect_denied(app_engine, f"DELETE FROM {table}", match="permission denied")
+    assert admin_count(admin_engine, f"SELECT count(*) FROM {table}") == before
 
 
 def test_audit_update_without_context_denied(app_engine: Engine, world: World) -> None:

@@ -58,6 +58,15 @@ class WorkerSettings(Settings):
         return self.chat_soft_limit_seconds + self.CHAT_TASK_HARD_LIMIT_MARGIN_SECONDS
 
     @property
+    def research_soft_limit_seconds(self) -> int:
+        """Above the session's own wall-clock budget (``RESEARCH_TIMEOUT_SECONDS``)."""
+        return self.RESEARCH_TIMEOUT_SECONDS + self.CHAT_TASK_SOFT_LIMIT_MARGIN_SECONDS
+
+    @property
+    def research_hard_limit_seconds(self) -> int:
+        return self.research_soft_limit_seconds + self.CHAT_TASK_HARD_LIMIT_MARGIN_SECONDS
+
+    @property
     def ingest_hard_limit_seconds(self) -> int:
         return self.INGEST_TASK_SOFT_LIMIT_SECONDS + self.INGEST_TASK_HARD_LIMIT_MARGIN_SECONDS
 
@@ -68,6 +77,7 @@ class WorkerSettings(Settings):
             self.ingest_hard_limit_seconds,
             self.MAINTENANCE_TASK_SOFT_LIMIT_SECONDS + 60,
             self.chat_hard_limit_seconds,
+            self.research_hard_limit_seconds,
         )
         return longest + 600
 

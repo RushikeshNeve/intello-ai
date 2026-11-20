@@ -1,4 +1,3 @@
-# ruff: noqa: S608  (SQL is assembled from the fixed table specs in rls_world, never input)
 """Org A context: every read path shows only A; every write path towards B is a no-op or rejected.
 
 Context for every test: ``user = A.owner, org = A`` (what the API sets for an org-A request).
@@ -10,7 +9,6 @@ import uuid
 from typing import Any
 
 import pytest
-from app.core.db import tenant_session
 from rls_world import (
     ORG_TABLE_SPECS,
     World,
@@ -24,6 +22,8 @@ from rls_world import (
 )
 from sqlalchemy import Engine, text
 from sqlalchemy.exc import DBAPIError
+
+from app.core.db import tenant_session
 
 TABLES = list(ORG_TABLE_SPECS)
 

@@ -334,7 +334,7 @@ def admin_count(admin: Engine, sql: str, params: dict[str, Any] | None = None) -
 def tenant_keys(admin: Engine, spec: TableSpec, org_id: uuid.UUID) -> list[str]:
     with admin.connect() as conn:
         rows = conn.execute(
-            text(f"SELECT {spec.key_expr} FROM {spec.name} WHERE {spec.org_col} = :o"),  # noqa: S608
+            text(f"SELECT {spec.key_expr} FROM {spec.name} WHERE {spec.org_col} = :o"),
             {"o": org_id},
         ).scalars()
         keys = [str(k) for k in rows]

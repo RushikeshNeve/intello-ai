@@ -48,6 +48,12 @@ CONTRACT_EVENT_TYPES = {
     "source.created",
     "source.sync.requested",
     "source.revoked",
+    "memory.suggested",
+    "memory.approved",
+    "memory.rejected",
+    "memory.deleted",
+    "research.created",
+    "research.cancelled",
 }
 
 

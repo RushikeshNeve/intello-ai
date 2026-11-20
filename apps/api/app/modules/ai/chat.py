@@ -611,6 +611,30 @@ class RunExecutor:
             )
             return evidence
 
+    def _with_memory(
+        self, scope: RetrievalScope | None, question: str, evidence: list[Any]
+    ) -> list[Any]:
+        """M07: approved, valid memories as extra cited evidence; any failure keeps the base."""
+        if not getattr(self.settings, "MEMORY_ENABLED", False) or scope is None:
+            return evidence
+        try:
+            from app.modules.memory.chat import memory_evidence
+
+            with self._session() as session:
+                extra = memory_evidence(
+                    session,
+                    scope,
+                    question,
+                    evidence,
+                    limit=self.settings.MEMORY_MAX_PER_PROMPT,
+                )
+            return [*evidence, *extra]
+        except Exception as exc:
+            if isinstance(exc, RunFenceLost):
+                raise
+            log.warning("chat run=%s: memory skipped (%s)", self.claim.run_id, type(exc).__name__)
+            return evidence
+
     def _run(self) -> RunOutcome:
         data = self._load_input()
         existing = data.existing_event_types
@@ -619,6 +643,7 @@ class RunExecutor:
         scope = self._resolve_scope(data.snapshot_workspaces)
         result = self._retrieve(scope, data.question)
         evidence = self._augment(scope, data.question, list(result.evidence))
+        evidence = self._with_memory(scope, data.question, evidence)
         if "retrieval" not in existing:
             self._event(
                 "retrieval",

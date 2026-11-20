@@ -73,6 +73,13 @@ class AuditEventType(StrEnum):
     SOURCE_REVOKED = "source.revoked"
     # M05: a workspace editor accepted or rejected an entity merge candidate (ids only).
     GRAPH_MERGE_DECIDED = "graph.merge.decided"
+    # M07 (contract m07 sections 3, 4): ids and counts only, never memory or question text.
+    MEMORY_SUGGESTED = "memory.suggested"
+    MEMORY_APPROVED = "memory.approved"
+    MEMORY_REJECTED = "memory.rejected"
+    MEMORY_DELETED = "memory.deleted"
+    RESEARCH_CREATED = "research.created"
+    RESEARCH_CANCELLED = "research.cancelled"
 
 
 class SessionOpener(Protocol):

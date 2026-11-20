@@ -124,6 +124,14 @@ class Settings(BaseSettings):
     GRAPH_EXTRACT_BATCH_CHUNKS: int = Field(default=6, ge=1, le=50)
     GRAPH_TRAVERSAL_MAX_DEPTH: int = Field(default=2, ge=1, le=4)
     GRAPH_MAX_NODES: int = Field(default=50, ge=1, le=500)
+    # Memory and research (M07 contract §6). Limits are ceilings; a request can only lower them.
+    MEMORY_ENABLED: bool = True
+    MEMORY_MAX_PER_PROMPT: int = Field(default=5, ge=1, le=20)
+    RESEARCH_MAX_SUBQUERIES: int = Field(default=6, ge=1, le=20)
+    RESEARCH_MAX_EVIDENCE: int = Field(default=60, ge=1, le=500)
+    RESEARCH_MAX_MODEL_CALLS: int = Field(default=12, ge=2, le=100)
+    RESEARCH_TIMEOUT_SECONDS: int = Field(default=600, ge=10, le=7200)
+    RESEARCH_LEASE_SECONDS: int = Field(default=60, ge=5, le=3600)
 
     # Per-dependency timeout for /health/ready, seconds.
     HEALTH_CHECK_TIMEOUT_SECONDS: float = Field(default=2.0, gt=0, le=30)
