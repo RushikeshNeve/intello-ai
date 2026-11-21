@@ -29,3 +29,10 @@ Re-embedding / index migration (migration `0018_reindex`, `modules/knowledge/rei
 - `run_eval.py --metrics` records calls through `report.Recorder` and writes `reports/metrics.json|md`; gate semantics and `baseline.json` untouched (new metrics are report-only, no baseline committed).
 - `tests/evaluation/budgets.py` measures p50/p95 per-question latency (retrieval+answer) and tokens per answer (deterministic word-token proxy: the stub has no accounting) against `budgets.json` with tolerances (latency limit x4, tokens +10%). `--update` rewrites it explicitly. Wired into `scripts/ci/run_local.sh` (gate step) and the ci.yml job as an extra step.
 - Real-model runs later: swap the proxy for provider usage counts and pass a judge to the metrics.
+
+## M12.08
+- Comparison harness: `tests/evaluation/compare/run_compare.py` (+ `scripts/eval/compare.sh`), modes `chat | embedding | rerank`, A (baseline) vs B (candidate); output `reports/compare/<mode>.{json,md}`.
+- Config = `stub:<x>` (stubs in `compare/stubs.py`), `noop` (rerank baseline) or JSON (`base_url`, `model`, `provider` local|openai, `api_key_env`, `dimensions`, prefixes).
+- Chat uses the real path (`build_prompt` -> adapter -> `verify`): grounded_rate, faithfulness, answer_relevance. Embedding builds a temporary in-memory index per embedder: hit@5, MRR, context precision/recall (`rag_metrics`). `Reranker.rerank(query, [(id, text)]) -> ids`; only `NoopReranker` and a stub exist.
+- Columns: p50/p95 latency, tokens in/out (adapter `last_usage` else ceil(chars/4)), cost from a `USAGE_PRICES_JSON`-shaped table (`--prices-json`), failures. Dataset = `retrieval_golden` (`--dataset DIR` overrides).
+- `--fail-on-regression` exits 2 when B drops a metric > 0.02, p95 > x2, cost > x2 or has more failures than A (all tunable). Host pytest needs `-p no:hypothesispytest`.
