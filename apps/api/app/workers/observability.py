@@ -43,6 +43,9 @@ def _on_ready(**_: Any) -> None:
     if _settings.METRICS_PORT:
         tracing.metrics()
     tracing.setup_process(_settings, "worker")
+    from app.modules.ai.warmup import start_warmup_background
+
+    start_warmup_background()  # M11.05, best effort
 
 
 @worker_process_init.connect  # type: ignore[untyped-decorator]

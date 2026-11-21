@@ -147,6 +147,7 @@ class OpenAICompatibleChat:
         self._jitter = jitter
         self._clock = clock
         self.last_finish_reason: str | None = None
+        self.last_cached_tokens: int | None = None  # M11.02: provider prompt-cache hit, if reported
         headers = {"Accept": "text/event-stream"}
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
@@ -205,7 +206,10 @@ class OpenAICompatibleChat:
         }
         if stop:
             payload["stop"] = list(stop)
+        if self.provider == "openai":  # usage (incl. cached tokens) only arrives when asked for
+            payload["stream_options"] = {"include_usage": True}
         self.last_finish_reason = None
+        self.last_cached_tokens = None
         started = self._clock()
         produced = False
         total_chars = 0
@@ -260,6 +264,15 @@ class OpenAICompatibleChat:
         ceiling = min(BACKOFF_CAP_SECONDS, BACKOFF_BASE_SECONDS * float(2 ** (attempt - 1)))
         return float(ceiling * (0.5 + 0.5 * self._jitter()))
 
+    def _capture_cached_tokens(self, usage: object) -> None:
+        """Record ``usage.prompt_tokens_details.cached_tokens`` when the provider sends it."""
+        if not isinstance(usage, dict):
+            return
+        details = usage.get("prompt_tokens_details")
+        cached = details.get("cached_tokens") if isinstance(details, dict) else None
+        if isinstance(cached, int) and not isinstance(cached, bool) and cached >= 0:
+            self.last_cached_tokens = cached
+
     def _deltas(self, chunks: Iterable[bytes], check_deadline: Callable[[], None]) -> Iterator[str]:
         finished = False
         for data in iter_sse_data(chunks, deadline_check=check_deadline):
@@ -274,6 +287,7 @@ class OpenAICompatibleChat:
                 raise ChatResponseInvalid("stream event is not an object")
             if obj.get("error") is not None:
                 raise ChatStreamInterrupted("server reported an error")
+            self._capture_cached_tokens(obj.get("usage"))
             choices = obj.get("choices")
             if not isinstance(choices, list) or not choices:
                 continue  # e.g. a trailing usage-only chunk

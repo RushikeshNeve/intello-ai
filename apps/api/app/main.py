@@ -58,6 +58,9 @@ def _configure_logging(settings: Settings) -> None:
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    from app.modules.ai.warmup import start_warmup_background
+
+    start_warmup_background()  # M11.05, best effort
     yield
     verifier = getattr(app.state, "token_verifier", None)
     if isinstance(verifier, OidcTokenVerifier):
