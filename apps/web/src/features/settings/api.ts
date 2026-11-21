@@ -86,3 +86,58 @@ export function parseUsageSummary(v: unknown): UsageSummary {
 export const usageKey = (orgId: string, group: UsageGroup) => ["org", orgId, "usage", group] as const;
 export const getUsage = (f: Fetcher, orgId: string, group: UsageGroup): Promise<UsageSummary> =>
   requestJson(f, `/v1/orgs/${encodeURIComponent(orgId)}/usage?group_by=${group}` as ApiPath, parseUsageSummary);
+
+/** Usage limits (M11.08, usage/limits_router.py): admin-managed budgets with current consumption. */
+export const LIMIT_KINDS = ["all", "chat", "embed", "research", "graph"] as const;
+export type LimitKind = (typeof LIMIT_KINDS)[number];
+export type UsageLimit = {
+  id: string;
+  scope: "org" | "user";
+  kind: LimitKind;
+  period: "day" | "month";
+  max_tokens: number | null;
+  max_requests: number | null;
+  action: "warn" | "block";
+  consumed_tokens: number;
+  consumed_requests: number;
+  state: "ok" | "warn" | "blocked";
+  resets_at: string | null;
+};
+export type UsageLimitInput = Pick<UsageLimit, "scope" | "kind" | "period" | "max_tokens" | "max_requests" | "action">;
+
+export function parseUsageLimit(v: unknown): UsageLimit {
+  if (!isRecord(v) || typeof v.id !== "string" || !(LIMIT_KINDS as readonly unknown[]).includes(v.kind)) invalid();
+  const num = (x: unknown): number | null => (typeof x === "number" ? x : null);
+  return {
+    id: v.id,
+    scope: v.scope === "user" ? "user" : "org",
+    kind: v.kind as LimitKind,
+    period: v.period === "day" ? "day" : "month",
+    max_tokens: num(v.max_tokens),
+    max_requests: num(v.max_requests),
+    action: v.action === "warn" ? "warn" : "block",
+    consumed_tokens: num(v.consumed_tokens) ?? 0,
+    consumed_requests: num(v.consumed_requests) ?? 0,
+    state: v.state === "blocked" || v.state === "warn" ? v.state : "ok",
+    resets_at: typeof v.resets_at === "string" ? v.resets_at : null,
+  };
+}
+
+const limitsPath = (orgId: string, id?: string) => `/v1/orgs/${encodeURIComponent(orgId)}/usage/limits${id ? `/${encodeURIComponent(id)}` : ""}` as ApiPath;
+export const limitsKey = (orgId: string) => ["org", orgId, "usage-limits"] as const;
+export const listLimits = (f: Fetcher, orgId: string): Promise<UsageLimit[]> =>
+  requestJson(f, limitsPath(orgId), (v) => {
+    if (!isRecord(v) || !Array.isArray(v.limits)) invalid();
+    return v.limits.map(parseUsageLimit);
+  });
+export const createLimit = (f: Fetcher, orgId: string, body: UsageLimitInput): Promise<UsageLimit> =>
+  requestJson(f, limitsPath(orgId), parseUsageLimit, { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json" } });
+export async function deleteLimit(f: Fetcher, orgId: string, id: string): Promise<void> {
+  let res: Response;
+  try {
+    res = await f(limitsPath(orgId, id), { method: "DELETE" });
+  } catch {
+    throw new ApiError(0, "network_error");
+  }
+  if (!res.ok) throw new ApiError(res.status, `http_${res.status}`);
+}

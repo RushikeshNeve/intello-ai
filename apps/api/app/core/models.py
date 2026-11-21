@@ -620,6 +620,8 @@ ORG_SCOPED_TABLES: Final = (
     # M12.09 prompt shadow runs (migration 0019c_shadow_runs).
     "shadow_candidates",
     "shadow_runs",
+    # M11.08 usage budgets/quotas (migration 0015_usage_limits).
+    "usage_limits",
 )
 RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
 

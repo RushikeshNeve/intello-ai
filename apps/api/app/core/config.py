@@ -125,6 +125,8 @@ class Settings(BaseSettings):
     # Usage metering (M11.01). JSON {"provider/model": {"in": n, "out": n, "cached": n}} in micro
     # currency units per 1M tokens; "provider/*" is the fallback. Unlisted = 0 (local models).
     USAGE_PRICES_JSON: str = "{}"
+    # M11.08: per-user burst limit (model calls per minute, all kinds); 0 disables it.
+    USAGE_USER_BURST_PER_MINUTE: int = 120
     # Knowledge graph (M05 contract §7). The build task is a no-op while GRAPH_ENABLED is false.
     GRAPH_ENABLED: bool = False
     GRAPH_ROUTER_MODE: Literal["auto", "off", "force"] = "auto"

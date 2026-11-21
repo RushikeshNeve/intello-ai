@@ -1890,6 +1890,234 @@
         "title": "JobsList",
         "type": "object"
       },
+      "LimitIn": {
+        "properties": {
+          "action": {
+            "default": "block",
+            "enum": [
+              "warn",
+              "block"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "kind": {
+            "default": "all",
+            "enum": [
+              "chat",
+              "embed",
+              "research",
+              "graph",
+              "all"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "max_requests": {
+            "anyOf": [
+              {
+                "maximum": 1000000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Requests"
+          },
+          "max_tokens": {
+            "anyOf": [
+              {
+                "maximum": 10000000000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Tokens"
+          },
+          "period": {
+            "default": "month",
+            "enum": [
+              "day",
+              "month"
+            ],
+            "title": "Period",
+            "type": "string"
+          },
+          "scope": {
+            "default": "org",
+            "enum": [
+              "org",
+              "user"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          }
+        },
+        "title": "LimitIn",
+        "type": "object"
+      },
+      "LimitList": {
+        "properties": {
+          "limits": {
+            "items": {
+              "$ref": "#/components/schemas/LimitOut"
+            },
+            "title": "Limits",
+            "type": "array"
+          }
+        },
+        "required": [
+          "limits"
+        ],
+        "title": "LimitList",
+        "type": "object"
+      },
+      "LimitOut": {
+        "properties": {
+          "action": {
+            "default": "block",
+            "enum": [
+              "warn",
+              "block"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "consumed_requests": {
+            "default": 0,
+            "title": "Consumed Requests",
+            "type": "integer"
+          },
+          "consumed_tokens": {
+            "default": 0,
+            "title": "Consumed Tokens",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "default": "all",
+            "enum": [
+              "chat",
+              "embed",
+              "research",
+              "graph",
+              "all"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "max_requests": {
+            "anyOf": [
+              {
+                "maximum": 1000000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Requests"
+          },
+          "max_tokens": {
+            "anyOf": [
+              {
+                "maximum": 10000000000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Tokens"
+          },
+          "period": {
+            "default": "month",
+            "enum": [
+              "day",
+              "month"
+            ],
+            "title": "Period",
+            "type": "string"
+          },
+          "resets_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resets At"
+          },
+          "scope": {
+            "default": "org",
+            "enum": [
+              "org",
+              "user"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "state": {
+            "default": "ok",
+            "enum": [
+              "ok",
+              "warn",
+              "blocked"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          }
+        },
+        "required": [
+          "id",
+          "created_at"
+        ],
+        "title": "LimitOut",
+        "type": "object"
+      },
       "LimitsIn": {
         "additionalProperties": false,
         "description": "Every field can only LOWER the configured ceiling (a higher value is a 422).",
@@ -8738,6 +8966,207 @@
           }
         },
         "summary": "Get Usage",
+        "tags": [
+          "usage"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/usage/limits": {
+      "get": {
+        "operationId": "list_limits_v1_orgs__org_id__usage_limits_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LimitList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Limits",
+        "tags": [
+          "usage"
+        ]
+      },
+      "post": {
+        "operationId": "create_limit_v1_orgs__org_id__usage_limits_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LimitIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LimitOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Limit",
+        "tags": [
+          "usage"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/usage/limits/{limit_id}": {
+      "delete": {
+        "operationId": "delete_limit_v1_orgs__org_id__usage_limits__limit_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "limit_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Limit Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Limit",
+        "tags": [
+          "usage"
+        ]
+      },
+      "put": {
+        "operationId": "replace_limit_v1_orgs__org_id__usage_limits__limit_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "limit_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Limit Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LimitIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LimitOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Replace Limit",
         "tags": [
           "usage"
         ]
