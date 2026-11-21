@@ -465,7 +465,8 @@ def reconcile_document(
         for rev in revisions:
             if rev.id == pointer_rev:
                 continue
-            if rev.state in (STATE_PUBLISHED, STATE_SUPERSEDED):
+            if rev.state in (STATE_PUBLISHED, STATE_SUPERSEDED, STATE_READY):  # ready: a standby
+                # revision of another embedding space (M12.05) is demoted by a cutover/rollback
                 flipped += repo.set_published(scope, rev.id, False)
             if rev.state == STATE_SUPERSEDED:
                 repo.delete_revision(scope, rev.id)

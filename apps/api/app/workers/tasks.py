@@ -35,6 +35,7 @@ from app.workers.celery_app import (
     TASK_DELETE_DOCUMENT,
     TASK_GRAPH_EXTRACT,
     TASK_RECONCILE,
+    TASK_REINDEX_RUN,
     TASK_RUN_JOB,
     celery_app,
 )
@@ -236,3 +237,12 @@ sync_source_task = celery_app.task(name=TASK_CONNECTOR_SYNC, **_maintenance_opti
 graph_extract_task = celery_app.task(name=TASK_GRAPH_EXTRACT, **_maintenance_options)(
     graph_extract_revision
 )
+
+
+def reindex_run(org_id: str, job_id: str) -> str:
+    from app.modules.knowledge.reindex.tasks import run_default
+
+    return run_default(org_id, job_id)
+
+
+reindex_run_task = celery_app.task(name=TASK_REINDEX_RUN, **_maintenance_options)(reindex_run)
