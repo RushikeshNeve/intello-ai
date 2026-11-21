@@ -69,12 +69,18 @@ describe("SettingsApp", () => {
     expect(await screen.findByTestId("policy-error")).toBeTruthy();
   });
 
-  it("privacy is static, usage is an honest disabled panel, no notifications tab", async () => {
-    mount(<SettingsApp org={orgWith("owner")} workspace={WS_ADMIN} />, {});
+  it("privacy is static, usage shows real aggregates or an honest empty state", async () => {
+    const row = { key: "chat", events: 2, tokens_in: 1200, tokens_out: 300, tokens_cached: 0, est_cost_micros: 0 };
+    const usage = (rows: unknown[], totals: unknown) => () => jsonResponse(200, { group_by: "kind", scope: "org", totals, rows });
+    mount(<SettingsApp org={orgWith("owner")} workspace={WS_ADMIN} />, { [`GET ${O}/usage`]: usage([row], { ...row, key: "total" }) });
     expect(screen.queryByRole("tab", { name: /notifications/i })).toBeNull();
     await userEvent.click(screen.getByRole("tab", { name: "Privacy" }));
     expect(screen.getByTestId("privacy-tab")).toBeTruthy();
     await userEvent.click(screen.getByRole("tab", { name: "Usage" }));
-    expect(screen.getByText(/usage metering is not available yet/i)).toBeTruthy();
+    expect((await screen.findByTestId("usage-table")).textContent).toMatch(/1,200/);
+    cleanup();
+    mount(<SettingsApp org={orgWith("owner")} workspace={WS_ADMIN} />, { [`GET ${O}/usage`]: usage([], { ...row, key: "total", events: 0 }) });
+    await userEvent.click(screen.getByRole("tab", { name: "Usage" }));
+    expect(await screen.findByText(/no model usage yet/i)).toBeTruthy();
   });
 });

@@ -601,6 +601,8 @@ ORG_SCOPED_TABLES: Final = (
     "research_reports",
     # Member pre-approvals (migration 0011).
     "org_member_preapprovals",
+    # M11.01 usage metering (migration 0012).
+    "usage_events",
 )
 RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
 
@@ -613,3 +615,4 @@ from app.modules.graph import models as _graph_models  # noqa: E402, F401
 from app.modules.ingestion import models as _ingestion_models  # noqa: E402, F401
 from app.modules.memory import models as _memory_models  # noqa: E402, F401
 from app.modules.research import models as _research_models  # noqa: E402, F401
+from app.modules.usage import models as _usage_models  # noqa: E402, F401

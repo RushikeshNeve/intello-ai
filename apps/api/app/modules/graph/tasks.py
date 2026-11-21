@@ -169,7 +169,10 @@ def default_model_factory(sessions: WorkerSessions) -> ModelFactory:
         source = InMemoryPolicySource(
             {org_id: ModelPolicy(stored.allow_external, frozenset(stored.allowed_providers))}
         )
-        return get_chat_model(source, org_id, ChatSettings())
+        from app.modules.usage.wiring import Meter
+
+        model = get_chat_model(source, org_id, ChatSettings())
+        return Meter(sessions, org_id=org_id, chat_kind="graph").chat(model)
 
     return factory
 

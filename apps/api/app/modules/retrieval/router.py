@@ -12,10 +12,13 @@ from __future__ import annotations
 import math
 import time
 import uuid
+from contextlib import AbstractContextManager
 
 from fastapi import APIRouter, HTTPException, status
+from sqlalchemy.orm import Session
 
-from app.api.deps import Tenant, not_found
+from app.api.deps import Tenant, TenantRequest, not_found
+from app.modules.ai.embeddings.ports import EmbeddingProvider
 from app.modules.audit import AuditEventType, record_event
 from app.modules.authorization.policy import Action
 from app.modules.documents import catalog_service as svc
@@ -50,6 +53,18 @@ router = APIRouter(prefix="/v1/orgs/{org_id}", tags=["search"])
 RATE_LIMITED = "rate_limited"
 EVIDENCE_UNAVAILABLE = "evidence_unavailable"
 TARGET_SEARCH = "search"
+
+
+def _metered(
+    tenant: TenantRequest, org_id: uuid.UUID, embedder: EmbeddingProvider | None
+) -> EmbeddingProvider | None:
+    """Usage metering of the query embedding (M11.01); a no-op without an embedder."""
+    from app.modules.usage.wiring import Meter
+
+    def sessions(org: uuid.UUID) -> AbstractContextManager[Session]:
+        return tenant.sessions(user_id=tenant.user_id, org_id=org)
+
+    return Meter(sessions, org_id=org_id, user_id=tenant.user_id).embedder(embedder)
 
 
 @router.post(
@@ -107,7 +122,7 @@ def search(
             gathered = service.gather(
                 scope,
                 repo,
-                embedder,
+                _metered(tenant, org_id, embedder),
                 body.query,
                 candidates=max(
                     settings.SEARCH_CANDIDATES, limit * settings.SEARCH_MAX_PER_DOCUMENT

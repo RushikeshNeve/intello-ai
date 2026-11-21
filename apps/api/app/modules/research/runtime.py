@@ -55,6 +55,7 @@ from app.modules.research.repo import ClaimedSession, SessionFence, SessionFence
 from app.modules.retrieval import service as retrieval_service
 from app.modules.retrieval.citations import CitationRef, resolve_citation
 from app.modules.retrieval.scope import EmptyScope, RetrievalScope, scope_for_workspaces
+from app.modules.usage.wiring import run_meter
 
 log = logging.getLogger("ukos.research")
 
@@ -217,6 +218,13 @@ class ResearchExecutor:
         self._t0 = clock()
         self._deadline = 0.0
         self._model: ChatModel | None = None
+        self._meter = run_meter(
+            engine,
+            org_id=claim.org_id,
+            user_id=claim.created_by,
+            run_id=claim.session_id,
+            kind="research",
+        )
         self._usage: dict[str, Any] = {}
         self._limits: dict[str, Any] = {}
         self._snapshot: frozenset[uuid.UUID] = frozenset()
@@ -349,8 +357,10 @@ class ResearchExecutor:
     def _open_model(self) -> ChatModel:
         if self._model is None:
             with self._session() as session:
-                self._model = self.deps.model_factory(
-                    DbPolicySource(session), self.claim.org_id, self.deps.chat_settings
+                self._model = self._meter.chat(
+                    self.deps.model_factory(
+                        DbPolicySource(session), self.claim.org_id, self.deps.chat_settings
+                    )
                 )
         return self._model
 
@@ -415,7 +425,7 @@ class ResearchExecutor:
                     lambda: retrieval_service.gather(
                         scope,
                         self.deps.repo,
-                        self.deps.embedder,
+                        self._meter.embedder(self.deps.embedder),
                         query,
                         candidates=max(s.SEARCH_CANDIDATES, 1),
                         mode="hybrid",
@@ -509,7 +519,7 @@ class ResearchExecutor:
                 bundle.citation_map,
                 bundle.used_evidence,
                 config=VerifyConfig.from_settings(cs),
-                embedder=self.deps.embedder,
+                embedder=self._meter.embedder(self.deps.embedder),
             )
             excerpts = {vc.marker: vc.excerpt for vc in verification.citations}
             statements: list[dict[str, Any]] = []

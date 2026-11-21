@@ -68,6 +68,7 @@ from app.modules.retrieval import service as retrieval_service
 from app.modules.retrieval.citations import CitationRef, ResolvedCitation, resolve_citation
 from app.modules.retrieval.hybrid import SearchUnavailable
 from app.modules.retrieval.scope import EmptyScope, RetrievalScope, scope_for_workspaces
+from app.modules.usage.wiring import run_meter
 
 log = logging.getLogger("ukos.chat")
 
@@ -459,6 +460,9 @@ class RunExecutor:
         self._clock = clock
         self._deadline = clock() + settings.CHAT_RUN_TIMEOUT_SECONDS
         self._pending = ""  # buffered model text not yet written when a failure interrupts
+        self._meter = run_meter(
+            engine, org_id=claim.org_id, user_id=claim.created_by, run_id=claim.run_id, kind="chat"
+        )
 
     # -- plumbing ----------------------------------------------------------------------------
 
@@ -566,7 +570,7 @@ class RunExecutor:
                 lambda: retrieval_service.gather(
                     scope,
                     self.deps.repo,
-                    self.deps.embedder,
+                    self._meter.embedder(self.deps.embedder),
                     question,
                     candidates=max(s.SEARCH_CANDIDATES, RETRIEVAL_CANDIDATES_FLOOR),
                     mode="hybrid",
@@ -686,7 +690,7 @@ class RunExecutor:
                     "prompt_version": PROMPT_VERSION,
                 },
             )
-        return model
+        return self._meter.chat(model)
 
     def _generate(self, model: ChatModel, bundle: PromptBundle) -> str:
         cs = self.deps.chat_settings
@@ -758,7 +762,7 @@ class RunExecutor:
             usable,
             bundle.used_evidence,
             config=VerifyConfig.from_settings(cs),
-            embedder=self.deps.embedder,
+            embedder=self._meter.embedder(self.deps.embedder),
         )
         citations = [
             citation_payload(vc, resolved[vc.evidence_id])
