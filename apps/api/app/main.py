@@ -41,6 +41,7 @@ from app.modules.identity.provisioning import DbUserProvisioner
 from app.modules.ingestion.capabilities_router import router as capabilities_router
 from app.modules.ingestion.jobs_list import router as ingestion_jobs_router
 from app.modules.ingestion.router import router as ingestion_router
+from app.modules.knowledge.reindex.router import router as reindex_router
 from app.modules.memory.router import router as memory_router
 from app.modules.organizations.router import router as organizations_router
 from app.modules.prompts.router import router as prompts_router
@@ -134,6 +135,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(connectors_router)
     app.include_router(connectors_webhook_router)
     app.include_router(graph_review_router)
+    app.include_router(reindex_router)
     app.include_router(memory_router)
     app.include_router(research_router)
     app.include_router(usage_router)
