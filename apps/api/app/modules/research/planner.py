@@ -19,6 +19,7 @@ from app.core.config import Settings
 from app.modules.ai.context import neutralize
 from app.modules.ai.models.types import ChatMessage
 from app.modules.ai.structured import parse_structured
+from app.modules.prompts import plan_system
 
 SUBQUERY_MIN_CHARS: Final = 3
 SUBQUERY_MAX_CHARS: Final = 300
@@ -71,9 +72,17 @@ def subquery_budget(limits: Mapping[str, Any]) -> int:
     return max(1, min(int(limits["max_subqueries"]), int(limits["max_model_calls"]) - 1))
 
 
-def plan_messages(question: str, max_subqueries: int) -> list[ChatMessage]:
+def plan_messages(
+    question: str, max_subqueries: int, instruction: str | None = None
+) -> list[ChatMessage]:
+    """``instruction``: editable body from the prompt registry (M12.01); fixed rules stay here."""
+    system = (
+        PLAN_SYSTEM.replace("{n}", str(max_subqueries))
+        if instruction is None
+        else plan_system(instruction, max_subqueries)
+    )
     return [
-        {"role": "system", "content": PLAN_SYSTEM.replace("{n}", str(max_subqueries))},
+        {"role": "system", "content": system},
         {"role": "user", "content": neutralize(question).strip()},
     ]
 

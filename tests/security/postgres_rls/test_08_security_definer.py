@@ -56,6 +56,8 @@ APP_DEFINERS = [
     # Migration 0011: sign-in consumption of pre-approvals; admin-only verified-user lookup.
     "preapproval_consume",
     "preapproval_find_user",
+    # Migration 0016: seeds the global prompt default from the repo file (app + worker).
+    "prompt_seed_default",
 ]
 
 

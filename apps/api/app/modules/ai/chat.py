@@ -44,6 +44,7 @@ from typing import Any, Final, Literal
 from sqlalchemy import Engine, select
 
 from app.core.config import Settings
+from app.modules import prompts
 from app.modules.ai import chat_repo
 from app.modules.ai.chat_repo import ClaimedRun, RunFence, RunFenceLost
 from app.modules.ai.context import HistoryTurn, PromptBundle, build_prompt
@@ -474,6 +475,11 @@ class RunExecutor:
         self._meter = run_meter(
             engine, org_id=claim.org_id, user_id=claim.created_by, run_id=claim.run_id, kind="chat"
         )
+        self._prompt = prompts.Resolved(
+            prompts.default_body("chat_system"),
+            None,
+            prompts.sha256_of(prompts.default_body("chat_system")),
+        )
 
     # -- plumbing ----------------------------------------------------------------------------
 
@@ -711,6 +717,8 @@ class RunExecutor:
                 },
             )
         cs = self.deps.chat_settings
+        with self._session() as session:
+            self._prompt = prompts.resolve("chat_system", self.claim.org_id, session)
         bundle = (
             build_prompt(
                 data.question,
@@ -719,6 +727,7 @@ class RunExecutor:
                 budget_tokens=cs.CHAT_CONTEXT_TOKENS,
                 reserve_output_tokens=cs.CHAT_MAX_OUTPUT_TOKENS,
                 history_turns=cs.CHAT_HISTORY_TURNS,
+                system_prompt=prompts.chat_system(self._prompt.body),
             )
             if evidence
             else None
@@ -741,6 +750,11 @@ class RunExecutor:
                     "provider": model.spec.provider,
                     "model_id": model.spec.model_id,
                     "prompt_version": PROMPT_VERSION,
+                    # M12.01: which registry version produced the system text (None = repo file).
+                    "prompt_version_id": (
+                        None if self._prompt.version_id is None else str(self._prompt.version_id)
+                    ),
+                    "prompt_sha256": self._prompt.sha256,
                 },
             )
         return self._meter.chat(model)

@@ -52,6 +52,8 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     "research_sessions": {"SELECT", "INSERT"},
     "research_steps": {"SELECT"},
     "research_reports": {"SELECT"},
+    # M12.01 (migration 0016): column-level UPDATE (state, activated_at) is not listed here.
+    "prompt_versions": {"SELECT", "INSERT"},
     "graph_entities": {"SELECT"},
     "entity_merge_candidates": {"SELECT"},
     # M11.01 (migration 0012): insert-only usage metering, both roles. Depth: test_20.

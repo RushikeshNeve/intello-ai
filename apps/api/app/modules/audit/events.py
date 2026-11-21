@@ -82,6 +82,10 @@ class AuditEventType(StrEnum):
     MEMORY_DELETED = "memory.deleted"
     RESEARCH_CREATED = "research.created"
     RESEARCH_CANCELLED = "research.cancelled"
+    # M12.01: ids, kind and version numbers only, never prompt text.
+    PROMPT_VERSION_CREATED = "prompt.version.created"
+    PROMPT_VERSION_ACTIVATED = "prompt.version.activated"
+    PROMPT_VERSION_ROLLED_BACK = "prompt.version.rolled_back"
 
 
 class SessionOpener(Protocol):

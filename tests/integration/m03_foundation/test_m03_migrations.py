@@ -19,7 +19,17 @@ from app.core.models import ORG_SCOPED_TABLES, RLS_TABLES, Base
 from app.modules.ingestion.models import INGESTION_TABLES
 
 REVISION = "0005_ingestion"
-HEAD = "0012_usage_events"  # M11.01 usage metering on top of 0011
+PREAPPROVALS_HEAD = "0011_member_preapprovals"  # member pre-approvals on top of 0010
+# M11/M12 chain on top of 0011 (oldest first; 0015 intentionally unused).
+NEXT_PHASE_CHAIN = (
+    "0012_usage_events",
+    "0013_embedding_cache",
+    "0014_chat_stage_event",
+    "0016_prompt_versions",
+    "0017_evals",
+    "0018_reindex",
+)
+HEAD = NEXT_PHASE_CHAIN[-1]
 M07_HEAD = "0010_memory_research"  # M07: memory + research on top of 0009
 M06_HEAD = "0009_connectors"  # M06: connectors on top of 0008
 M05_HEAD = "0008_graph"  # M05: graph identity + merge review on top of 0007
@@ -75,8 +85,9 @@ def _role(engine: Engine, name: str) -> tuple[Any, ...] | None:
 def test_head_is_0007_on_top_of_the_m03_chain(alembic_config: Config) -> None:
     script = ScriptDirectory.from_config(alembic_config)
     assert script.get_heads() == [HEAD]
-    assert script.get_revision(HEAD).down_revision == "0011_member_preapprovals"
-    assert script.get_revision("0011_member_preapprovals").down_revision == M07_HEAD
+    for rev, down in zip(NEXT_PHASE_CHAIN, (PREAPPROVALS_HEAD, *NEXT_PHASE_CHAIN[:-1])):
+        assert script.get_revision(rev).down_revision == down
+    assert script.get_revision(PREAPPROVALS_HEAD).down_revision == M07_HEAD
     assert script.get_revision(M07_HEAD).down_revision == M06_HEAD
     assert script.get_revision(M06_HEAD).down_revision == M05_HEAD
     assert script.get_revision(M05_HEAD).down_revision == M04_HEAD

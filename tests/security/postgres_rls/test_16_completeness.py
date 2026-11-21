@@ -22,6 +22,7 @@ from rls_world import ORG_TABLE_SPECS
 from sqlalchemy import Engine, text
 from test_18_graph_tables import GRAPH_TABLES
 from test_20_usage_tables import USAGE_TABLES
+from test_20_prompt_versions import PROMPT_TABLES
 
 from app.core.models import ORG_SCOPED_TABLES, RLS_TABLES, Base
 
@@ -33,6 +34,7 @@ NO_CONTEXT_TESTS = {
     "test_graph_select_without_context_sees_nothing",  # test_18 (M05, both roles)
     "test_m07_select_without_context_sees_nothing",  # test_19 (M07, both roles)
     "test_usage_select_without_context_sees_nothing",  # test_20 (M11.01, both roles)
+    "test_prompt_select_without_context_sees_nothing",  # test_20 (M12.01, both roles)
 }
 CROSS_ORG_TESTS = {
     "test_only_own_org_rows_visible",  # test_03 (M01 org-scoped tables)
@@ -42,6 +44,7 @@ CROSS_ORG_TESTS = {
     "test_graph_select_is_confined_to_the_context_org",  # test_18 (M05)
     "test_m07_select_is_confined_to_the_context_org",  # test_19 (M07)
     "test_usage_select_is_confined_to_the_context_org",  # test_20 (M11.01)
+    "test_prompt_select_is_confined_to_the_context_org",  # test_20 (M12.01)
 }
 
 
@@ -59,6 +62,7 @@ def test_registries_cover_every_org_scoped_table_exactly_once() -> None:
         | set(CONNECTOR_TABLES)
         | set(M07_TABLES)
         | set(USAGE_TABLES)
+        | set(PROMPT_TABLES)
     )
     assert declared == set(ORG_SCOPED_TABLES), (
         "a table was added to ORG_SCOPED_TABLES without a tenancy registry entry: add it to "

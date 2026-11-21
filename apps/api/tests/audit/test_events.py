@@ -56,6 +56,9 @@ CONTRACT_EVENT_TYPES = {
     "memory.deleted",
     "research.created",
     "research.cancelled",
+    "prompt.version.created",
+    "prompt.version.activated",
+    "prompt.version.rolled_back",
 }
 
 

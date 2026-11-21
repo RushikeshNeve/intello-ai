@@ -605,6 +605,8 @@ ORG_SCOPED_TABLES: Final = (
     "usage_events",
     # Embedding cache (migration 0013, M11.03).
     "embedding_cache",
+    # M12.01 (migration 0016): global defaults (org_id NULL) are readable by every org.
+    "prompt_versions",
 )
 RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
 
@@ -617,5 +619,6 @@ from app.modules.connectors import models as _connector_models  # noqa: E402, F4
 from app.modules.graph import models as _graph_models  # noqa: E402, F401
 from app.modules.ingestion import models as _ingestion_models  # noqa: E402, F401
 from app.modules.memory import models as _memory_models  # noqa: E402, F401
+from app.modules.prompts import models as _prompt_models  # noqa: E402, F401
 from app.modules.research import models as _research_models  # noqa: E402, F401
 from app.modules.usage import models as _usage_models  # noqa: E402, F401

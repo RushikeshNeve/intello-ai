@@ -49,6 +49,7 @@ def build_claims(
     workspace_id: uuid.UUID,
     document_id: uuid.UUID,
     revision_id: uuid.UUID,
+    extractor_version: str = EXTRACTOR_VERSION,
 ) -> BuiltClaims:
     by_chunk = {c.chunk_id: c for c in chunks if c.revision_id == revision_id}
     groups: dict[tuple[uuid.UUID, str, str], list[ExtractedRelation]] = {}
@@ -109,7 +110,7 @@ def build_claims(
                 object_text=object_text,
                 confidence=round(best, 3),
                 verification=VERIFIED if verified else UNVERIFIED,
-                extractor_version=EXTRACTOR_VERSION,
+                extractor_version=extractor_version,
             )
         )
         built.evidence.extend(supported if verified else existing)

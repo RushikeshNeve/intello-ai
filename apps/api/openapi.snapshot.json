@@ -791,6 +791,34 @@
         "title": "DocumentUpdate",
         "type": "object"
       },
+      "DraftIn": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "maxLength": 6000,
+            "minLength": 1,
+            "title": "Body",
+            "type": "string"
+          },
+          "change_note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Note"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "title": "DraftIn",
+        "type": "object"
+      },
       "EdgeOut": {
         "properties": {
           "claim_id": {
@@ -2489,6 +2517,118 @@
         "title": "PresignedUpload",
         "type": "object"
       },
+      "PromptVersionList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PromptVersionOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "PromptVersionList",
+        "type": "object"
+      },
+      "PromptVersionOut": {
+        "properties": {
+          "activated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated At"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "change_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Note"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "org_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Org Id"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "org_id",
+          "kind",
+          "version",
+          "body",
+          "sha256",
+          "change_note",
+          "created_by",
+          "created_at",
+          "state",
+          "activated_at"
+        ],
+        "title": "PromptVersionOut",
+        "type": "object"
+      },
       "ReadyResponse": {
         "properties": {
           "checks": {
@@ -2830,6 +2970,30 @@
           "status"
         ],
         "title": "Retention",
+        "type": "object"
+      },
+      "RollbackOut": {
+        "properties": {
+          "active": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PromptVersionOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reverted_to_default": {
+            "title": "Reverted To Default",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "reverted_to_default",
+          "active"
+        ],
+        "title": "RollbackOut",
         "type": "object"
       },
       "RunAccepted": {
@@ -6108,6 +6272,247 @@
         "summary": "Reject",
         "tags": [
           "memory"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/prompts": {
+      "get": {
+        "operationId": "list_versions_v1_orgs__org_id__prompts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "chat_system",
+                    "graph_extract",
+                    "research_plan"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptVersionList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Versions",
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/prompts/versions/{version_id}/activate": {
+      "post": {
+        "operationId": "activate_v1_orgs__org_id__prompts_versions__version_id__activate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptVersionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Activate",
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/prompts/{kind}/rollback": {
+      "post": {
+        "operationId": "rollback_v1_orgs__org_id__prompts__kind__rollback_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "chat_system",
+                "graph_extract",
+                "research_plan"
+              ],
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RollbackOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rollback",
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/prompts/{kind}/versions": {
+      "post": {
+        "operationId": "create_draft_v1_orgs__org_id__prompts__kind__versions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "chat_system",
+                "graph_extract",
+                "research_plan"
+              ],
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptVersionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Draft",
+        "tags": [
+          "prompts"
         ]
       }
     },
