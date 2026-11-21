@@ -65,7 +65,7 @@ def gather(
         key, cached = result_cache.lookup(
             scope,
             query,
-            space=embedder.spec.space_id if embedder is not None else "none",
+            space=scope.active_space or (embedder.spec.space_id if embedder is not None else "none"),
             mode=mode,
             candidates=candidates,
             max_per_document=max_per_document,

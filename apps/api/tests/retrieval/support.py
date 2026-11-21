@@ -49,16 +49,20 @@ class FakeDb:
         role: str | None = "owner",
         workspaces: Iterable[uuid.UUID] = (),
         published: Iterable[Any] = (),
+        active_space: str | None = None,
     ) -> None:
         self.org_id = org_id
         self.role = role
         self.workspaces = list(workspaces)
         self.published = list(published)
+        self.active_space = active_space
         self.statements: list[str] = []
 
     def execute(self, statement: Any, params: dict[str, Any] | None = None) -> _Result:
         sql = str(statement)
         self.statements.append(sql)
+        if "org_active_spaces" in sql:
+            return _Result([] if self.active_space is None else [self.active_space])
         if "FROM organizations" in sql:
             return _Result([(1,)] if params and params["id"] == self.org_id else [])
         if "organization_memberships" in sql:
@@ -81,8 +85,9 @@ def make_scope(
     *,
     user_id: uuid.UUID | None = None,
     requested: Iterable[uuid.UUID] | None = None,
+    active_space: str | None = None,
 ) -> RetrievalScope:
-    db = FakeDb(org_id=org_id, workspaces=workspace_ids)
+    db = FakeDb(org_id=org_id, workspaces=workspace_ids, active_space=active_space)
     return resolve_scope(
         db.session,
         org_id=org_id,

@@ -36,6 +36,7 @@ TASK_DELETE_DOCUMENT: Final = "maintenance.delete_document"
 # M05: graph build for a published revision (no-op unless GRAPH_ENABLED).
 TASK_GRAPH_EXTRACT: Final = "graph.extract_revision"
 TASK_REINDEX_RUN: Final = "maintenance.reindex_run"
+TASK_CACHE_EVICT: Final = "maintenance.embedding_cache_evict"
 # M04: implemented by the chat runtime (batch B); the dispatcher routes ``chat.run.queued`` here.
 TASK_CHAT_RUN: Final = "chat.run"
 # M06: ``source.sync.requested`` outbox rows are routed here (maintenance queue).
@@ -94,6 +95,7 @@ def make_celery(settings: WorkerSettings | None = None) -> Celery:
             TASK_DELETE_DOCUMENT: {"queue": QUEUE_MAINTENANCE},
             TASK_GRAPH_EXTRACT: {"queue": QUEUE_MAINTENANCE},
             TASK_REINDEX_RUN: {"queue": QUEUE_MAINTENANCE},
+            TASK_CACHE_EVICT: {"queue": QUEUE_MAINTENANCE},
             TASK_CHAT_RUN: {"queue": QUEUE_CHAT},
             TASK_CONNECTOR_SYNC: {"queue": QUEUE_MAINTENANCE},
             TASK_RESEARCH_RUN: {"queue": QUEUE_RESEARCH},

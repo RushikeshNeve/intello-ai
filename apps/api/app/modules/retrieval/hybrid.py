@@ -37,6 +37,11 @@ class SearchUnavailable(Exception):
     """The knowledge index is unreachable or failing (answer 503 ``search_unavailable``)."""
 
 
+class EmbeddingSpaceMismatch(SearchUnavailable):
+    """The org's active embedding space is not the one the configured embedder produces (e.g. after
+    a cutover/rollback with a different model): never query a mismatched index (503, safe)."""
+
+
 @dataclass(frozen=True, slots=True)
 class CandidateSet:
     """Named rankings (best first) and what was degraded."""
@@ -70,9 +75,11 @@ def retrieve_candidates(
         if embedder is None:
             degraded.append(DEGRADED_EMBEDDING)
         else:
+            if scope.active_space is not None and scope.active_space != embedder.spec.space_id:
+                raise EmbeddingSpaceMismatch
             try:
                 vector = embed_query_cached(embedder, scope.org_id, text)
-                space = embedder.spec.space_id
+                space = scope.active_space or embedder.spec.space_id
             except EmbeddingError:
                 degraded.append(DEGRADED_EMBEDDING)
         if vector is None:
