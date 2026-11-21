@@ -20,6 +20,7 @@ from app.modules.authorization.policy import Action
 from app.modules.documents import catalog_service as svc
 from app.modules.documents.schemas import DeletionAccepted
 from app.modules.ingestion.jobs import enqueue_document_deleted
+from app.modules.retrieval.cache import bump_from_session
 
 router = APIRouter(prefix="/v1/orgs/{org_id}/workspaces/{workspace_id}", tags=["documents"])
 
@@ -47,6 +48,7 @@ def delete_document(
         enqueue_document_deleted(
             session, org_id=org_id, workspace_id=workspace_id, document_id=document_id
         )
+        bump_from_session(session)  # M11.04: drop cached retrieval results of this org
         purge_after = deleted_at + timedelta(days=settings.DOCUMENT_PURGE_GRACE_DAYS)
         svc.audit(
             tenant,

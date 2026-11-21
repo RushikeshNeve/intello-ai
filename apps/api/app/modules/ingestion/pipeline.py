@@ -22,6 +22,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
+import uuid
 from dataclasses import dataclass
 from typing import Any, Final
 
@@ -30,6 +31,11 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.modules.ai.embeddings import EmbeddingError, EmbeddingProvider
+from app.modules.ai.embeddings.cache import (
+    CachingEmbedder,
+    SqlEmbeddingCacheStore,
+    get_cache_settings,
+)
 from app.modules.ingestion import artifacts as art
 from app.modules.ingestion.artifacts import ArtifactStore
 from app.modules.ingestion.checkpoints import StageRunner, fence
@@ -60,6 +66,7 @@ from app.modules.knowledge.ports import (
     validated_org_scope,
 )
 from app.modules.knowledge.publication import PublicationError, publish_revision
+from app.modules.retrieval.cache import bump_corpus
 from app.modules.storage.ports import ObjectNotFound, ObjectStore, StorageUnavailable
 
 logger: Final = logging.getLogger(__name__)
@@ -292,7 +299,9 @@ class DefaultPipelineRunner:
         # 3. embed --------------------------------------------------------------------
         def compute_embed() -> bytes:
             return art.encode_embeddings(
-                self._embed_all(chunks, embedder, settings.INGEST_EMBED_BATCH_SIZE, ctx),
+                self._embed_all(
+                    chunks, embedder, settings.INGEST_EMBED_BATCH_SIZE, ctx, claim.org_id
+                ),
                 spec.dimensions,
             )
 
@@ -372,6 +381,7 @@ class DefaultPipelineRunner:
                 ctx.session_factory, repo, claim, check_fence=ctx.check_fence
             )
             outcomes.append(outcome.status)
+            bump_corpus(claim.org_id)  # M11.04: a published/superseded revision changes results
             if outcome.status == "document_deleted":
                 raise _DocumentDeleted
 
@@ -449,7 +459,12 @@ class DefaultPipelineRunner:
         embedder: EmbeddingProvider,
         batch_size: int,
         ctx: JobContext,
+        org_id: uuid.UUID | None = None,
     ) -> list[list[float]]:
+        if org_id is not None and get_cache_settings().EMBEDDING_CACHE_ENABLED:
+            embedder = CachingEmbedder(
+                embedder, SqlEmbeddingCacheStore(ctx.session_factory, org_id), org_id=org_id
+            )
         vectors: list[list[float]] = []
         for start in range(0, len(chunks), batch_size):
             ctx.check_fence()

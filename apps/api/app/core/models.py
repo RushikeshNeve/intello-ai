@@ -601,6 +601,8 @@ ORG_SCOPED_TABLES: Final = (
     "research_reports",
     # Member pre-approvals (migration 0011).
     "org_member_preapprovals",
+    # Embedding cache (migration 0013, M11.03).
+    "embedding_cache",
 )
 RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
 
@@ -608,6 +610,7 @@ RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
 # because they import ``Base`` from here). Keeps ``Base.metadata.tables == RLS_TABLES`` true for
 # every importer of this module.
 from app.modules.ai import models_db as _ai_models  # noqa: E402, F401
+from app.modules.ai.embeddings import models as _embedding_models  # noqa: E402, F401
 from app.modules.connectors import models as _connector_models  # noqa: E402, F401
 from app.modules.graph import models as _graph_models  # noqa: E402, F401
 from app.modules.ingestion import models as _ingestion_models  # noqa: E402, F401

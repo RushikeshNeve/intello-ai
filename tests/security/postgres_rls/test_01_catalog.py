@@ -54,6 +54,8 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     "research_reports": {"SELECT"},
     "graph_entities": {"SELECT"},
     "entity_merge_candidates": {"SELECT"},
+    # Migration 0013 (M11.03): per-org embedding cache; UPDATE is column-level (last_used_at).
+    "embedding_cache": {"SELECT", "INSERT", "DELETE"},
 }
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 TRIVIAL = {"true", "(true)", "1 = 1", "(1 = 1)"}

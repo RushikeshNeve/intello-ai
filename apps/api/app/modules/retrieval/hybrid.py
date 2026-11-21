@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import Final, Literal
 
 from app.modules.ai.embeddings import EmbeddingError, EmbeddingProvider
+from app.modules.ai.embeddings.cache import embed_query_cached
 from app.modules.knowledge.ports import (
     KnowledgeRepository,
     KnowledgeStoreError,
@@ -70,7 +71,7 @@ def retrieve_candidates(
             degraded.append(DEGRADED_EMBEDDING)
         else:
             try:
-                vector = embedder.embed_query(text)
+                vector = embed_query_cached(embedder, scope.org_id, text)
                 space = embedder.spec.space_id
             except EmbeddingError:
                 degraded.append(DEGRADED_EMBEDDING)

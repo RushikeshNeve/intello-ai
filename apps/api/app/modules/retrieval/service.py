@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.ai.embeddings import EmbeddingProvider
 from app.modules.knowledge.ports import KnowledgeRepository
+from app.modules.retrieval import cache as result_cache
 from app.modules.retrieval.evidence import Evidence, revalidate
 from app.modules.retrieval.hybrid import Mode, retrieve_candidates
 from app.modules.retrieval.ranking import (
@@ -59,12 +60,26 @@ def gather(
     max_per_document: int = 3,
     reranker: Reranker | None = None,
 ) -> Gathered:
+    key = None
+    if reranker is None:  # M11.04 cache (flag off: lookup is a no-op); finish() revalidates hits
+        key, cached = result_cache.lookup(
+            scope,
+            query,
+            space=embedder.spec.space_id if embedder is not None else "none",
+            mode=mode,
+            candidates=candidates,
+            max_per_document=max_per_document,
+        )
+        if isinstance(cached, Gathered):
+            return cached
     found = retrieve_candidates(scope, repo, embedder, query, limit=candidates, mode=mode)
     fused = fuse(found.rankings)
     ranked = apply_reranker(reranker, query, fused)
-    return Gathered(
+    gathered = Gathered(
         ranked, max(1, len(found.rankings)), found.degraded, len(fused), max_per_document
     )
+    result_cache.store(key, gathered)
+    return gathered
 
 
 def finish(
