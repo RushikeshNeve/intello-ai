@@ -25,6 +25,8 @@ class MeteredChatModel:
         self.spec: ModelSpec = inner.spec
 
     def _emit(self, messages: Sequence[ChatMessage], out_chars: int, t0: float) -> None:
+        # M11.02: OpenAI-compatible adapters expose the provider's prompt-cache hit per call.
+        cached = getattr(self._inner, "last_cached_tokens", None)
         self._recorder.record(
             self._ctx,
             provider=self._inner.spec.provider,
@@ -32,6 +34,7 @@ class MeteredChatModel:
             tokens_in=sum(estimate_tokens(m["content"]) for m in messages),
             tokens_out=-(-out_chars // 4),
             latency_ms=_ms(t0),
+            tokens_cached=cached if isinstance(cached, int) and not isinstance(cached, bool) else 0,
         )
 
     def stream(

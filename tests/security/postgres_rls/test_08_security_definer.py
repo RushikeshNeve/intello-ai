@@ -58,6 +58,9 @@ APP_DEFINERS = [
     "preapproval_find_user",
     # Migration 0016: seeds the global prompt default from the repo file (app + worker).
     "prompt_seed_default",
+    # Migration 0018: blue/green cutover + rollback; owner/admin of the context org only.
+    "reindex_cutover",
+    "reindex_rollback",
 ]
 
 

@@ -27,6 +27,18 @@ M04_CHAT_TABLES = {
 M06_TABLES = {"sources", "connector_accounts", "source_syncs", "source_items"}
 # M07 (migration 0010): memory reads and the research runtime; exact grants: rls test_19.
 M07_TABLES = {"memories", "research_sessions", "research_steps", "research_reports"}
+# M11/M12 (migrations 0012-0018): exact grants in tests/security/postgres_rls test_01 / test_20.
+NEXT_PHASE_TABLES = {
+    "usage_events",
+    "embedding_cache",
+    "prompt_versions",
+    "eval_sets",
+    "eval_cases",
+    "eval_runs",
+    "eval_run_results",
+    "reindex_jobs",
+    "org_active_spaces",
+}
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 SEARCH_PATH = ["search_path=pg_catalog, public, pg_temp"]
 DEFINER_FUNCTIONS = {
@@ -178,8 +190,11 @@ def test_no_role_has_delete_truncate_references_or_trigger_anywhere(
     forbidden = {"DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"}
     # The worker holds none of them on ANY table; the API role none on the M03 tables (the two
     # M01 membership tables keep the DELETE grant that removing members needs).
+    # Exception: embedding_cache (migration 0013) grants DELETE to both roles for eviction.
     for table in tables:
         held = _table_privileges(admin_engine, worker, table)
+        if table == "embedding_cache":
+            held = held - {"DELETE"}
         assert held.isdisjoint(forbidden), (worker, table)
     for table in INGESTION_TABLES:
         held = _table_privileges(admin_engine, app, table)
@@ -205,7 +220,9 @@ def test_worker_reaches_nothing_beyond_its_grants(
             ).scalars()
         )
     # alembic_version, users, memberships, grants, sources, upload_sessions: out of reach.
-    assert reachable - M04_CHAT_TABLES - M06_TABLES - M07_TABLES == set(WORKER_PRIVILEGES)
+    assert reachable - M04_CHAT_TABLES - M06_TABLES - M07_TABLES - NEXT_PHASE_TABLES == set(
+        WORKER_PRIVILEGES
+    )
 
 
 def test_worker_cannot_create_objects_or_alter_the_schema(

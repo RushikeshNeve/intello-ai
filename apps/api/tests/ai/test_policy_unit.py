@@ -164,6 +164,7 @@ def test_event_and_state_vocabulary_matches_the_contract() -> None:
         "completed",
         "failed",
         "cancelled",
+        "stage",  # M11.07 streaming hardening (migration 0014)
     )
     assert models_db.MESSAGE_ROLES == ("user", "assistant")
     assert models_db.AI_PROVIDERS == ("local", "openai")

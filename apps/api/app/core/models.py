@@ -612,6 +612,9 @@ ORG_SCOPED_TABLES: Final = (
     "eval_cases",
     "eval_runs",
     "eval_run_results",
+    # M12.05 re-embedding jobs + active-space pointer (migration 0018_reindex).
+    "reindex_jobs",
+    "org_active_spaces",
 )
 RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
 
@@ -624,6 +627,7 @@ from app.modules.connectors import models as _connector_models  # noqa: E402, F4
 from app.modules.evals import models as _eval_models  # noqa: E402, F401
 from app.modules.graph import models as _graph_models  # noqa: E402, F401
 from app.modules.ingestion import models as _ingestion_models  # noqa: E402, F401
+from app.modules.knowledge.reindex import models as _reindex_models  # noqa: E402, F401
 from app.modules.memory import models as _memory_models  # noqa: E402, F401
 from app.modules.prompts import models as _prompt_models  # noqa: E402, F401
 from app.modules.research import models as _research_models  # noqa: E402, F401

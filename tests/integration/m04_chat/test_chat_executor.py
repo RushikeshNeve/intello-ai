@@ -143,7 +143,7 @@ def test_happy_path_end_to_end_through_api_and_database(r: Rigged) -> None:
         "verification",
         "completed",
     ]
-    assert set(types[2:-3]) == {"delta"}
+    assert set(types[2:-3]) == {"delta", "stage"}  # M11.07: stage "verifying" before citations
     row = run_row(w.engine, run)
     assert row["state"] == "completed"
     assert row["error_code"] is None
@@ -710,7 +710,8 @@ def test_cancel_mid_stream_stops_the_worker_quietly(r: Rigged) -> None:
     row = run_row(w.engine, run)
     assert row["state"] == "cancelled"
     assert row["finished_at"] is not None
-    assert [m["role"] for m in messages(w.engine, thread)] == ["user"]
+    # M11.07: a cancel after streamed text stores the partial answer as an assistant message.
+    assert [m["role"] for m in messages(w.engine, thread)] == ["user", "assistant"]
 
 
 # ---------------------------------------------------------------------------------- logs

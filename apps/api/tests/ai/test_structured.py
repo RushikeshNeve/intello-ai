@@ -7,6 +7,7 @@ import uuid
 from pydantic import BaseModel
 
 from app.modules.ai.models.fake import FakeChatModel
+from app.modules.ai.models.types import ChatMessage
 from app.modules.ai.structured import ERR_NOT_JSON, ERR_SCHEMA, generate_structured
 from app.modules.graph.extract import SourceChunk, extract_batch
 from app.modules.research import planner
@@ -16,7 +17,7 @@ class Out(BaseModel):
     n: int
 
 
-MSG = [{"role": "user", "content": "go"}]
+MSG: list[ChatMessage] = [{"role": "user", "content": "go"}]
 
 
 def test_valid_and_fenced() -> None:

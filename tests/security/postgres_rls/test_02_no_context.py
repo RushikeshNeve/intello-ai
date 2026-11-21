@@ -62,8 +62,13 @@ def test_delete_without_context_denied_or_noop(
 ) -> None:
     before = admin_count(admin_engine, f"SELECT count(*) FROM {table}")
     spec = ORG_TABLE_SPECS.get(table)
-    # eval_sets / eval_cases (migration 0017_evals) hold a DELETE grant but no ORG_TABLE_SPECS entry.
-    if (spec is not None and spec.has_delete_grant) or table in ("eval_sets", "eval_cases"):
+    # eval_sets / eval_cases (migration 0017_evals) and embedding_cache (0013, eviction) hold a
+    # DELETE grant but no ORG_TABLE_SPECS entry.
+    if (spec is not None and spec.has_delete_grant) or table in (
+        "eval_sets",
+        "eval_cases",
+        "embedding_cache",
+    ):
         with app_tx(app_engine) as conn:
             assert conn.execute(text(f"DELETE FROM {table}")).rowcount == 0
     else:

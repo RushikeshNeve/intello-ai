@@ -7,7 +7,16 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, ForeignKey, Integer, Text, text
+from sqlalchemy import (
+    Boolean,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    Text,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -20,8 +29,28 @@ def _org_fk(name: str) -> Any:
     )
 
 
+def _scoped_fk(cols: str, target: str, name: str) -> ForeignKeyConstraint:
+    """Composite ``(x_id, org_id, workspace_id)`` FK onto ``target``'s scope unique key."""
+    return ForeignKeyConstraint(
+        [cols, "org_id", "workspace_id"],
+        [f"{target}.id", f"{target}.org_id", f"{target}.workspace_id"],
+        name=name,
+        ondelete="CASCADE",
+    )
+
+
 class EvalSet(Base):
     __tablename__ = "eval_sets"
+    __table_args__ = (
+        UniqueConstraint("id", "org_id", "workspace_id", name="uq_eval_sets_scope"),
+        ForeignKeyConstraint(
+            ["workspace_id", "org_id"],
+            ["workspaces.id", "workspaces.org_id"],
+            name="fk_eval_sets_workspace",
+            ondelete="CASCADE",
+        ),
+        Index("ix_eval_sets_workspace_id", "workspace_id", "created_at", "id"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
     org_id: Mapped[uuid.UUID] = _org_fk("fk_eval_sets_org_id")
@@ -37,9 +66,14 @@ class EvalSet(Base):
 
 class EvalCase(Base):
     __tablename__ = "eval_cases"
+    __table_args__ = (
+        UniqueConstraint("id", "org_id", "workspace_id", name="uq_eval_cases_scope"),
+        _scoped_fk("set_id", "eval_sets", "fk_eval_cases_set"),
+        Index("ix_eval_cases_set_id", "set_id", "created_at", "id"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
-    org_id: Mapped[uuid.UUID] = _org_fk("fk_eval_cases_org_id")
+    org_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     set_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     question: Mapped[str] = mapped_column(Text)
@@ -54,9 +88,14 @@ class EvalCase(Base):
 
 class EvalRun(Base):
     __tablename__ = "eval_runs"
+    __table_args__ = (
+        UniqueConstraint("id", "org_id", "workspace_id", name="uq_eval_runs_scope"),
+        _scoped_fk("set_id", "eval_sets", "fk_eval_runs_set"),
+        Index("ix_eval_runs_set_id", "set_id", "started_at", "id"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
-    org_id: Mapped[uuid.UUID] = _org_fk("fk_eval_runs_org_id")
+    org_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     set_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     set_version: Mapped[int] = mapped_column(Integer)
@@ -72,9 +111,13 @@ class EvalRun(Base):
 
 class EvalRunResult(Base):
     __tablename__ = "eval_run_results"
+    __table_args__ = (
+        _scoped_fk("run_id", "eval_runs", "fk_eval_run_results_run"),
+        Index("ix_eval_run_results_run_id", "run_id"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
-    org_id: Mapped[uuid.UUID] = _org_fk("fk_eval_run_results_org_id")
+    org_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     case_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))

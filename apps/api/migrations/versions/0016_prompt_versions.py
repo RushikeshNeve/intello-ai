@@ -10,7 +10,7 @@
 * The worker role reads (SELECT) and may call the seeder, so workers resolve prompts too.
 
 Revision ID: 0016_prompt_versions
-Revises: 0011_member_preapprovals
+Revises: 0014_chat_stage_event
 Create Date: 2026-11-21
 """
 
@@ -23,7 +23,7 @@ from collections.abc import Sequence
 from alembic import context, op
 
 revision: str = "0016_prompt_versions"
-down_revision: str | None = "0011_member_preapprovals"
+down_revision: str | None = "0014_chat_stage_event"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

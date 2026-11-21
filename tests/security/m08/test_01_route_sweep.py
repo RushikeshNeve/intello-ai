@@ -72,6 +72,17 @@ BODIES: dict[tuple[str, str], Any] = {
         "/v1/orgs/{org_id}/workspaces/{workspace_id}/graph/merge-candidates/{candidate_id}/decision",
     ): {"decision": "reject"},
     ("POST", "/v1/orgs/{org_id}/search"): {"query": "anything"},
+    ("POST", "/v1/orgs/{org_id}/members/preapprovals"): {
+        "email": "sweep@example.com",
+        "role": "member",
+    },
+    # M12.01 prompt registry, M12.03 evals.
+    ("POST", "/v1/orgs/{org_id}/prompts/{kind}/versions"): {"body": "Answer briefly."},
+    ("POST", "/v1/orgs/{org_id}/workspaces/{workspace_id}/evals/sets"): {"name": "Sweep"},
+    ("PATCH", "/v1/orgs/{org_id}/workspaces/{workspace_id}/evals/sets/{set_id}"): {"name": "x"},
+    ("POST", "/v1/orgs/{org_id}/workspaces/{workspace_id}/evals/sets/{set_id}/cases"): {
+        "question": "what?"
+    },
 }
 
 # Org-level routes only org owners/admins may WRITE: a plain org member gets 403 (d').
@@ -97,6 +108,7 @@ def _ids(world: World, rig: Rig) -> dict[str, Any]:
         "version_id": doc.versions[0],
         "chunk_id": pub.chunk_ids[0],
         "user_id": world.plain.id,
+        "kind": "chat_system",  # M12.01 prompt kinds are an enum, not a UUID
     }
 
 

@@ -6,7 +6,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, ForeignKey, LargeBinary, Text, text
+from sqlalchemy import CheckConstraint, ForeignKey, Index, LargeBinary, Text, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -17,6 +17,7 @@ class EmbeddingCacheRow(Base):
     __tablename__ = "embedding_cache"
     __table_args__ = (
         CheckConstraint("text_sha256 ~ '^[0-9a-f]{64}$'", name="ck_embedding_cache_sha"),
+        Index("ix_embedding_cache_last_used", "org_id", "last_used_at"),
     )
 
     org_id: Mapped[uuid.UUID] = mapped_column(

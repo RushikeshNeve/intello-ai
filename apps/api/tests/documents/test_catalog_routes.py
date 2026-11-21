@@ -57,7 +57,7 @@ def test_no_route_anywhere_mutates_a_version() -> None:
     offenders = {
         (path, method)
         for path, method in _routes_containing("version")
-        if method in mutating and "/uploads" not in path
+        if method in mutating and "/uploads" not in path and "/prompts/" not in path
     }
     assert offenders == set()
 

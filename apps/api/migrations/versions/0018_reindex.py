@@ -80,7 +80,7 @@ CREATE TABLE reindex_jobs (
 );
 CREATE UNIQUE INDEX uq_reindex_jobs_one_active
     ON reindex_jobs (org_id) WHERE state IN ('planned', 'running', 'verifying', 'ready');
-CREATE INDEX ix_reindex_jobs_org_created ON reindex_jobs (org_id, created_at DESC);
+CREATE INDEX ix_reindex_jobs_org_created ON reindex_jobs (org_id, created_at);
 
 CREATE TABLE org_active_spaces (
     org_id uuid NOT NULL,

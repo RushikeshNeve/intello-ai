@@ -156,6 +156,11 @@ def test_worker_reachable_relations_are_exactly_the_documented_set(
         "usage_events",  # M11.01 (migration 0012; exact grants: test_20_usage_tables.py)
         # M12.01 (migration 0016): SELECT only; exact rules: test_20_prompt_versions.py
         "prompt_versions",
+        # M11.03 (migration 0013; exact rules: test_20_embedding_cache.py)
+        "embedding_cache",
+        # M12.05 (migration 0018; exact rules: test_20_reindex_tables.py)
+        "reindex_jobs",
+        "org_active_spaces",
     }
     with admin_engine.connect() as conn:
         reachable = set(

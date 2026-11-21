@@ -56,6 +56,11 @@ CONTRACT_EVENT_TYPES = {
     "memory.deleted",
     "research.created",
     "research.cancelled",
+    # M12.05 reindex (ids, spaces and counts only).
+    "org.reindex.created",
+    "org.reindex.cutover",
+    "org.reindex.rollback",
+    "org.reindex.purged",
     "prompt.version.created",
     "prompt.version.activated",
     "prompt.version.rolled_back",

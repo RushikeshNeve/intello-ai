@@ -82,7 +82,7 @@ def test_happy_path_streams_everything_in_order(
         "verification",
         "completed",
     ]
-    assert set(kinds[2:-3]) == {"delta"}
+    assert set(kinds[2:-3]) == {"delta", "stage"}  # M11.07: stage "verifying" before citations
     assert kinds.count("delta") >= 2
     assert events[1].data["evidence_count"] >= 1
     assert events[1].data["degraded"] == []
@@ -218,7 +218,8 @@ def test_cancel_mid_stream_over_the_real_worker(
     time.sleep(1.0)
     assert len(run_events(world.engine, run)) == n  # the worker stopped writing
     assert run_row(world.engine, run)["state"] == "cancelled"
-    assert [m["role"] for m in messages(world.engine, thread)] == ["user"]
+    # M11.07: a cancel after streamed text stores the partial answer as an assistant message.
+    assert [m["role"] for m in messages(world.engine, thread)] == ["user", "assistant"]
     assert model_calls(fake_dir, scn) == 1
 
 

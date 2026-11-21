@@ -45,7 +45,6 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     "connector_accounts": {"SELECT", "INSERT"},
     "source_syncs": {"SELECT", "INSERT"},
     "source_items": {"SELECT"},
-    # M05 (migration 0008): the API only reads; review columns are UPDATE-granted per column.
     # M07 (migration 0010): the API suggests memories and starts research sessions; the worker
     # writes steps/reports. Deep coverage: test_19_m07_tables.py.
     "memories": {"SELECT", "INSERT"},
@@ -59,12 +58,16 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     "eval_cases": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "eval_runs": {"SELECT", "INSERT"},
     "eval_run_results": {"SELECT", "INSERT"},
+    # M05 (migration 0008): the API only reads; review columns are UPDATE-granted per column.
     "graph_entities": {"SELECT"},
     "entity_merge_candidates": {"SELECT"},
     # M11.01 (migration 0012): insert-only usage metering, both roles. Depth: test_20.
     "usage_events": {"SELECT", "INSERT"},
     # Migration 0013 (M11.03): per-org embedding cache; UPDATE is column-level (last_used_at).
     "embedding_cache": {"SELECT", "INSERT", "DELETE"},
+    # M12.05 (migration 0018_reindex): the API plans jobs; cutover/rollback go through definers.
+    "reindex_jobs": {"SELECT", "INSERT"},
+    "org_active_spaces": {"SELECT"},
 }
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 TRIVIAL = {"true", "(true)", "1 = 1", "(1 = 1)"}

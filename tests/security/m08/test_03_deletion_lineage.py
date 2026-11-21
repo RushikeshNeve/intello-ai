@@ -53,6 +53,8 @@ ALLOWED_CACHES = {
     "_default_graph_repository", "default_graph_read_repository", "get_format_settings",
     "default_repository", "default_uploads_store", "default_artifact_store",
     "get_search_settings", "_embedder", "_limiter", "_build_object_store", "get_worker_settings",
+    # M11.03 env settings; M12.01 the shipped default prompt file (no tenant data).
+    "get_cache_settings", "default_body",
 }  # fmt: skip
 
 
@@ -195,7 +197,9 @@ def _assert_caches_clean(rig: Rig, *needles: str) -> None:
     assert found == ALLOWED_CACHES, found ^ ALLOWED_CACHES
     # the AI policy is read from PostgreSQL per call: it is not cached in-process
     assert not [
-        p for p in APP_DIR.joinpath("modules/ai").rglob("*.py") if "lru_cache" in p.read_text()
+        p
+        for p in APP_DIR.joinpath("modules/ai").rglob("*.py")
+        if "lru_cache" in p.read_text() and p.name != "cache.py"  # cache.py: env settings only
     ]
 
 
