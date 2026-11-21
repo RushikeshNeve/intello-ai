@@ -32,6 +32,7 @@ NEXT_PHASE_CHAIN = (
     "0016_prompt_versions",
     "0017_evals",
     "0018_reindex",
+    "0019b_workspace_styles",
 )
 HEAD = NEXT_PHASE_CHAIN[-1]
 PREVIOUS = "0006_ingestion_requeue"

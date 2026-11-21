@@ -68,6 +68,8 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     # M12.05 (migration 0018_reindex): the API plans jobs; cutover/rollback go through definers.
     "reindex_jobs": {"SELECT", "INSERT"},
     "org_active_spaces": {"SELECT"},
+    # M12.07 (migration 0019b): admins upsert styles; never deleted.
+    "workspace_styles": {"SELECT", "INSERT", "UPDATE"},
 }
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 TRIVIAL = {"true", "(true)", "1 = 1", "(1 = 1)"}

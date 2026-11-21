@@ -76,7 +76,9 @@ BODIES: dict[tuple[str, str], Any] = {
         "email": "sweep@example.com",
         "role": "member",
     },
-    # M12.01 prompt registry, M12.03 evals.
+    # M12.01 prompt registry, M12.03 evals, M12.07 styles.
+    ("PUT", "/v1/orgs/{org_id}/workspaces/{workspace_id}/style"): {"tone": "formal"},
+    ("PUT", "/v1/orgs/{org_id}/style"): {"tone": "formal"},
     ("POST", "/v1/orgs/{org_id}/prompts/{kind}/versions"): {"body": "Answer briefly."},
     ("POST", "/v1/orgs/{org_id}/workspaces/{workspace_id}/evals/sets"): {"name": "Sweep"},
     ("PATCH", "/v1/orgs/{org_id}/workspaces/{workspace_id}/evals/sets/{set_id}"): {"name": "x"},
@@ -93,6 +95,7 @@ ORG_ADMIN_WRITES = {
     ("DELETE", "/v1/orgs/{org_id}/members/{user_id}"),
     ("POST", "/v1/orgs/{org_id}/workspaces"),
     ("PUT", "/v1/orgs/{org_id}/ai-policy"),
+    ("PUT", "/v1/orgs/{org_id}/style"),
 }
 # Workspace "writes" that any workspace member may legitimately call (reads shaped as POST).
 VIEWER_MAY: set[tuple[str, str]] = set()

@@ -52,6 +52,7 @@ from app.modules.ai.policy_source import DbPolicySource
 from app.modules.ai.structured import generate_structured
 from app.modules.ai.verification import VerifyConfig, verify
 from app.modules.graph.merge import augment_evidence
+from app.modules.prompts import styles
 from app.modules.research import planner, repo
 from app.modules.research.repo import ClaimedSession, SessionFence, SessionFenceLost, StepRow
 from app.modules.retrieval import service as retrieval_service
@@ -519,6 +520,13 @@ class ResearchExecutor:
             "withheld_count": 0,
             "flagged_count": 0,
         }
+        style_scope = self._resolve_scope() if evidence else None
+        with self._session() as session:
+            style = (
+                None
+                if style_scope is None
+                else styles.resolve_style(session, self.claim.org_id, style_scope.workspace_ids)
+            )
         bundle = (
             build_prompt(
                 step.query or "",
@@ -527,7 +535,9 @@ class ResearchExecutor:
                 budget_tokens=cs.CHAT_CONTEXT_TOKENS,
                 reserve_output_tokens=cs.CHAT_MAX_OUTPUT_TOKENS,
                 history_turns=0,
-                system_prompt=prompts.chat_system(self._resolve_prompt("chat_system").body),
+                system_prompt=styles.compose(
+                    prompts.chat_system(self._resolve_prompt("chat_system").body), style
+                ),
             )
             if evidence
             else None

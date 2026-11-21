@@ -43,3 +43,9 @@ Re-embedding / index migration (migration `0018_reindex`, `modules/knowledge/rei
 - Rollback and the global default never go through the gate. Activating an already-active version is a no-op.
 - `GET|PUT /v1/orgs/{o}/prompts/gate` (`org.update`): `{enforced, min_pass_rate}`; default off.
 - CI: `scripts/ci/prompt_gate.sh|py` (PR only): changes under `prompts/defaults/` or `scaffold.py` need a new `docs/release/PROMPT_CHANGELOG.md` line naming each kind and a passing `run_eval.py --require-baseline --metrics`.
+
+## M12.07 Workspace answer styles
+- Migration `0019b_workspace_styles` (down `0018_reindex`). Table `workspace_styles` (FORCE RLS; `workspace_id` NULL = org default; unique per workspace and per org default): tone neutral|formal|friendly|technical, answer_format concise|detailed|bullets|table, language (letters only, 2-40), citation_style numeric|inline, custom_instructions <=1000. Read: workspace readers (org default: org context); write: workspace admin; org default written by the API after `org.update`. Worker: SELECT.
+- `prompts/styles.py`: `compose(system, style)` appends a fenced `<<<STYLE PREFERENCES>>>` block AFTER the scaffold (body + CHAT_SAFETY) stating it never overrides rules 1-6. Input with `<<<`/`>>>`/control chars/oversize/odd language is rejected (422 `invalid_style`); stored rows are re-stripped at composition. No wording heuristics: scaffold and verifier stay authoritative.
+- Resolution (chat + research synthesis): run scoped to exactly one workspace -> its row, else org default, else none; storage error -> unstyled prompt. Hook is one `styles.compose(...)` call in `ai/chat.py` and `research/runtime.py`.
+- API: `GET/PUT /v1/orgs/{o}/workspaces/{w}/style` (ws admin writes, members read), `GET/PUT /v1/orgs/{o}/style`. Audit `style.updated` (scope + ids only). Web: "Answer style" card in workspace settings.
