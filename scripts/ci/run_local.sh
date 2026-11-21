@@ -28,6 +28,7 @@ if want api; then
 fi
 if want eval; then
   run "eval gate (--require-baseline)" bash $R apps/api "python ../../tests/evaluation/run_eval.py --require-baseline"
+  run "eval metrics + latency/cost budgets" bash $R apps/api "python ../../tests/evaluation/run_eval.py --require-baseline --metrics && python ../../tests/evaluation/budgets.py"
 fi
 if want web; then
   # Default: Node 24 in a container (node_modules stays inside it). WEB_HOST=1: use the host Node 24 + npm in apps/web
