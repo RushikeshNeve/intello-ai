@@ -1,6 +1,37 @@
 {
   "components": {
     "schemas": {
+      "ActivateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "attestation_id": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attestation Id"
+          },
+          "eval_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eval Run Id"
+          }
+        },
+        "title": "ActivateIn",
+        "type": "object"
+      },
       "ActiveRun": {
         "properties": {
           "run_id": {
@@ -1268,6 +1299,45 @@
           "size_bytes"
         ],
         "title": "FromUrlResult",
+        "type": "object"
+      },
+      "GateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "enforced": {
+            "title": "Enforced",
+            "type": "boolean"
+          },
+          "min_pass_rate": {
+            "default": 0.8,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Min Pass Rate",
+            "type": "number"
+          }
+        },
+        "required": [
+          "enforced"
+        ],
+        "title": "GateIn",
+        "type": "object"
+      },
+      "GateOut": {
+        "properties": {
+          "enforced": {
+            "title": "Enforced",
+            "type": "boolean"
+          },
+          "min_pass_rate": {
+            "title": "Min Pass Rate",
+            "type": "number"
+          }
+        },
+        "required": [
+          "enforced",
+          "min_pass_rate"
+        ],
+        "title": "GateOut",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -2786,6 +2856,29 @@
               }
             ],
             "title": "Created By"
+          },
+          "eval_attestation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eval Attestation"
+          },
+          "eval_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eval Run Id"
           },
           "id": {
             "format": "uuid",
@@ -6952,6 +7045,100 @@
         ]
       }
     },
+    "/v1/orgs/{org_id}/prompts/gate": {
+      "get": {
+        "operationId": "get_gate_v1_orgs__org_id__prompts_gate_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Gate",
+        "tags": [
+          "prompts"
+        ]
+      },
+      "put": {
+        "operationId": "put_gate_v1_orgs__org_id__prompts_gate_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Gate",
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
     "/v1/orgs/{org_id}/prompts/versions/{version_id}/activate": {
       "post": {
         "operationId": "activate_v1_orgs__org_id__prompts_versions__version_id__activate_post",
@@ -6977,6 +7164,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ActivateIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {

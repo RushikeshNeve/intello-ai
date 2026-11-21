@@ -14,7 +14,7 @@ from app.modules.prompts.registry import sha256_of
 
 COLUMNS: Final = (
     "id, org_id, kind, version, body, sha256, change_note, created_by, created_at, state,"
-    " activated_at"
+    " activated_at, eval_run_id, eval_attestation"
 )
 
 
@@ -89,7 +89,12 @@ def _retire_active(session: Session, org_id: uuid.UUID, kind: str) -> None:
     )
 
 
-def activate(session: Session, org_id: uuid.UUID, version: dict[str, Any]) -> dict[str, Any]:
+def activate(
+    session: Session,
+    org_id: uuid.UUID,
+    version: dict[str, Any],
+    evidence: tuple[uuid.UUID | None, str | None] = (None, None),
+) -> dict[str, Any]:
     if version["state"] == "active":
         return version
     try:
@@ -98,10 +103,12 @@ def activate(session: Session, org_id: uuid.UUID, version: dict[str, Any]) -> di
             row = (
                 session.execute(
                     text(
-                        "UPDATE prompt_versions SET state = 'active', activated_at = now()"
+                        "UPDATE prompt_versions SET state = 'active', activated_at = now(),"
+                        " eval_run_id = COALESCE(:er, eval_run_id),"
+                        " eval_attestation = COALESCE(:ea, eval_attestation)"
                         f" WHERE id = :i AND org_id = :o RETURNING {COLUMNS}"
                     ),
-                    {"i": version["id"], "o": org_id},
+                    {"i": version["id"], "o": org_id, "er": evidence[0], "ea": evidence[1]},
                 )
                 .mappings()
                 .one()

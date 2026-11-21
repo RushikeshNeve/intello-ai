@@ -29,3 +29,10 @@ Re-embedding / index migration (migration `0018_reindex`, `modules/knowledge/rei
 - `run_eval.py --metrics` records calls through `report.Recorder` and writes `reports/metrics.json|md`; gate semantics and `baseline.json` untouched (new metrics are report-only, no baseline committed).
 - `tests/evaluation/budgets.py` measures p50/p95 per-question latency (retrieval+answer) and tokens per answer (deterministic word-token proxy: the stub has no accounting) against `budgets.json` with tolerances (latency limit x4, tokens +10%). `--update` rewrites it explicitly. Wired into `scripts/ci/run_local.sh` (gate step) and the ci.yml job as an extra step.
 - Real-model runs later: swap the proxy for provider usage counts and pass a judge to the metrics.
+
+## M12.06 Prompt change gate
+- Migration `0019a_prompt_gate` (after `0018_reindex`): `prompt_versions.eval_run_id|eval_attestation` (nullable evidence) and `prompt_gate_settings(org_id, enforced=false, min_pass_rate=0.8)` with RLS.
+- `modules/prompts/activate.py::check_gate`: when `enforced`, `POST .../versions/{id}/activate` needs body `{eval_run_id}` (own-org completed run with `summary.pass_rate >= min_pass_rate`) or `{attestation_id}` (`<sha256>.<hmac>` over `kind|sha256`, key env `PROMPT_ATTESTATION_SECRET`; unset = attestations rejected). Otherwise 409 `eval_required` (no detail). Evidence is stored on the row.
+- Rollback and the global default never go through the gate. Activating an already-active version is a no-op.
+- `GET|PUT /v1/orgs/{o}/prompts/gate` (`org.update`): `{enforced, min_pass_rate}`; default off.
+- CI: `scripts/ci/prompt_gate.sh|py` (PR only): changes under `prompts/defaults/` or `scaffold.py` need a new `docs/release/PROMPT_CHANGELOG.md` line naming each kind and a passing `run_eval.py --require-baseline --metrics`.

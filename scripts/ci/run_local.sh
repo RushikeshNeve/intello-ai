@@ -29,6 +29,7 @@ fi
 if want eval; then
   run "eval gate (--require-baseline)" bash $R apps/api "python ../../tests/evaluation/run_eval.py --require-baseline"
   run "eval metrics + latency/cost budgets" bash $R apps/api "python ../../tests/evaluation/run_eval.py --require-baseline --metrics && python ../../tests/evaluation/budgets.py"
+  run "prompt change gate" bash -c 'git rev-parse --verify -q origin/main >/dev/null && BASE=origin/main bash scripts/ci/prompt_gate.sh --eval-cmd true || echo "no origin/main: skipped"'
 fi
 if want web; then
   # Default: Node 24 in a container (node_modules stays inside it). WEB_HOST=1: use the host Node 24 + npm in apps/web
