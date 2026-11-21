@@ -378,6 +378,21 @@ class ChatDeps:
     graph_chunks: ChunkSource | None = None
 
 
+@dataclass(frozen=True)
+class ShadowSeed:
+    """In-memory hand-over of a completed live run to a prompt shadow run (M12.09): the SAME
+    evidence and question, the live outcome as numbers, and a re-check that every evidence passage
+    still resolves for the run's creator. Never persisted."""
+
+    question: str
+    history: tuple[HistoryTurn, ...]
+    evidence: tuple[Any, ...]
+    verification: Verification
+    latency_ms: int
+    prompt_version_id: uuid.UUID | None
+    still_valid: Callable[[], bool]
+
+
 # -- the executor ---------------------------------------------------------------------------
 
 
@@ -481,6 +496,8 @@ class RunExecutor:
             None,
             prompts.sha256_of(prompts.default_body("chat_system")),
         )
+        self.shadow_seed: ShadowSeed | None = None  # set when a model-answered run completes
+        self._seed_parts: tuple[str, tuple[HistoryTurn, ...], tuple[Any, ...], int] | None = None
 
     # -- plumbing ----------------------------------------------------------------------------
 
@@ -742,7 +759,14 @@ class RunExecutor:
             return self._complete(abstention("no_evidence", cs.VERIFY_MODE), [])
 
         model = self._open_model()
+        t_gen = self._clock()
         text = self._generate(model, bundle)
+        self._seed_parts = (
+            data.question,
+            data.history,
+            tuple(evidence),
+            int((self._clock() - t_gen) * 1000),
+        )
         return self._finalize(text, bundle, scope)
 
     def _open_model(self) -> ChatModel:
@@ -855,7 +879,44 @@ class RunExecutor:
             for vc in verification.citations
             if vc.evidence_id in resolved
         ]
-        return self._complete(verification, citations)
+        outcome = self._complete(verification, citations)
+        self._remember_for_shadow(verification, scope)
+        return outcome
+
+    def _remember_for_shadow(self, verification: Verification, scope: RetrievalScope) -> None:
+        if self._seed_parts is None:
+            return
+        question, history, evidence, latency_ms = self._seed_parts
+        workspaces = scope.workspace_ids
+
+        def still_valid() -> bool:
+            fresh = self._resolve_scope(workspaces)
+            if fresh is None:
+                return False
+            with self._session() as session:
+                return all(
+                    resolve_citation(
+                        session,
+                        fresh,
+                        CitationRef(
+                            chunk_id=uuid.UUID(str(e.chunk_id)),
+                            document_id=uuid.UUID(str(e.document_id)),
+                            version_id=uuid.UUID(str(e.version_id)),
+                        ),
+                    )
+                    is not None
+                    for e in evidence
+                )
+
+        self.shadow_seed = ShadowSeed(
+            question=question,
+            history=history,
+            evidence=evidence,
+            verification=verification,
+            latency_ms=latency_ms,
+            prompt_version_id=self._prompt.version_id,
+            still_valid=still_valid,
+        )
 
     def _complete(self, verification: Verification, citations: list[dict[str, Any]]) -> RunOutcome:
         """citations, verification, the assistant message (kept text only), completed, state: one

@@ -7,7 +7,16 @@ import uuid
 from datetime import datetime
 from typing import Final
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, Text, text
+from sqlalchemy import (
+    CheckConstraint,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    Text,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -77,3 +86,71 @@ class PromptVersion(Base):
     activated_at: Mapped[datetime | None] = mapped_column(_tstz(), nullable=True)
     eval_run_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     eval_attestation: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class ShadowCandidate(Base):
+    """Migration ``0019c_shadow_runs``: the draft version shadowed for ``(org, kind)``."""
+
+    __tablename__ = "shadow_candidates"
+    __table_args__ = (
+        CheckConstraint("kind = 'chat_system'", name="ck_shadow_candidates_kind"),
+        CheckConstraint("rate_pct BETWEEN 0 AND 20", name="ck_shadow_candidates_rate"),
+    )
+
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True
+    )
+    kind: Mapped[str] = mapped_column(Text, primary_key=True)
+    version_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("prompt_versions.id", ondelete="CASCADE"), nullable=False
+    )
+    rate_pct: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        _tstz(), nullable=False, server_default=text("now()")
+    )
+
+
+class ShadowRun(Base):
+    """One comparison row per sampled live run: ids, statuses and numbers only (no text)."""
+
+    __tablename__ = "shadow_runs"
+    __table_args__ = (
+        UniqueConstraint("run_id", "candidate_version_id", name="uq_shadow_runs_run_candidate"),
+        CheckConstraint(
+            _in("status", ("running", "completed", "skipped", "failed")),
+            name="ck_shadow_runs_status",
+        ),
+        CheckConstraint(
+            "outcome IS NULL OR outcome IN ('win', 'tie', 'loss')", name="ck_shadow_runs_outcome"
+        ),
+        Index("ix_shadow_runs_org_created", "org_id", text("created_at DESC")),
+        Index("ix_shadow_runs_candidate", "candidate_version_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("chat_runs.id", ondelete="CASCADE"), nullable=False
+    )
+    candidate_version_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("prompt_versions.id", ondelete="CASCADE"), nullable=False
+    )
+    kind: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'chat_system'"))
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'running'"))
+    skip_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    live_status: Mapped[str | None] = mapped_column(Text, nullable=True)
+    live_citation_validity: Mapped[float | None] = mapped_column(Float, nullable=True)
+    live_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cand_status: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cand_citation_validity: Mapped[float | None] = mapped_column(Float, nullable=True)
+    cand_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tokens_in: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tokens_out: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    outcome: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        _tstz(), nullable=False, server_default=text("now()")
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(_tstz(), nullable=True)

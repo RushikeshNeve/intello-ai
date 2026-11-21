@@ -33,6 +33,7 @@ from app.modules.ai.chat import (
     RunExecutor,
     RunHeartbeater,
     RunOutcome,
+    ShadowSeed,
     fail_run,
 )
 from app.modules.ai.models.settings import ChatSettings
@@ -107,11 +108,41 @@ def run_chat(
             deps = None
         if deps is None:
             return fail_run(engine, claim, ERR_SEARCH_UNAVAILABLE)
-        return RunExecutor(
+        executor = RunExecutor(
             engine=engine, settings=settings, deps=deps, claim=claim, check=heartbeater.check
-        ).run()
+        )
+        outcome = executor.run()
     finally:
         heartbeater.stop()
+    if outcome == "completed" and executor.shadow_seed is not None:
+        _shadow(engine, settings, deps, claim, executor.shadow_seed)
+    return outcome
+
+
+def _shadow(
+    engine: Engine,
+    settings: Settings,
+    deps: ChatDeps,
+    claim: chat_repo.ClaimedRun,
+    seed: ShadowSeed,
+) -> None:
+    """M12.09: after the live answer is final, maybe start a prompt shadow run (never raises)."""
+    if not getattr(settings, "PROMPT_SHADOW_ENABLED", False):
+        return
+    try:
+        from app.modules.evals.shadow_runner import maybe_shadow
+
+        maybe_shadow(
+            engine=engine,
+            settings=settings,
+            deps=deps,
+            org_id=claim.org_id,
+            user_id=claim.created_by,
+            run_id=claim.run_id,
+            seed=seed,
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.warning("chat run=%s: shadow hand-over failed (%s)", claim.run_id, type(exc).__name__)
 
 
 # -- runtime (per process) ----------------------------------------------------------------------

@@ -68,6 +68,7 @@ def test_delete_without_context_denied_or_noop(
         "eval_sets",
         "eval_cases",
         "embedding_cache",
+        "shadow_candidates",
     ):
         with app_tx(app_engine) as conn:
             assert conn.execute(text(f"DELETE FROM {table}")).rowcount == 0

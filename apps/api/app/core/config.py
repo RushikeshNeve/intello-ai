@@ -133,6 +133,9 @@ class Settings(BaseSettings):
     GRAPH_EXTRACT_BATCH_CHUNKS: int = Field(default=6, ge=1, le=50)
     GRAPH_TRAVERSAL_MAX_DEPTH: int = Field(default=2, ge=1, le=4)
     GRAPH_MAX_NODES: int = Field(default=50, ge=1, le=500)
+    # M12.09 prompt shadow runs: off by default; hard per-org daily cap on shadow generations.
+    PROMPT_SHADOW_ENABLED: bool = False
+    PROMPT_SHADOW_MAX_PER_DAY: int = Field(default=200, ge=0, le=100_000)
     # Memory and research (M07 contract §6). Limits are ceilings; a request can only lower them.
     MEMORY_ENABLED: bool = True
     MEMORY_MAX_PER_PROMPT: int = Field(default=5, ge=1, le=20)

@@ -617,6 +617,9 @@ ORG_SCOPED_TABLES: Final = (
     "org_active_spaces",
     # M12.07 answer styles (migration 0019b_workspace_styles).
     "workspace_styles",
+    # M12.09 prompt shadow runs (migration 0019c_shadow_runs).
+    "shadow_candidates",
+    "shadow_runs",
 )
 RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
 

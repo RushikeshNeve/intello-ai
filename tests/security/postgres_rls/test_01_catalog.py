@@ -70,6 +70,9 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     "org_active_spaces": {"SELECT"},
     # M12.07 (migration 0019b): admins upsert styles; never deleted.
     "workspace_styles": {"SELECT", "INSERT", "UPDATE"},
+    # M12.09 (migration 0019c_shadow_runs): config by the API, comparison rows by the worker.
+    "shadow_candidates": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    "shadow_runs": {"SELECT"},
 }
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 TRIVIAL = {"true", "(true)", "1 = 1", "(1 = 1)"}
