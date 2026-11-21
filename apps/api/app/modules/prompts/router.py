@@ -24,6 +24,7 @@ from app.modules.audit import AuditEventType, record_event
 from app.modules.authorization.policy import Action
 from app.modules.organizations import service as org_service
 from app.modules.organizations.service import OrgAccess
+from app.modules.prompts import activate as activate_gate
 from app.modules.prompts import service
 from app.modules.prompts.scaffold import BODY_MAX_LENGTH, BodyRejected, validate_body
 
@@ -45,6 +46,27 @@ class PromptVersionOut(BaseModel):
     created_at: datetime
     state: str
     activated_at: datetime | None
+    eval_run_id: uuid.UUID | None = None
+    eval_attestation: str | None = None
+
+
+class ActivateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    eval_run_id: uuid.UUID | None = None
+    attestation_id: str | None = Field(default=None, max_length=200)
+
+
+class GateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    enforced: bool
+    min_pass_rate: float = Field(default=activate_gate.DEFAULT_MIN_PASS_RATE, ge=0, le=1)
+
+
+class GateOut(BaseModel):
+    enforced: bool
+    min_pass_rate: float
 
 
 class PromptVersionList(BaseModel):
@@ -132,14 +154,27 @@ def create_draft(
 
 
 @router.post("/versions/{version_id}/activate", response_model=PromptVersionOut)
-def activate(tenant: Tenant, org_id: uuid.UUID, version_id: uuid.UUID) -> PromptVersionOut:
+def activate(
+    tenant: Tenant, org_id: uuid.UUID, version_id: uuid.UUID, body: ActivateIn | None = None
+) -> PromptVersionOut:
+    body = body or ActivateIn()
     with tenant.transaction(org_id) as session:
         _access(tenant, session, org_id)
         version = service.get_own(session, org_id, version_id)
         if version is None:
             raise not_found()
         try:
-            row = service.activate(session, org_id, version)
+            evidence = (
+                (None, None)
+                if version["state"] == "active"
+                else activate_gate.check_gate(
+                    session, org_id, version, body.eval_run_id, body.attestation_id
+                )
+            )
+        except activate_gate.EvalRequired:
+            raise api_error(status.HTTP_409_CONFLICT, "eval_required") from None
+        try:
+            row = service.activate(session, org_id, version, evidence)
         except service.VersionConflict:
             raise api_error(status.HTTP_409_CONFLICT, "prompt_version_conflict") from None
         _audit(
@@ -151,6 +186,22 @@ def activate(tenant: Tenant, org_id: uuid.UUID, version_id: uuid.UUID) -> Prompt
             {"kind": row["kind"], "version": row["version"]},
         )
     return PromptVersionOut(**row)
+
+
+@router.get("/gate", response_model=GateOut)
+def get_gate(tenant: Tenant, org_id: uuid.UUID) -> GateOut:
+    with tenant.transaction(org_id) as session:
+        _access(tenant, session, org_id)
+        s = activate_gate.load_settings(session, org_id)
+    return GateOut(enforced=s.enforced, min_pass_rate=s.min_pass_rate)
+
+
+@router.put("/gate", response_model=GateOut)
+def put_gate(tenant: Tenant, org_id: uuid.UUID, body: GateIn) -> GateOut:
+    with tenant.transaction(org_id) as session:
+        _access(tenant, session, org_id)
+        s = activate_gate.save_settings(session, org_id, body.enforced, body.min_pass_rate)
+    return GateOut(enforced=s.enforced, min_pass_rate=s.min_pass_rate)
 
 
 @router.post("/{kind}/rollback", response_model=RollbackOut)

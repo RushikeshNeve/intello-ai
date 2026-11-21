@@ -36,3 +36,10 @@ Re-embedding / index migration (migration `0018_reindex`, `modules/knowledge/rei
 - Chat uses the real path (`build_prompt` -> adapter -> `verify`): grounded_rate, faithfulness, answer_relevance. Embedding builds a temporary in-memory index per embedder: hit@5, MRR, context precision/recall (`rag_metrics`). `Reranker.rerank(query, [(id, text)]) -> ids`; only `NoopReranker` and a stub exist.
 - Columns: p50/p95 latency, tokens in/out (adapter `last_usage` else ceil(chars/4)), cost from a `USAGE_PRICES_JSON`-shaped table (`--prices-json`), failures. Dataset = `retrieval_golden` (`--dataset DIR` overrides).
 - `--fail-on-regression` exits 2 when B drops a metric > 0.02, p95 > x2, cost > x2 or has more failures than A (all tunable). Host pytest needs `-p no:hypothesispytest`.
+
+## M12.06 Prompt change gate
+- Migration `0019a_prompt_gate` (after `0018_reindex`): `prompt_versions.eval_run_id|eval_attestation` (nullable evidence) and `prompt_gate_settings(org_id, enforced=false, min_pass_rate=0.8)` with RLS.
+- `modules/prompts/activate.py::check_gate`: when `enforced`, `POST .../versions/{id}/activate` needs body `{eval_run_id}` (own-org completed run with `summary.pass_rate >= min_pass_rate`) or `{attestation_id}` (`<sha256>.<hmac>` over `kind|sha256`, key env `PROMPT_ATTESTATION_SECRET`; unset = attestations rejected). Otherwise 409 `eval_required` (no detail). Evidence is stored on the row.
+- Rollback and the global default never go through the gate. Activating an already-active version is a no-op.
+- `GET|PUT /v1/orgs/{o}/prompts/gate` (`org.update`): `{enforced, min_pass_rate}`; default off.
+- CI: `scripts/ci/prompt_gate.sh|py` (PR only): changes under `prompts/defaults/` or `scaffold.py` need a new `docs/release/PROMPT_CHANGELOG.md` line naming each kind and a passing `run_eval.py --require-baseline --metrics`.

@@ -66,6 +66,12 @@ jobs:
       - run: uv sync --frozen
       - run: uv run python ../../tests/evaluation/run_eval.py --require-baseline
       - run: uv run python ../../tests/evaluation/run_eval.py --require-baseline --metrics && uv run python ../../tests/evaluation/budgets.py
+      - name: prompt change gate (changelog entry + eval)
+        if: github.event_name == 'pull_request'
+        working-directory: .
+        run: |
+          git fetch --no-tags --depth=200 origin "${{ github.base_ref }}"
+          BASE="origin/${{ github.base_ref }}" bash scripts/ci/prompt_gate.sh --eval-cmd "cd apps/api && uv run python ../../tests/evaluation/run_eval.py --require-baseline --metrics"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -75,3 +75,5 @@ class PromptVersion(Base):
     )
     state: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'draft'"))
     activated_at: Mapped[datetime | None] = mapped_column(_tstz(), nullable=True)
+    eval_run_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    eval_attestation: Mapped[str | None] = mapped_column(Text, nullable=True)
