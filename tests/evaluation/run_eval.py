@@ -64,6 +64,7 @@ def run_eval(
     require_baseline: bool = False,
     retriever: Retriever | None = None,
     answerer: Answerer | None = None,
+    rag_metrics: bool = False,
 ) -> dict[str, Any]:
     """Build the corpus, run every item and return the full report (including the gate verdict)."""
     env = build_environment(corpus_dir)
@@ -72,6 +73,13 @@ def run_eval(
         retriever = load_factory(retriever_spec, env, "adapters")
     if answerer is None:
         answerer = load_factory(answerer_spec, env, "adapters")
+    recorder = None
+    if rag_metrics:  # M12.02: record calls to score faithfulness/citations; gate is unaffected
+        sys.path.insert(0, str(HERE / "metrics"))
+        from report import Recorder
+
+        recorder = Recorder(retriever, answerer)
+        retriever, answerer = recorder, recorder
     results = run_items(items, env, retriever, answerer)
     agg = aggregate(results)
     dataset_hash = sha256_file(dataset_path)
@@ -85,7 +93,14 @@ def run_eval(
         corpus_sha256=corpus_hash,
         require_baseline=require_baseline,
     )
+    extra: dict[str, Any] = {}
+    if recorder is not None:
+        from report import aggregate_rag, per_item
+
+        rows = per_item(items, recorder.calls, env)
+        extra["rag_metrics"] = {"aggregate": aggregate_rag(rows), "items": rows}
     return {
+        **extra,
         "schema_version": REPORT_SCHEMA_VERSION,
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "mode": "offline",
@@ -221,6 +236,11 @@ def main(argv: list[str] | None = None) -> int:
         help="write the current numbers as the new baseline",
     )
     parser.add_argument(
+        "--metrics",
+        action="store_true",
+        help="also write reports/metrics.json + metrics.md (RAG metrics; never changes the gate)",
+    )
+    parser.add_argument(
         "--live", action="store_true", help="optional live model run (stub; see docs)"
     )
     args = parser.parse_args(argv)
@@ -234,6 +254,7 @@ def main(argv: list[str] | None = None) -> int:
             answerer_spec=args.answerer,
             baseline_path=args.baseline,
             require_baseline=args.require_baseline and not args.update_baseline,
+            rag_metrics=args.metrics,
         )
     except (DatasetError, ImportError, AttributeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
@@ -259,6 +280,14 @@ def main(argv: list[str] | None = None) -> int:
             require_baseline=True,
         )
     json_path, md_path = write_reports(report, args.report_dir)
+    if args.metrics:
+        from report import render_markdown as rag_md
+
+        rag = report["rag_metrics"]
+        (args.report_dir / "metrics.json").write_text(
+            json.dumps(rag, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        (args.report_dir / "metrics.md").write_text(rag_md(rag["aggregate"]), encoding="utf-8")
     verdict = report["gate"]
     for c in verdict["checks"]:
         if not c["passed"]:

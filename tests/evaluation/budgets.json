@@ -1,0 +1,16 @@
+{
+  "latency_ms": {
+    "p50": 25.567,
+    "p95": 43.292
+  },
+  "schema_version": 1,
+  "tokens_per_answer": {
+    "completion": 18.2,
+    "prompt": 1065.2,
+    "total": 1083.4
+  },
+  "tolerance": {
+    "latency": 3.0,
+    "tokens": 0.1
+  }
+}
