@@ -97,6 +97,7 @@ const BANNER_TONE = {
   abstained: "border-border bg-muted/50",
   partial: "border-border bg-warning-soft",
   flagged: "border-border bg-warning-soft",
+  unverified: "border-border bg-warning-soft",
 } as const;
 
 export function VerificationBanner({ verification }: { verification: Verification | null }) {

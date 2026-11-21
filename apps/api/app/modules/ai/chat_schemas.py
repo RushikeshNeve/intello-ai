@@ -51,9 +51,10 @@ class CitationOut(BaseModel):
 
 
 class VerificationOut(BaseModel):
-    status: Literal["grounded", "partial", "abstained"]
+    status: Literal["grounded", "partial", "abstained", "unverified"]
     withheld_count: int
     flagged_count: int
+    stopped: Literal["cancelled", "timeout"] | None = None
 
 
 class MessageOut(BaseModel):

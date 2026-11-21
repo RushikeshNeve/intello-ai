@@ -70,6 +70,7 @@ EVENT_TYPES: Final = (
     "completed",
     "failed",
     "cancelled",
+    "stage",
 )
 
 AGGREGATE_CHAT_RUN: Final = "chat_run"

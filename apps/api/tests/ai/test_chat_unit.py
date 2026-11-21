@@ -428,6 +428,7 @@ class Recorder:
         self.events = 0
         self.finished: tuple[str, str | None] | None = None
         self.message: dict[str, Any] | None = None
+        self.running = True  # what the cancel probe sees
 
     def install(self, monkeypatch: pytest.MonkeyPatch) -> None:
         @contextlib.contextmanager
@@ -452,6 +453,7 @@ class Recorder:
         monkeypatch.setattr(chat_repo, "append_event", append_event)
         monkeypatch.setattr(chat_repo, "append_assistant_message", append_message)
         monkeypatch.setattr(chat_repo, "finish_run", finish)
+        monkeypatch.setattr(chat_repo, "run_still_running", lambda *_a, **_k: self.running)
         monkeypatch.setattr(chat_repo, "set_run_model", lambda *_a, **_k: None)
 
     @property
@@ -529,7 +531,9 @@ def test_happy_path_event_order_and_kept_text(monkeypatch: pytest.MonkeyPatch) -
     types = rec.types
     assert types[:2] == ["started", "retrieval"]
     assert types[-3:] == ["citations", "verification", "completed"]
-    assert set(types[2:-3]) == {"delta"}
+    assert types[-4] == "stage"
+    assert rec.calls[-4][1] == {"stage": "verifying"}
+    assert set(types[2:-4]) == {"delta"}
     assert rec.text() == ANSWER
     assert rec.finished == ("completed", None)
     assert rec.message is not None
@@ -724,3 +728,76 @@ def test_prompt_is_built_with_the_kept_history_and_evidence_outside_the_system_m
     assert any("IGNORE PREVIOUS" in m["content"] for m in messages[1:])
     assert model.calls[0].temperature == ChatSettings().CHAT_TEMPERATURE
     assert model.calls[0].max_tokens == ChatSettings().CHAT_MAX_OUTPUT_TOKENS
+
+
+# -- M11.07 streaming hardening ----------------------------------------------------------------
+
+
+def test_timeout_after_text_returns_partial_unverified_without_citations(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def stall() -> Iterator[str]:
+        yield "Herons feed on fish [1] "
+        time.sleep(1.0)
+        yield "never"
+
+    ex, rec = make_executor(
+        monkeypatch, FakeChatModel(["x"]), settings={"CHAT_GENERATION_TIMEOUT_SECONDS": 0.3}
+    )
+    model = ex.deps.model_factory(None, None, None)  # type: ignore[arg-type]
+    model.stream = lambda *_a, **_k: stall()  # type: ignore[method-assign]
+    assert ex.run() == "completed"
+    assert rec.finished == ("completed", None)
+    assert rec.types[-3:] == ["citations", "verification", "completed"]
+    assert rec.calls[-3][1] == {"citations": []}
+    assert rec.calls[-2][1]["status"] == "unverified"
+    assert rec.calls[-2][1]["stopped"] == "timeout"
+    assert rec.message is not None
+    assert rec.message["citations"] == []
+    assert "[1]" not in rec.message["content"]  # nothing looks cited
+    assert rec.message["content"].startswith("Herons feed on fish")
+    assert "failed" not in rec.types
+
+
+def test_timeout_before_any_text_is_still_a_plain_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    ex, rec = make_executor(monkeypatch, FakeChatModel(["x"]))
+    ex._deadline = time.monotonic() - 1
+    assert ex.run() == "failed"
+    assert rec.finished == ("failed", "timeout")
+    assert rec.message is None
+
+
+def test_cancel_stops_a_silent_model_within_the_probe_interval(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def silent() -> Iterator[str]:
+        yield "Herons "
+        time.sleep(5)
+        yield "late"
+
+    ex, rec = make_executor(monkeypatch, FakeChatModel(["x"]))
+    model = ex.deps.model_factory(None, None, None)  # type: ignore[arg-type]
+    model.stream = lambda *_a, **_k: silent()  # type: ignore[method-assign]
+    rec.running = False  # the user cancelled: the run row is no longer running
+    started = time.monotonic()
+    assert ex.run() == "fence_lost"
+    assert time.monotonic() - started < 3
+    assert rec.finished is None
+    assert rec.message is None
+
+
+def test_resume_with_last_event_id_has_no_gaps_or_duplicates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    log = [ev(i, "delta", {"text": str(i)}) for i in range(1, 6)] + [ev(6, "completed", {})]
+
+    def connect(last: str | None) -> list[int]:
+        after = chat_stream.parse_last_event_id(last, None)
+        part = [e for e in log if e[0] > after]
+        frames = run_stream([Poll(part, part[-1][0] if part else after, True, False)], monkeypatch)
+        return [int(f.split("\n")[0][4:]) for f in frames if f.startswith("id: ")]
+
+    first = connect(None)
+    assert first == [1, 2, 3, 4, 5, 6]
+    assert connect("3") == [4, 5, 6]  # a refresh after seq 3: exactly the rest
+    assert connect("6") == []

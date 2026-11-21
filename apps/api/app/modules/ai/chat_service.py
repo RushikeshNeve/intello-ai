@@ -134,6 +134,7 @@ def message_out(session: Session, scope: RetrievalScope | None, row: MessageRow)
             status=row.verification["status"],
             withheld_count=int(row.verification.get("withheld_count", 0)),
             flagged_count=int(row.verification.get("flagged_count", 0)),
+            stopped=row.verification.get("stopped"),
         )
     return MessageOut(
         id=row.id,
@@ -342,7 +343,7 @@ def run_detail(
     if run is None:
         raise not_found()
     message: MessageOut | None = None
-    if run.state == "completed":
+    if run.state in ("completed", "cancelled"):
         for m in chat_repo.list_messages(session, org_id=org_id, thread_id=run.thread_id):
             if m.run_id == run.id and m.role == "assistant":
                 scope = _scope_or_none(session, org_id, tenant.user_id)
@@ -366,4 +367,8 @@ def cancel_run(
     result = chat_repo.cancel_run(session, run_id)
     if result is None:
         raise not_found()
+    if result.cancelled:  # keep what was streamed, clearly marked unverified (M11.07)
+        run = chat_repo.get_run(session, org_id=org_id, user_id=tenant.user_id, run_id=run_id)
+        if run is not None:
+            chat_repo.keep_cancelled_partial(session, run_id, run.thread_id)
     return result.state
