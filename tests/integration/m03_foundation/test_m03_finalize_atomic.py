@@ -65,7 +65,7 @@ def test_finalize_creates_version_job_event_and_outbox_row(api: UploadApi, scene
     assert (event["job_id"], event["event_type"], event["attempt"]) == (job["id"], "queued", 0)
     assert str(event["version_id"]) == version_id
 
-    assert outbox["payload"] == {"job_id": str(job["id"])}
+    assert outbox["payload"]["job_id"] == str(job["id"])  # M08 tracing may add a "trace" key
     assert (outbox["aggregate_type"], str(outbox["org_id"])) == ("ingestion_job", str(scene.org_id))
     assert outbox["dispatched_at"] is None
 

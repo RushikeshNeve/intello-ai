@@ -126,3 +126,8 @@ Existing seam: `modules/ai/{prompts.py,verification.py}`, `tests/security/**`, i
 - **Later (not planned now):** G1 provider fallback gateway (user has a Routemind project to integrate once stable; M11 keeps a gateway seam so it can plug in), G4 sensitivity routing, C3 semantic answer cache, D2 horizontal scale, D3 DR drills, D4 hardening/threat model, D5 compliance, T5 Slack/Teams/browser extension.
 - **Undecided (need a yes/no):** G5 model registry, O4 run replay explorer, O5 feedback (planned above as proposed), O7 SLOs, S7 red-team (planned above as proposed), S10 SAML/SCIM/MFA, S11 audit export/SIEM, S12 privacy tooling.
 - D3 and D4 were marked Later, but both are cheap and sit on the public-launch path: recommend revisiting before M17.01 goes public.
+
+## Progress log
+- 2026-11-21: M11 Wave A (M11.01-07) and M12 Wave A (M12.01-05) built and merged on main (0a9bacd + test fix). Unit 2110, RLS 2240, strict mypy clean, eval gate and web 579 tests green.
+- Remaining M11: M11.08 budgets/quotas. Remaining M12: M12.06 prompt change gate, M12.07 styles, M12.08 comparison harness, M12.09 A/B.
+- Follow-ups found: (1) retrieval and ingestion must read the active embedding space (`knowledge.reindex.service.current_space`) so cutover/rollback changes query embedding; (2) embedding-cache eviction job not scheduled; (3) usage token counts are estimates (chars/4), cached tokens only recorded for the OpenAI-compatible adapter; (4) new model call sites must be wrapped with `Meter(...)`.
