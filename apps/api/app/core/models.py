@@ -601,6 +601,11 @@ ORG_SCOPED_TABLES: Final = (
     "research_reports",
     # Member pre-approvals (migration 0011).
     "org_member_preapprovals",
+    # Workspace golden sets (migration 0017_evals, M12.03).
+    "eval_sets",
+    "eval_cases",
+    "eval_runs",
+    "eval_run_results",
 )
 RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
 
@@ -609,6 +614,7 @@ RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
 # every importer of this module.
 from app.modules.ai import models_db as _ai_models  # noqa: E402, F401
 from app.modules.connectors import models as _connector_models  # noqa: E402, F401
+from app.modules.evals import models as _eval_models  # noqa: E402, F401
 from app.modules.graph import models as _graph_models  # noqa: E402, F401
 from app.modules.ingestion import models as _ingestion_models  # noqa: E402, F401
 from app.modules.memory import models as _memory_models  # noqa: E402, F401

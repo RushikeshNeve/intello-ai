@@ -52,6 +52,11 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     "research_sessions": {"SELECT", "INSERT"},
     "research_steps": {"SELECT"},
     "research_reports": {"SELECT"},
+    # M12.03 (migration 0017_evals): workspace-admin golden sets; runs are written once.
+    "eval_sets": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    "eval_cases": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    "eval_runs": {"SELECT", "INSERT"},
+    "eval_run_results": {"SELECT", "INSERT"},
     "graph_entities": {"SELECT"},
     "entity_merge_candidates": {"SELECT"},
 }
