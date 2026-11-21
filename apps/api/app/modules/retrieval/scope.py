@@ -42,6 +42,8 @@ class RetrievalScope:
     workspace_ids: frozenset[uuid.UUID]
     org: OrgScope
     _mint: object = field(default=None, repr=False, compare=False)
+    # The org's active embedding space (M12.05 pointer); None = the configured default space.
+    active_space: str | None = None
 
     def __post_init__(self) -> None:
         if self._mint is not _MINT:
@@ -53,6 +55,13 @@ class RetrievalScope:
 
     def filters(self) -> SearchFilters:
         return SearchFilters(self.workspace_ids)
+
+
+def _active_space(session: Session, org_id: uuid.UUID) -> str | None:
+    found = session.execute(
+        text("SELECT space_id FROM org_active_spaces WHERE org_id = :o"), {"o": org_id}
+    ).scalar_one_or_none()
+    return str(found) if found else None
 
 
 def resolve_scope(
@@ -96,7 +105,14 @@ def resolve_scope(
         allowed &= set(requested_workspace_ids)
     if not allowed:
         raise EmptyScope
-    return RetrievalScope(org_id, user_id, frozenset(allowed), org, _mint=_MINT)
+    return RetrievalScope(
+        org_id,
+        user_id,
+        frozenset(allowed),
+        org,
+        _mint=_MINT,
+        active_space=_active_space(session, org_id),
+    )
 
 
 def scope_for_workspaces(
@@ -118,4 +134,6 @@ def scope_for_workspaces(
     allowed = frozenset(workspace_ids)
     if not allowed:
         raise EmptyScope
-    return RetrievalScope(org_id, user_id, allowed, org, _mint=_MINT)
+    return RetrievalScope(
+        org_id, user_id, allowed, org, _mint=_MINT, active_space=_active_space(session, org_id)
+    )

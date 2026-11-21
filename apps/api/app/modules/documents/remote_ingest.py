@@ -29,6 +29,7 @@ from app.modules.audit import AuditEventType, record_event
 from app.modules.documents import upload_service
 from app.modules.documents.schemas import default_title
 from app.modules.ingestion.jobs import enqueue_ingestion
+from app.modules.knowledge.reindex.service import current_space
 from app.modules.storage.keys import original_key
 from app.modules.storage.ports import ObjectStore
 
@@ -133,7 +134,7 @@ def ingest_bytes(
         workspace_id=workspace_id,
         document_id=doc_id,
         version_id=version_id,
-        embedding_space_id=settings.embedding_space_id,
+        embedding_space_id=current_space(session, org_id, settings.embedding_space_id),
     )
     record_event(
         session,

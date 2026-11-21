@@ -33,6 +33,7 @@ from app.workers import (
 from app.workers.celery_app import (
     TASK_CONNECTOR_SYNC,
     TASK_DELETE_DOCUMENT,
+    TASK_CACHE_EVICT,
     TASK_GRAPH_EXTRACT,
     TASK_RECONCILE,
     TASK_REINDEX_RUN,
@@ -245,4 +246,23 @@ def reindex_run(org_id: str, job_id: str) -> str:
     return run_default(org_id, job_id)
 
 
+def embedding_cache_evict() -> int:
+    from sqlalchemy import text
+
+    from app.modules.ai.embeddings.cache import evict_all
+    from app.workers.worker_db import get_worker_engine, session_factory_for, system_connection
+
+    engine = get_worker_engine(get_worker_settings())
+
+    def list_orgs(limit: int) -> list[uuid.UUID]:
+        with system_connection(engine) as conn:
+            rows = conn.execute(text("SELECT * FROM embedding_cache_orgs(:n)"), {"n": limit})
+            return [r[0] for r in rows]
+
+    return evict_all(list_orgs, session_factory_for(engine))
+
+
+embedding_cache_evict_task = celery_app.task(name=TASK_CACHE_EVICT, **_maintenance_options)(
+    embedding_cache_evict
+)
 reindex_run_task = celery_app.task(name=TASK_REINDEX_RUN, **_maintenance_options)(reindex_run)

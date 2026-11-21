@@ -40,6 +40,8 @@ class EmbeddingCacheSettings(BaseSettings):
     EMBEDDING_CACHE_MAX_ROWS_PER_ORG: int = Field(default=200_000, ge=1)
     EMBEDDING_CACHE_MAX_AGE_DAYS: int = Field(default=90, ge=1)
     EMBEDDING_QUERY_CACHE_SIZE: int = Field(default=512, ge=1)
+    EMBEDDING_CACHE_EVICT_INTERVAL_SECONDS: int = Field(default=3600, ge=60)
+    EMBEDDING_CACHE_EVICT_MAX_ORGS: int = Field(default=1000, ge=1)
 
 
 @lru_cache(maxsize=1)
@@ -134,6 +136,31 @@ def evict_org(session: Session, *, max_rows: int, max_age_days: int) -> int:
         {"n": max_rows},
     )
     return int(aged.rowcount or 0) + int(over.rowcount or 0)
+
+
+def evict_all(
+    list_orgs: Callable[[int], list[uuid.UUID]],
+    session_factory: Callable[[uuid.UUID], AbstractContextManager[Session]],
+    *,
+    settings: EmbeddingCacheSettings | None = None,
+) -> int:
+    """Periodic maintenance: :func:`evict_org` for every org holding cache rows, one tenant
+    session each (a failing org is skipped, not fatal). No-op (0) while the cache is disabled."""
+    cfg = settings or get_cache_settings()
+    if not cfg.EMBEDDING_CACHE_ENABLED:
+        return 0
+    deleted = 0
+    for org in list_orgs(cfg.EMBEDDING_CACHE_EVICT_MAX_ORGS):
+        try:
+            with session_factory(org) as session:
+                deleted += evict_org(
+                    session,
+                    max_rows=cfg.EMBEDDING_CACHE_MAX_ROWS_PER_ORG,
+                    max_age_days=cfg.EMBEDDING_CACHE_MAX_AGE_DAYS,
+                )
+        except Exception:  # noqa: BLE001 - one org must not stop the sweep
+            continue
+    return deleted
 
 
 class CachingEmbedder:

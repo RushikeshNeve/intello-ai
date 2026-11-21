@@ -13,7 +13,12 @@ from app.modules.retrieval.citations import (
     resolve_citation,
 )
 from app.modules.retrieval.evidence import Evidence, revalidate
-from app.modules.retrieval.hybrid import CandidateSet, SearchUnavailable, retrieve_candidates
+from app.modules.retrieval.hybrid import (
+    CandidateSet,
+    EmbeddingSpaceMismatch,
+    SearchUnavailable,
+    retrieve_candidates,
+)
 from app.modules.retrieval.ranking import (
     Candidate,
     Reranker,
@@ -45,6 +50,7 @@ __all__ = [
     "ResolvedCitation",
     "RetrievalResult",
     "RetrievalScope",
+    "EmbeddingSpaceMismatch",
     "SearchUnavailable",
     "TokenBucketLimiter",
     "deduplicate",

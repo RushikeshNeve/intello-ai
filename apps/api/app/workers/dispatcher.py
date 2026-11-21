@@ -51,6 +51,7 @@ from app.workers.celery_app import (
     QUEUE_INGEST,
     QUEUE_MAINTENANCE,
     QUEUE_RESEARCH,
+    TASK_CACHE_EVICT,
     TASK_CHAT_RUN,
     TASK_CONNECTOR_SYNC,
     TASK_DELETE_DOCUMENT,
@@ -222,6 +223,7 @@ class Dispatcher:
         self._next_reap = 0.0
         self._next_reconcile = 0.0
         self._next_connector_tick = 0.0
+        self._next_cache_evict = 0.0
         self._last_batch_size = 0
 
     # -- one pass -----------------------------------------------------------------------------
@@ -323,6 +325,16 @@ class Dispatcher:
             ).scalar_one()
         return int(row)
 
+    def cache_evict_tick(self) -> bool:
+        """Queue the embedding-cache eviction task; no-op while the cache is disabled. The task
+        applies the size/age limits per org."""
+        from app.modules.ai.embeddings.cache import get_cache_settings
+
+        if not get_cache_settings().EMBEDDING_CACHE_ENABLED:
+            return False
+        self.publish(Delivery(TASK_CACHE_EVICT, QUEUE_MAINTENANCE, ()))
+        return True
+
     def reconcile_sweep(self) -> int:
         """Hand documents whose publication is due for a check to the maintenance queue; the
         function marks them (``reconciled_at``) in the same transaction, so a failed publish rolls
@@ -412,6 +424,15 @@ class Dispatcher:
             else:
                 if scheduled:
                     log.info("scheduled %s connector sync(s)", scheduled)
+        if now >= self._next_cache_evict:
+            from app.modules.ai.embeddings.cache import get_cache_settings
+
+            interval = get_cache_settings().EMBEDDING_CACHE_EVICT_INTERVAL_SECONDS
+            self._next_cache_evict = now + interval
+            try:
+                self.cache_evict_tick()
+            except Exception as exc:  # noqa: BLE001 - maintenance must not stop the dispatcher
+                log.error("cache eviction queue failed (%s)", type(exc).__name__)
         if now >= self._next_reconcile:
             self._next_reconcile = now + self.settings.INGEST_RECONCILE_INTERVAL_SECONDS
             queued = self.reconcile_sweep()

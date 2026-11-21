@@ -102,3 +102,35 @@ def test_evict_removes_old_and_over_limit(
     with _factory(app_engine)(org_a) as session:
         assert evict_org(session, max_rows=3, max_age_days=90) == 2  # 1 aged + 1 over the cap
     assert len(store.get_many(SPACE, keys)) == 3
+
+
+def test_evict_all_visits_orgs_respects_flag(
+    app_engine: Engine, admin_engine: Engine, orgs: tuple[uuid.UUID, uuid.UUID]
+) -> None:
+    from app.modules.ai.embeddings.cache import EmbeddingCacheSettings, evict_all
+
+    org_a, org_b = orgs
+    keys = [text_key(f"u{i}") for i in range(4)]
+    for org in (org_a, org_b):
+        SqlEmbeddingCacheStore(_factory(app_engine), org).put_many(SPACE, {k: [1.0] for k in keys})
+    with admin_engine.begin() as conn:
+        conn.execute(
+            text(
+                "UPDATE embedding_cache SET last_used_at = now() - interval '200 days'"
+                " WHERE text_sha256 = :k"
+            ),
+            {"k": keys[0]},
+        )
+
+    def list_orgs(limit: int) -> list[uuid.UUID]:
+        with admin_engine.begin() as conn:
+            rows = conn.execute(text("SELECT * FROM embedding_cache_orgs(:n)"), {"n": limit})
+            return [r[0] for r in rows if r[0] in (org_a, org_b)]  # other tests leave rows too
+
+    off = EmbeddingCacheSettings(EMBEDDING_CACHE_ENABLED=False)
+    assert evict_all(list_orgs, _factory(app_engine), settings=off) == 0  # disabled: no-op
+    on = EmbeddingCacheSettings(EMBEDDING_CACHE_ENABLED=True, EMBEDDING_CACHE_MAX_ROWS_PER_ORG=2)
+    # per org: 1 aged out, then 3 left -> 1 over the cap of 2: 2 deletions x 2 orgs
+    assert evict_all(list_orgs, _factory(app_engine), settings=on) == 4
+    for org in (org_a, org_b):
+        assert len(SqlEmbeddingCacheStore(_factory(app_engine), org).get_many(SPACE, keys)) == 2
