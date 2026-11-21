@@ -66,6 +66,7 @@ from app.modules.ai.verification import (
 from app.modules.graph.merge import augment_evidence
 from app.modules.graph.ports_read import ChunkSource, GraphReadRepository
 from app.modules.knowledge.ports import KnowledgeRepository
+from app.modules.prompts import styles
 from app.modules.retrieval import service as retrieval_service
 from app.modules.retrieval.citations import CitationRef, ResolvedCitation, resolve_citation
 from app.modules.retrieval.hybrid import SearchUnavailable
@@ -719,6 +720,11 @@ class RunExecutor:
         cs = self.deps.chat_settings
         with self._session() as session:
             self._prompt = prompts.resolve("chat_system", self.claim.org_id, session)
+            style = (
+                None
+                if scope is None
+                else styles.resolve_style(session, self.claim.org_id, scope.workspace_ids)
+            )
         bundle = (
             build_prompt(
                 data.question,
@@ -727,7 +733,7 @@ class RunExecutor:
                 budget_tokens=cs.CHAT_CONTEXT_TOKENS,
                 reserve_output_tokens=cs.CHAT_MAX_OUTPUT_TOKENS,
                 history_turns=cs.CHAT_HISTORY_TURNS,
-                system_prompt=prompts.chat_system(self._prompt.body),
+                system_prompt=styles.compose(prompts.chat_system(self._prompt.body), style),
             )
             if evidence
             else None

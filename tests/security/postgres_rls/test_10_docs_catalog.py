@@ -161,6 +161,8 @@ def test_worker_reachable_relations_are_exactly_the_documented_set(
         # M12.05 (migration 0018; exact rules: test_20_reindex_tables.py)
         "reindex_jobs",
         "org_active_spaces",
+        # M12.07 (migration 0019b; exact rules: test_20_style_tables.py)
+        "workspace_styles",
     }
     with admin_engine.connect() as conn:
         reachable = set(

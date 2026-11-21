@@ -25,6 +25,7 @@ from test_20_embedding_cache import CACHE_TABLES
 from test_20_eval_tables import EVAL_TABLES
 from test_20_prompt_versions import PROMPT_TABLES
 from test_20_reindex_tables import REINDEX_TABLES
+from test_20_style_tables import STYLE_TABLES
 from test_20_usage_tables import USAGE_TABLES
 
 from app.core.models import ORG_SCOPED_TABLES, RLS_TABLES, Base
@@ -39,6 +40,7 @@ NO_CONTEXT_TESTS = {
     "test_usage_select_without_context_sees_nothing",  # test_20 (M11.01, both roles)
     "test_prompt_select_without_context_sees_nothing",  # test_20 (M12.01, both roles)
     "test_eval_select_without_context_sees_nothing",  # test_20 (M12.03)
+    "test_style_select_without_context_sees_nothing",  # test_20 (M12.07)
     "test_cache_select_without_context_sees_nothing",  # test_20 (M11.03, both roles)
     "test_reindex_select_without_context_sees_nothing",  # test_20 (M12.05, both roles)
 }
@@ -52,6 +54,7 @@ CROSS_ORG_TESTS = {
     "test_usage_select_is_confined_to_the_context_org",  # test_20 (M11.01)
     "test_prompt_select_is_confined_to_the_context_org",  # test_20 (M12.01)
     "test_eval_select_is_confined_to_the_context_org",  # test_20 (M12.03)
+    "test_style_select_is_confined_to_the_context_org",  # test_20 (M12.07)
     "test_cache_select_is_confined_to_the_context_org",  # test_20 (M11.03)
     "test_reindex_select_is_confined_to_the_context_org",  # test_20 (M12.05)
 }
@@ -73,6 +76,7 @@ def test_registries_cover_every_org_scoped_table_exactly_once() -> None:
         | set(USAGE_TABLES)
         | set(PROMPT_TABLES)
         | set(EVAL_TABLES)
+        | set(STYLE_TABLES)
         | set(CACHE_TABLES)
         | set(REINDEX_TABLES)
     )

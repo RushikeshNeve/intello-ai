@@ -45,6 +45,7 @@ from app.modules.knowledge.reindex.router import router as reindex_router
 from app.modules.memory.router import router as memory_router
 from app.modules.organizations.router import router as organizations_router
 from app.modules.prompts.router import router as prompts_router
+from app.modules.prompts.styles_router import router as styles_router
 from app.modules.research.router import router as research_router
 from app.modules.retrieval.router import router as retrieval_router
 from app.modules.usage.router import router as usage_router
@@ -140,5 +141,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(research_router)
     app.include_router(usage_router)
     app.include_router(prompts_router)
+    app.include_router(styles_router)
     app.include_router(evals_router)
     return app

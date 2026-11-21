@@ -90,6 +90,8 @@ class AuditEventType(StrEnum):
     PROMPT_VERSION_CREATED = "prompt.version.created"
     PROMPT_VERSION_ACTIVATED = "prompt.version.activated"
     PROMPT_VERSION_ROLLED_BACK = "prompt.version.rolled_back"
+    # M12.07: scope and ids only, never the instruction text.
+    STYLE_UPDATED = "style.updated"
 
 
 class SessionOpener(Protocol):
