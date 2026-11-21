@@ -83,4 +83,18 @@ describe("SettingsApp", () => {
     await userEvent.click(screen.getByRole("tab", { name: "Usage" }));
     expect(await screen.findByText(/no model usage yet/i)).toBeTruthy();
   });
+
+  it("usage limits: admins see consumption bars, members do not see the editor", async () => {
+    const empty = () => jsonResponse(200, { group_by: "kind", scope: "org", totals: { key: "total", events: 0, tokens_in: 0, tokens_out: 0, tokens_cached: 0, est_cost_micros: 0 }, rows: [] });
+    const limit = { id: "l1", scope: "org", kind: "chat", period: "day", max_tokens: 100, max_requests: null, action: "block", consumed_tokens: 100, consumed_requests: 3, state: "blocked", resets_at: "2030-01-01T00:00:00Z", created_at: "2030-01-01T00:00:00Z" };
+    mount(<SettingsApp org={orgWith("admin")} workspace={WS_ADMIN} />, { [`GET ${O}/usage`]: empty, [`GET ${O}/usage/limits`]: () => jsonResponse(200, { limits: [limit] }) });
+    await userEvent.click(screen.getByRole("tab", { name: "Usage" }));
+    expect((await screen.findByTestId("limit-row")).textContent).toMatch(/limit reached/);
+    expect(screen.getByRole("progressbar", { name: "Tokens" }).getAttribute("aria-valuenow")).toBe("100");
+    cleanup();
+    mount(<SettingsApp org={orgWith("member")} workspace={WS_VIEWER} />, { [`GET ${O}/usage`]: empty });
+    await userEvent.click(screen.getByRole("tab", { name: "Usage" }));
+    await screen.findByText(/no model usage yet/i);
+    expect(screen.queryByTestId("limits-panel")).toBeNull();
+  });
 });

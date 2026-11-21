@@ -48,3 +48,11 @@ Usage metering (migration 0012, `app/modules/usage/`). One `usage_events` row pe
 - Model timeout after text: run ends `completed` with the partial answer, `citations: []`, `verification.status = "unverified"`, `stopped: "timeout"` (never `grounded`). Timeout with no text stays `failed timeout`.
 - `VerificationOut` gains status `unverified` and optional `stopped`. `GET /runs/{r}` returns the message for `cancelled` runs too.
 - Resume: unchanged; replay is by `seq > Last-Event-ID`, client dedupes by seq (tested).
+
+## M11.08
+Budgets/quotas (migration `0015_usage_limits`, `down_revision = 0018_reindex`; coordinator re-chains). `usage_limits(org_id, scope org|user, user_id?, kind chat|embed|research|graph|all, period day|month (UTC), max_tokens?, max_requests?, action warn|block, created_by)`, FORCE RLS; app role CRUD, worker SELECT. Also index `ix_usage_events_org_user_created`.
+- scope `user` with null `user_id` = per-member default (each user counted separately); with `user_id` = that user; scope `org` = org total.
+- `usage/limits.py`: `check_quota` (indexed aggregate over `usage_events`, no cache: a block applies on the next call) raises `QuotaExceeded` when consumption >= max for a `block` limit; `warn` only reports (`QuotaGuard.warnings`, GET `state: warn`). Per-user burst: setting `USAGE_USER_BURST_PER_MINUTE` (default 120, 0 = off), counted from usage events of the last minute. `QuotaGuard` fails open on infra errors.
+- Enforcement: `Meter(enforce_chat=True)` (set by `run_meter`: chat and research runs) checks before every `stream/complete`; `Meter(enforce_embed_query=True)` (search route) checks before `embed_query`. Ingestion/graph meters do not enforce (no redelivery storms).
+- HTTP: `QuotaExceeded` -> 429 `{detail:"quota_exceeded", message, resets_at}` + `Retry-After`. Runs/research fail terminally with `error_code quota_exceeded` (`map_error`), safe message from `ERROR_MESSAGES`; web `runErrorMessage` shows it.
+- API (owner/admin; member 403; outsider 404): `GET|POST /v1/orgs/{o}/usage/limits`, `PUT|DELETE .../{id}`; rows carry `consumed_tokens/requests`, `state ok|warn|blocked`, `resets_at`. Web: Limits panel with bars in Settings > Usage.

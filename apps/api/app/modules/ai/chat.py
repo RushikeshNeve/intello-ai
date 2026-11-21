@@ -70,6 +70,7 @@ from app.modules.retrieval import service as retrieval_service
 from app.modules.retrieval.citations import CitationRef, ResolvedCitation, resolve_citation
 from app.modules.retrieval.hybrid import SearchUnavailable
 from app.modules.retrieval.scope import EmptyScope, RetrievalScope, scope_for_workspaces
+from app.modules.usage.limits import QUOTA_MESSAGE, QuotaExceeded
 from app.modules.usage.wiring import run_meter
 
 log = logging.getLogger("ukos.chat")
@@ -91,6 +92,7 @@ ERR_SEARCH_UNAVAILABLE: Final = "search_unavailable"
 ERR_TIMEOUT: Final = "timeout"
 ERR_INTERNAL: Final = "internal_error"
 ERR_LEASE_EXPIRED: Final = "lease_expired"
+ERR_QUOTA_EXCEEDED: Final = "quota_exceeded"  # M11.08
 
 ERROR_MESSAGES: Final[Mapping[str, str]] = {
     ERR_MODEL_UNAVAILABLE: "The AI model is not available right now. Please try again.",
@@ -99,6 +101,7 @@ ERROR_MESSAGES: Final[Mapping[str, str]] = {
     ERR_TIMEOUT: "The answer took too long and was stopped. Please try again.",
     ERR_INTERNAL: "Something went wrong while answering. Please try again.",
     ERR_LEASE_EXPIRED: "The answer was interrupted. Please try again.",
+    ERR_QUOTA_EXCEEDED: QUOTA_MESSAGE,
 }
 
 
@@ -138,6 +141,8 @@ def map_error(exc: BaseException) -> str:
     """Stable error code of an exception raised while executing a run (never the message)."""
     if isinstance(exc, RunFailure):
         return exc.code
+    if isinstance(exc, QuotaExceeded):
+        return ERR_QUOTA_EXCEEDED
     if isinstance(exc, PolicyDenied):
         return ERR_POLICY_DENIED
     if isinstance(exc, SearchUnavailable):

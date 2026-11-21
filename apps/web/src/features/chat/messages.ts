@@ -13,6 +13,8 @@ export function runErrorMessage(code: string | null | undefined): string {
       return "Your organization's AI policy doesn't allow a model for this request. Ask an administrator if you think it should.";
     case "search_unavailable":
       return "Search isn't available right now, so the question couldn't be answered. Your documents are safe; retry in a moment.";
+    case "quota_exceeded":
+      return "Your organization's usage limit has been reached for now. It resets automatically (daily or monthly, UTC); an administrator can raise the limit in Settings, Usage.";
     case "timeout":
       return "This took too long and was stopped. Try a narrower question or a smaller scope, then retry.";
     default:

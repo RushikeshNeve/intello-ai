@@ -19,7 +19,7 @@ import { useApiFetcher } from "@/lib/query/provider";
 import type { OrgSummary } from "@/features/organizations/api/orgs";
 import type { Workspace } from "@/features/workspaces/api";
 import { actionError, canAdminWorkspace, formatWhen, isOrgAdmin } from "./permissions";
-import { AI_PROVIDERS, deleteWorkspace, getAiPolicy, getUsage, usageKey, USAGE_GROUPS, type UsageGroup, PROVIDER_LABEL, policyKey, putAiPolicy, renameWorkspace, type AiPolicy, type AiProvider } from "./api";
+import { AI_PROVIDERS, deleteWorkspace, getAiPolicy, getUsage, usageKey, createLimit, deleteLimit, limitsKey, listLimits, LIMIT_KINDS, type LimitKind, type UsageLimit, USAGE_GROUPS, type UsageGroup, PROVIDER_LABEL, policyKey, putAiPolicy, renameWorkspace, type AiPolicy, type AiProvider } from "./api";
 
 const TABS = [
   { value: "workspace", label: "Workspace" },
@@ -39,7 +39,7 @@ export function SettingsApp({ org, workspace }: { org: OrgSummary; workspace: Wo
         {tab === "workspace" && <WorkspaceTab org={org} workspace={workspace} />}
         {tab === "model" && <ModelTab org={org} />}
         {tab === "privacy" && <PrivacyTab />}
-        {tab === "usage" && <UsageTab org={org} />}
+        {tab === "usage" && <><UsageTab org={org} />{isOrgAdmin(org) && <LimitsPanel org={org} />}</>}
       </div>
     </div>
   );
@@ -284,6 +284,72 @@ function UsageTab({ org }: { org: OrgSummary }) {
           <tr><th scope="row">Total</th><td>{fmt(totals.events)}</td><td>{fmt(totals.tokens_in)}</td><td>{fmt(totals.tokens_out)}</td><td>{(totals.est_cost_micros / 1_000_000).toFixed(4)}</td></tr>
         </tfoot>
       </table>
+    </SurfaceCard>
+  );
+}
+
+function LimitsPanel({ org }: { org: OrgSummary }) {
+  const fetcher = useApiFetcher();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [kind, setKind] = useState<LimitKind>("all");
+  const [period, setPeriod] = useState<"day" | "month">("month");
+  const [scope, setScope] = useState<"org" | "user">("org");
+  const [action, setAction] = useState<"warn" | "block">("block");
+  const [tokens, setTokens] = useState("");
+  const [requests, setRequests] = useState("");
+  const q = useQuery({ queryKey: limitsKey(org.id), retry: false, queryFn: () => listLimits(fetcher, org.id) });
+  const refresh = () => qc.invalidateQueries({ queryKey: limitsKey(org.id) });
+  const add = useMutation({
+    mutationFn: () => createLimit(fetcher, org.id, { scope, kind, period, action, max_tokens: tokens ? Number(tokens) : null, max_requests: requests ? Number(requests) : null }),
+    onSuccess: () => { setTokens(""); setRequests(""); void refresh(); },
+    onError: (e) => toast.push({ title: "Couldn't save the limit", description: actionError(e), tone: "danger" }),
+  });
+  const remove = useMutation({ mutationFn: (id: string) => deleteLimit(fetcher, org.id, id), onSuccess: () => void refresh() });
+  const fmt = (n: number) => n.toLocaleString("en-US");
+  const bar = (used: number, max: number | null, label: string, state: UsageLimit["state"]) => {
+    if (max === null) return null;
+    const pct = max === 0 ? 100 : Math.min(100, Math.round((used / max) * 100));
+    return (
+      <div key={label}>
+        <div className="text-meta text-text-secondary">{label}: {fmt(used)} / {fmt(max)}</div>
+        <div className="h-2 w-full rounded bg-muted" role="progressbar" aria-label={label} aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+          <div className={`h-2 rounded ${state === "blocked" ? "bg-danger" : state === "warn" ? "bg-warning" : "bg-primary"}`} style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+    );
+  };
+  const sel = "block rounded-md border border-border bg-surface px-2 py-1";
+  return (
+    <SurfaceCard className="mt-4 grid gap-4 p-5" data-testid="limits-panel">
+      <div>
+        <h2 className="text-lg font-semibold">Limits</h2>
+        <p className="text-meta text-text-secondary">A blocking limit stops model calls with a clear message until it resets (UTC day or month). A warning limit only flags it. Per-member limits apply to each member separately.</p>
+      </div>
+      {q.isError && <p className="text-meta text-text-secondary">Limits couldn&apos;t be loaded.</p>}
+      {q.data?.map((l) => (
+        <div key={l.id} className="grid gap-1" data-testid="limit-row">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-medium">{l.kind} per {l.period}, {l.scope === "org" ? "whole organization" : "each member"} ({l.action}){l.state === "blocked" ? ": limit reached" : l.state === "warn" ? ": over limit" : ""}</span>
+            <Button variant="ghost" onClick={() => remove.mutate(l.id)} aria-label={`Remove ${l.kind} ${l.period} limit`}>Remove</Button>
+          </div>
+          {bar(l.consumed_tokens, l.max_tokens, "Tokens", l.state)}
+          {bar(l.consumed_requests, l.max_requests, "Requests", l.state)}
+        </div>
+      ))}
+      <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); add.mutate(); }}>
+        <div><Label htmlFor="lim-kind">What</Label>
+          <select id="lim-kind" className={sel} value={kind} onChange={(e) => setKind(e.target.value as LimitKind)}>{LIMIT_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}</select></div>
+        <div><Label htmlFor="lim-scope">Applies to</Label>
+          <select id="lim-scope" className={sel} value={scope} onChange={(e) => setScope(e.target.value as "org" | "user")}><option value="org">whole organization</option><option value="user">each member</option></select></div>
+        <div><Label htmlFor="lim-period">Per</Label>
+          <select id="lim-period" className={sel} value={period} onChange={(e) => setPeriod(e.target.value as "day" | "month")}><option value="day">day</option><option value="month">month</option></select></div>
+        <div><Label htmlFor="lim-action">When reached</Label>
+          <select id="lim-action" className={sel} value={action} onChange={(e) => setAction(e.target.value as "warn" | "block")}><option value="block">block</option><option value="warn">warn only</option></select></div>
+        <div><Label htmlFor="lim-tokens">Max tokens</Label><Input id="lim-tokens" inputMode="numeric" value={tokens} onChange={(e) => setTokens(e.target.value.replace(/\D/g, ""))} /></div>
+        <div><Label htmlFor="lim-requests">Max requests</Label><Input id="lim-requests" inputMode="numeric" value={requests} onChange={(e) => setRequests(e.target.value.replace(/\D/g, ""))} /></div>
+        <Button type="submit" disabled={add.isPending || (!tokens && !requests)}>Add limit</Button>
+      </form>
     </SurfaceCard>
   );
 }

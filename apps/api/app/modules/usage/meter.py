@@ -8,6 +8,7 @@ from typing import Any
 
 from app.modules.ai.embeddings.ports import EmbeddingBatchResult, EmbeddingProvider
 from app.modules.ai.models.types import ChatMessage, ChatModel, ModelSpec, estimate_tokens
+from app.modules.usage.limits import QuotaGuard
 from app.modules.usage.recorder import UsageContext, UsageRecorder
 
 
@@ -18,7 +19,14 @@ def _ms(t0: float) -> int:
 class MeteredChatModel:
     """Records one event per ``stream`` / ``complete`` call (also when it fails or is cancelled)."""
 
-    def __init__(self, inner: ChatModel, recorder: UsageRecorder, ctx: UsageContext) -> None:
+    def __init__(
+        self,
+        inner: ChatModel,
+        recorder: UsageRecorder,
+        ctx: UsageContext,
+        guard: QuotaGuard | None = None,
+    ) -> None:
+        self._guard = guard
         self._inner = inner
         self._recorder = recorder
         self._ctx = ctx
@@ -45,6 +53,8 @@ class MeteredChatModel:
         max_tokens: int | None = None,
         stop: Sequence[str] | None = None,
     ) -> Iterator[str]:
+        if self._guard is not None:
+            self._guard.check(self._ctx.kind)  # M11.08: raises QuotaExceeded before the call
         t0 = time.perf_counter()
         chars = 0
         try:
@@ -63,6 +73,8 @@ class MeteredChatModel:
         temperature: float = 0.0,
         max_tokens: int | None = None,
     ) -> str:
+        if self._guard is not None:
+            self._guard.check(self._ctx.kind)
         t0 = time.perf_counter()
         chars = 0
         try:
@@ -77,8 +89,13 @@ class MeteredEmbedder:
     """Records one ``embed`` event per embedding call; everything else delegates."""
 
     def __init__(
-        self, inner: EmbeddingProvider, recorder: UsageRecorder, ctx: UsageContext
+        self,
+        inner: EmbeddingProvider,
+        recorder: UsageRecorder,
+        ctx: UsageContext,
+        guard: QuotaGuard | None = None,
     ) -> None:
+        self._guard = guard
         self._inner = inner
         self._recorder = recorder
         self._ctx = ctx
@@ -115,6 +132,8 @@ class MeteredEmbedder:
             self._emit(sum(estimate_tokens(t) for t in texts), t0)
 
     def embed_query(self, text: str) -> list[float]:
+        if self._guard is not None:
+            self._guard.check("embed")
         t0 = time.perf_counter()
         try:
             return self._inner.embed_query(text)
@@ -122,20 +141,25 @@ class MeteredEmbedder:
             self._emit(estimate_tokens(text), t0)
 
 
-def meter_chat_model(model: ChatModel, recorder: UsageRecorder, ctx: UsageContext) -> ChatModel:
+def meter_chat_model(
+    model: ChatModel, recorder: UsageRecorder, ctx: UsageContext, guard: QuotaGuard | None = None
+) -> ChatModel:
     """Wrap ``model``; any failure to wrap returns the model unmetered (never fails the call)."""
     try:
-        return MeteredChatModel(model, recorder, ctx)
+        return MeteredChatModel(model, recorder, ctx, guard)
     except Exception:  # noqa: BLE001
         return model
 
 
 def meter_embedder(
-    embedder: EmbeddingProvider | None, recorder: UsageRecorder, ctx: UsageContext
+    embedder: EmbeddingProvider | None,
+    recorder: UsageRecorder,
+    ctx: UsageContext,
+    guard: QuotaGuard | None = None,
 ) -> EmbeddingProvider | None:
     if embedder is None:
         return None
     try:
-        return MeteredEmbedder(embedder, recorder, ctx)
+        return MeteredEmbedder(embedder, recorder, ctx, guard)
     except Exception:  # noqa: BLE001
         return embedder

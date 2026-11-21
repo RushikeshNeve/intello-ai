@@ -47,6 +47,9 @@ from app.modules.organizations.router import router as organizations_router
 from app.modules.prompts.router import router as prompts_router
 from app.modules.research.router import router as research_router
 from app.modules.retrieval.router import router as retrieval_router
+from app.modules.usage.limits import QuotaExceeded
+from app.modules.usage.limits_router import quota_exceeded_handler
+from app.modules.usage.limits_router import router as usage_limits_router
 from app.modules.usage.router import router as usage_router
 from app.modules.workspaces.overview import router as overview_router
 from app.modules.workspaces.router import router as workspaces_router
@@ -93,6 +96,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=_lifespan,
     )
     app.add_exception_handler(NotConfiguredError, _not_configured_handler)
+    app.add_exception_handler(QuotaExceeded, quota_exceeded_handler)  # M11.08
     # Tenancy routes (M01.02.02/04): 422 bodies keep the {"detail": "<code>"} error shape.
     app.add_exception_handler(RequestValidationError, validation_error_handler)
     app.dependency_overrides[get_settings] = lambda: settings
@@ -138,6 +142,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(reindex_router)
     app.include_router(memory_router)
     app.include_router(research_router)
+    app.include_router(usage_limits_router)
     app.include_router(usage_router)
     app.include_router(prompts_router)
     app.include_router(evals_router)

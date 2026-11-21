@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.ai.embeddings.ports import EmbeddingProvider
 from app.modules.ai.models.types import ChatModel
+from app.modules.usage.limits import QuotaGuard
 from app.modules.usage.meter import meter_chat_model, meter_embedder
 from app.modules.usage.recorder import UsageContext, UsageRecorder
 
@@ -27,7 +28,12 @@ class Meter:
         user_id: uuid.UUID | None = None,
         workspace_id: uuid.UUID | None = None,
         run_id: uuid.UUID | None = None,
+        enforce_chat: bool = False,
+        enforce_embed_query: bool = False,
     ) -> None:
+        # M11.08: enforce_* turn on quota checks before chat/research calls and query embeddings.
+        self._guard = QuotaGuard(sessions, org_id=org_id, user_id=user_id)
+        self._enforce_chat, self._enforce_embed = enforce_chat, enforce_embed_query
         self._recorder = UsageRecorder(sessions)
         self._org_id, self._user_id = org_id, user_id
         self._workspace_id, self._run_id, self._chat_kind = workspace_id, run_id, chat_kind
@@ -36,10 +42,12 @@ class Meter:
         return UsageContext(self._org_id, kind, self._user_id, self._workspace_id, self._run_id)
 
     def chat(self, model: ChatModel) -> ChatModel:
-        return meter_chat_model(model, self._recorder, self._ctx(self._chat_kind))
+        guard = self._guard if self._enforce_chat else None
+        return meter_chat_model(model, self._recorder, self._ctx(self._chat_kind), guard)
 
     def embedder(self, embedder: EmbeddingProvider | None) -> EmbeddingProvider | None:
-        return meter_embedder(embedder, self._recorder, self._ctx("embed"))
+        guard = self._guard if self._enforce_embed else None
+        return meter_embedder(embedder, self._recorder, self._ctx("embed"), guard)
 
 
 def run_meter(
@@ -56,4 +64,11 @@ def run_meter(
     def sessions(org: uuid.UUID) -> AbstractContextManager[Session]:
         return chat_repo.worker_chat_session(engine, org_id=org, user_id=user_id)
 
-    return Meter(sessions, org_id=org_id, chat_kind=kind, user_id=user_id, run_id=run_id)
+    return Meter(
+        sessions,
+        org_id=org_id,
+        chat_kind=kind,
+        user_id=user_id,
+        run_id=run_id,
+        enforce_chat=True,
+    )

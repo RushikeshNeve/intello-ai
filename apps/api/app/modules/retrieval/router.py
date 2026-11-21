@@ -64,7 +64,9 @@ def _metered(
     def sessions(org: uuid.UUID) -> AbstractContextManager[Session]:
         return tenant.sessions(user_id=tenant.user_id, org_id=org)
 
-    return Meter(sessions, org_id=org_id, user_id=tenant.user_id).embedder(embedder)
+    return Meter(
+        sessions, org_id=org_id, user_id=tenant.user_id, enforce_embed_query=True
+    ).embedder(embedder)
 
 
 @router.post(

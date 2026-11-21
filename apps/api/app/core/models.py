@@ -615,6 +615,8 @@ ORG_SCOPED_TABLES: Final = (
     # M12.05 re-embedding jobs + active-space pointer (migration 0018_reindex).
     "reindex_jobs",
     "org_active_spaces",
+    # M11.08 usage budgets/quotas (migration 0015_usage_limits).
+    "usage_limits",
 )
 RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
 
