@@ -10,14 +10,15 @@
 
 from __future__ import annotations
 
-import json
-import re
 from collections.abc import Mapping
 from typing import Any, Final
+
+from pydantic import BaseModel, ConfigDict
 
 from app.core.config import Settings
 from app.modules.ai.context import neutralize
 from app.modules.ai.models.types import ChatMessage
+from app.modules.ai.structured import parse_structured
 
 SUBQUERY_MIN_CHARS: Final = 3
 SUBQUERY_MAX_CHARS: Final = 300
@@ -77,22 +78,21 @@ def plan_messages(question: str, max_subqueries: int) -> list[ChatMessage]:
     ]
 
 
-_FENCE = re.compile(r"^```[a-zA-Z]*\s*|\s*```$")
+class PlanReply(BaseModel):
+    model_config = ConfigDict(extra="ignore")  # unknown fields dropped
+    subqueries: list[Any]
 
 
 def parse_plan(raw: str, max_subqueries: int) -> list[str] | None:
     """Sub-queries from the model reply, or ``None`` when there is no usable plan."""
-    text = _FENCE.sub("", raw.strip())
-    start, end = text.find("{"), text.rfind("}")
-    if start < 0 or end <= start:
+    parsed = parse_structured(raw, PlanReply)
+    if not isinstance(parsed, PlanReply):
         return None
-    try:
-        data = json.loads(text[start : end + 1])
-    except ValueError:
-        return None
-    items = data.get("subqueries") if isinstance(data, dict) else None
-    if not isinstance(items, list):
-        return None
+    return clean_plan(parsed, max_subqueries)
+
+
+def clean_plan(reply: PlanReply, max_subqueries: int) -> list[str] | None:
+    items = reply.subqueries
     out: list[str] = []
     seen: set[str] = set()
     for item in items:

@@ -48,6 +48,7 @@ from app.modules.ai.chat import (
 from app.modules.ai.context import build_prompt
 from app.modules.ai.models.types import ChatModel
 from app.modules.ai.policy_source import DbPolicySource
+from app.modules.ai.structured import generate_structured
 from app.modules.ai.verification import VerifyConfig, verify
 from app.modules.graph.merge import augment_evidence
 from app.modules.research import planner, repo
@@ -375,14 +376,25 @@ class ResearchExecutor:
             repo.insert_step(session, self.fence, seq=0, kind="plan", query=None)
             repo.update_step(session, self.fence, seq=0, state="running")
         self._check()
-        reply = self._model_call(
-            planner.plan_messages(question, budget),
-            timeout=min(
-                self.deps.chat_settings.CHAT_GENERATION_TIMEOUT_SECONDS, max(1.0, self._remaining())
-            ),
+        timeout = min(
+            self.deps.chat_settings.CHAT_GENERATION_TIMEOUT_SECONDS, max(1.0, self._remaining())
         )
-        self._usage["model_calls"] += 1
-        subqueries = planner.parse_plan(reply, budget) or [
+
+        class _Counted:  # every call (plan or repair) is a counted model call
+            def complete(inner, messages: Any, **_: Any) -> str:
+                reply = self._model_call(messages, timeout=timeout)
+                self._usage["model_calls"] += 1
+                return reply
+
+        # A repair must not starve the one synthesis call each sub-query still needs.
+        spare = int(self._limits["max_model_calls"]) - self._usage["model_calls"] - 1 - budget
+        result = generate_structured(
+            _Counted(),
+            planner.plan_messages(question, budget),
+            planner.PlanReply,
+            max_repairs=1 if spare >= 1 else 0,
+        )
+        subqueries = (result.value and planner.clean_plan(result.value, budget)) or [
             " ".join(question.split())[: planner.SUBQUERY_MAX_CHARS]
         ]
         with self._session() as session:

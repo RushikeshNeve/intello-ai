@@ -9,15 +9,16 @@ source chunk id(s) and the version/revision ids of the chunk it came from.
 
 from __future__ import annotations
 
-import json
-import re
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any, Final
 
+from pydantic import BaseModel, ConfigDict
+
 from app.modules.ai.context import neutralize
 from app.modules.ai.models.types import ChatMessage, ChatModel
+from app.modules.ai.structured import generate_structured, parse_structured
 from app.modules.graph.ontology import (
     ENTITY_TYPES,
     MAX_NAME_CHARS,
@@ -119,19 +120,13 @@ def build_messages(chunks: Sequence[SourceChunk]) -> list[ChatMessage]:
     ]
 
 
-_FENCE = re.compile(r"^```[a-zA-Z]*\s*|\s*```$")
+class GraphReply(BaseModel):
+    """Envelope only; each item is validated against the ontology in ``_from_reply`` (unknown
+    fields are dropped, bad items counted as ``dropped``)."""
 
-
-def _load_json(raw: str) -> dict[str, Any] | None:
-    text = _FENCE.sub("", raw.strip())
-    start, end = text.find("{"), text.rfind("}")
-    if start < 0 or end <= start:
-        return None
-    try:
-        value = json.loads(text[start : end + 1])
-    except ValueError:
-        return None
-    return value if isinstance(value, dict) else None
+    model_config = ConfigDict(extra="ignore")
+    entities: list[Any] = []
+    relations: list[Any] = []
 
 
 def _chunk_ref(value: Any, chunks: Sequence[SourceChunk]) -> SourceChunk | None:
@@ -147,11 +142,17 @@ def parse_extraction(
     raw: str, chunks: Sequence[SourceChunk], *, max_entities_per_chunk: int
 ) -> Extraction:
     """Validate a model reply; anything outside the schema, ontology or limits is dropped."""
+    parsed = parse_structured(raw, GraphReply)
+    if not isinstance(parsed, GraphReply):
+        return Extraction(dropped=1)
+    return _from_reply(parsed, chunks, max_entities_per_chunk=max_entities_per_chunk)
+
+
+def _from_reply(
+    reply: GraphReply, chunks: Sequence[SourceChunk], *, max_entities_per_chunk: int
+) -> Extraction:
     out = Extraction()
-    data = _load_json(raw)
-    if data is None:
-        out.dropped += 1
-        return out
+    data = {"entities": reply.entities, "relations": reply.relations}
     per_chunk: dict[uuid.UUID, int] = {}
     by_name: dict[str, tuple[str, str]] = {}  # normalized name -> key (first declared type wins)
 
@@ -224,8 +225,12 @@ def parse_extraction(
 def extract_batch(
     model: ChatModel, chunks: Sequence[SourceChunk], *, max_entities_per_chunk: int
 ) -> Extraction:
-    reply = model.complete(build_messages(chunks), temperature=0.0, max_tokens=MAX_REPLY_TOKENS)
-    return parse_extraction(reply, chunks, max_entities_per_chunk=max_entities_per_chunk)
+    result = generate_structured(
+        model, build_messages(chunks), GraphReply, temperature=0.0, max_tokens=MAX_REPLY_TOKENS
+    )
+    if result.value is None:
+        return Extraction(dropped=1)
+    return _from_reply(result.value, chunks, max_entities_per_chunk=max_entities_per_chunk)
 
 
 def extract_chunks(
