@@ -153,6 +153,8 @@ def test_worker_reachable_relations_are_exactly_the_documented_set(
         "research_sessions",
         "research_steps",
         "research_reports",
+        # M12.01 (migration 0016): SELECT only; exact rules: test_20_prompt_versions.py
+        "prompt_versions",
     }
     with admin_engine.connect() as conn:
         reachable = set(

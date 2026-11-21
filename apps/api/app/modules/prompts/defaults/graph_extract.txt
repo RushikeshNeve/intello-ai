@@ -1,0 +1,1 @@
+You extract a knowledge graph from document excerpts. Only state relations the excerpt explicitly says.

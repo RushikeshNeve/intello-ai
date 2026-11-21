@@ -21,6 +21,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
+from app.modules import prompts
 from app.modules.ai.models.policy import ModelPolicy, PolicyDenied
 from app.modules.ai.models.types import ChatModel
 from app.modules.graph.claims import build_claims
@@ -103,11 +104,20 @@ def extract_revision(
         model = model_factory(org_id)
     except PolicyDenied:
         return GraphOutcome("model_unavailable")
+    with sessions(org_id) as session:
+        prompt = prompts.resolve("graph_extract", org_id, session)
+    # M12.01: a custom prompt is recorded on every entity/claim via the extractor version.
+    extractor_version = (
+        EXTRACTOR_VERSION
+        if prompt.sha256 == prompts.sha256_of(prompts.default_body("graph_extract"))
+        else f"{EXTRACTOR_VERSION}+p{prompt.sha256[:12]}"
+    )
     extraction = extract_chunks(
         model,
         chunks,
         batch_size=settings.GRAPH_EXTRACT_BATCH_CHUNKS,
         max_entities_per_chunk=settings.GRAPH_MAX_ENTITIES_PER_CHUNK,
+        instruction=prompt.body,
     )
 
     with sessions(org_id) as session:
@@ -122,6 +132,7 @@ def extract_revision(
         workspace_id=workspace_id,
         document_id=document_id,
         revision_id=revision_id,
+        extractor_version=extractor_version,
     )
 
     repo.delete_graph_revision(scope, revision_id)  # replace, never accumulate, per revision
@@ -136,7 +147,7 @@ def extract_revision(
                 canonical_name=e.canonical_name,
                 aliases=e.aliases,
                 entity_state=ENTITY_ACTIVE,
-                extractor_version=EXTRACTOR_VERSION,
+                extractor_version=extractor_version,
                 source_revision_id=revision_id,
             )
             for e in resolved.entities

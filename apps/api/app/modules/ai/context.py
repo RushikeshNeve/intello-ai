@@ -166,8 +166,12 @@ def build_prompt(
     budget_tokens: int,
     reserve_output_tokens: int = 800,
     history_turns: int = 6,
+    system_prompt: str | None = None,
 ) -> PromptBundle:
-    """Assemble the prompt. Abstains (``abstain_reason`` set, no messages) without evidence."""
+    """Assemble the prompt. Abstains (``abstain_reason`` set, no messages) without evidence.
+
+    ``system_prompt`` (M12.01): the composed system text from the prompt registry; ``None`` keeps
+    the built-in ``SYSTEM_PROMPT``."""
     seen: set[str] = set()
     candidates: list[tuple[int, EvidenceLike]] = []
     for index, e in enumerate(evidence):
@@ -189,7 +193,7 @@ def build_prompt(
     if not q:
         return _abstain("no_evidence", truncated)
 
-    system: ChatMessage = {"role": "system", "content": SYSTEM_PROMPT}
+    system: ChatMessage = {"role": "system", "content": system_prompt or SYSTEM_PROMPT}
     ack: ChatMessage = {"role": "assistant", "content": EVIDENCE_ACK}
     question_msg: ChatMessage = {"role": "user", "content": q}
     available = budget_tokens - reserve_output_tokens

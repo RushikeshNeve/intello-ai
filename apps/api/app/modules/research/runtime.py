@@ -37,6 +37,7 @@ from typing import Any, Final, Literal
 from sqlalchemy import Engine
 
 from app.core.config import Settings
+from app.modules import prompts
 from app.modules.ai import chat_repo
 from app.modules.ai.chat import (
     ChatDeps,
@@ -281,6 +282,8 @@ class ResearchExecutor:
             "model_calls": int(usage.get("model_calls", 0)),
             "evidence_chunks": int(usage.get("evidence_chunks", 0)),
             "elapsed_seconds": float(usage.get("elapsed_seconds", 0.0)),
+            # M12.01: {kind: {"id": version id or None, "sha256": hash}} of the prompts used.
+            "prompts": dict(usage.get("prompts") or {}),
         }
         timeout = float(self._limits["timeout_seconds"])
         self._deadline = self._clock() + max(1.0, timeout - self._usage["elapsed_seconds"])
@@ -366,6 +369,15 @@ class ResearchExecutor:
             timeout,
         )
 
+    def _resolve_prompt(self, kind: str) -> prompts.Resolved:
+        with self._session() as session:
+            resolved = prompts.resolve(kind, self.claim.org_id, session)
+        self._usage["prompts"][kind] = {
+            "id": None if resolved.version_id is None else str(resolved.version_id),
+            "sha256": resolved.sha256,
+        }
+        return resolved
+
     # -- plan ------------------------------------------------------------------------------------
 
     def _plan(self, question: str) -> None:
@@ -376,7 +388,7 @@ class ResearchExecutor:
             repo.update_step(session, self.fence, seq=0, state="running")
         self._check()
         reply = self._model_call(
-            planner.plan_messages(question, budget),
+            planner.plan_messages(question, budget, self._resolve_prompt("research_plan").body),
             timeout=min(
                 self.deps.chat_settings.CHAT_GENERATION_TIMEOUT_SECONDS, max(1.0, self._remaining())
             ),
@@ -493,6 +505,7 @@ class ResearchExecutor:
                 budget_tokens=cs.CHAT_CONTEXT_TOKENS,
                 reserve_output_tokens=cs.CHAT_MAX_OUTPUT_TOKENS,
                 history_turns=0,
+                system_prompt=prompts.chat_system(self._resolve_prompt("chat_system").body),
             )
             if evidence
             else None

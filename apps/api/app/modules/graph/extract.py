@@ -27,6 +27,7 @@ from app.modules.graph.ontology import (
     is_predicate,
     normalize_name,
 )
+from app.modules.prompts import graph_system
 
 GRAPH_PROMPT_VERSION: Final = "1"
 EXTRACTOR_VERSION: Final = f"graph-extract/{GRAPH_PROMPT_VERSION}"
@@ -108,13 +109,20 @@ class Extraction:
         self.dropped += other.dropped
 
 
-def build_messages(chunks: Sequence[SourceChunk]) -> list[ChatMessage]:
+def build_messages(
+    chunks: Sequence[SourceChunk], instruction: str | None = None
+) -> list[ChatMessage]:
     blocks = []
     for n, chunk in enumerate(chunks, start=1):
         body = neutralize(chunk.text[:MAX_CHUNK_CHARS]).strip()
         blocks.append(f"<<<EVIDENCE {n}>>>\n{body}\n<<<END {n}>>>")
+    system = (
+        SYSTEM_PROMPT
+        if instruction is None
+        else graph_system(instruction, ENTITY_TYPES, PREDICATES)
+    )
     return [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": system},
         {"role": "user", "content": "\n\n".join(blocks)},
     ]
 
@@ -222,9 +230,15 @@ def parse_extraction(
 
 
 def extract_batch(
-    model: ChatModel, chunks: Sequence[SourceChunk], *, max_entities_per_chunk: int
+    model: ChatModel,
+    chunks: Sequence[SourceChunk],
+    *,
+    max_entities_per_chunk: int,
+    instruction: str | None = None,
 ) -> Extraction:
-    reply = model.complete(build_messages(chunks), temperature=0.0, max_tokens=MAX_REPLY_TOKENS)
+    reply = model.complete(
+        build_messages(chunks, instruction), temperature=0.0, max_tokens=MAX_REPLY_TOKENS
+    )
     return parse_extraction(reply, chunks, max_entities_per_chunk=max_entities_per_chunk)
 
 
@@ -234,6 +248,7 @@ def extract_chunks(
     *,
     batch_size: int,
     max_entities_per_chunk: int,
+    instruction: str | None = None,
 ) -> Extraction:
     result = Extraction()
     for start in range(0, len(chunks), batch_size):
@@ -242,6 +257,7 @@ def extract_chunks(
                 model,
                 chunks[start : start + batch_size],
                 max_entities_per_chunk=max_entities_per_chunk,
+                instruction=instruction,
             )
         )
     return result

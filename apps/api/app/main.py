@@ -42,6 +42,7 @@ from app.modules.ingestion.jobs_list import router as ingestion_jobs_router
 from app.modules.ingestion.router import router as ingestion_router
 from app.modules.memory.router import router as memory_router
 from app.modules.organizations.router import router as organizations_router
+from app.modules.prompts.router import router as prompts_router
 from app.modules.research.router import router as research_router
 from app.modules.retrieval.router import router as retrieval_router
 from app.modules.workspaces.overview import router as overview_router
@@ -130,4 +131,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(graph_review_router)
     app.include_router(memory_router)
     app.include_router(research_router)
+    app.include_router(prompts_router)
     return app

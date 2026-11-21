@@ -23,7 +23,8 @@ M04_HEAD = "0007_chat_and_ai_policy"
 M05_HEAD = "0008_graph"
 M06_HEAD = "0009_connectors"  # M06 sits on top of 0008
 M07_HEAD = "0010_memory_research"
-HEAD = "0011_member_preapprovals"  # member pre-approvals on top of 0010
+PREAPPROVALS_HEAD = "0011_member_preapprovals"  # member pre-approvals on top of 0010
+HEAD = "0016_prompt_versions"  # M12.01 prompt registry on top of 0011
 PREVIOUS = "0006_ingestion_requeue"
 FUNCTIONS = {
     "chat_claim_run",
@@ -61,7 +62,8 @@ def test_head_is_0007(alembic_config: Config) -> None:
     assert script.get_revision(M05_HEAD).down_revision == M04_HEAD
     assert script.get_revision(M06_HEAD).down_revision == M05_HEAD
     assert script.get_revision(M07_HEAD).down_revision == M06_HEAD
-    assert script.get_revision(HEAD).down_revision == M07_HEAD
+    assert script.get_revision(HEAD).down_revision == PREAPPROVALS_HEAD
+    assert script.get_revision(PREAPPROVALS_HEAD).down_revision == M07_HEAD
 
 
 def test_models_are_registered_and_org_scoped() -> None:
