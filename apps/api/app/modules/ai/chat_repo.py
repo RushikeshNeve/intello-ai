@@ -19,6 +19,7 @@ Idempotency: ``(thread_id, idempotency_key)`` is unique; :func:`create_run` inse
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
@@ -540,6 +541,46 @@ def cancel_run(session: Session, run_id: uuid.UUID) -> CancelResult | None:
     return CancelResult(run_id=row.run_id, state=row.state, cancelled=bool(row.cancelled))
 
 
+def keep_cancelled_partial(session: Session, run_id: uuid.UUID, thread_id: uuid.UUID) -> bool:
+    """After a user cancel: persist the text streamed so far as an assistant message marked
+    ``unverified`` / ``stopped: cancelled`` (no citations). Creator session (RLS); idempotent
+    through the one message per run check. Returns whether a message was written."""
+    rows = session.execute(
+        text(
+            "SELECT data->>'text' FROM chat_run_events WHERE run_id = :r AND type = 'delta'"
+            " ORDER BY seq"
+        ),
+        {"r": run_id},
+    ).scalars()
+    partial = "".join(r or "" for r in rows)
+    cleaned = re.sub(r"\s?\[\d{1,3}\]", "", partial).strip()
+    if not cleaned:
+        return False
+    verification = {
+        "status": "unverified",
+        "withheld_count": 0,
+        "flagged_count": 0,
+        "stopped": "cancelled",
+    }
+    result = session.execute(
+        text(
+            "INSERT INTO chat_messages (id, org_id, thread_id, role, content, citations,"
+            " verification, run_id) SELECT :id, org_id, thread_id, 'assistant', :c, '[]'::jsonb,"
+            " CAST(:v AS jsonb), id FROM chat_runs WHERE id = :r AND thread_id = :t"
+            " AND NOT EXISTS (SELECT 1 FROM chat_messages m WHERE m.run_id = :r"
+            " AND m.role = 'assistant')"
+        ),
+        {
+            "id": uuid.uuid4(),
+            "c": cleaned,
+            "v": json.dumps(verification),
+            "r": run_id,
+            "t": thread_id,
+        },
+    )
+    return bool(result.rowcount)  # type: ignore[attr-defined]
+
+
 def count_active_runs(session: Session, *, user_id: uuid.UUID) -> int:
     return int(
         session.execute(
@@ -678,6 +719,20 @@ def append_event(
     if seq is None:
         raise RunFenceLost(str(fence.run_id))
     return int(seq)
+
+
+def run_still_running(session: Session, fence: RunFence) -> bool:
+    """False once the run was cancelled/finished or the lease moved (the cancel probe)."""
+    return (
+        session.execute(
+            text(
+                "SELECT 1 FROM chat_runs WHERE id = :run AND org_id = :org AND state = 'running'"
+                " AND lease_owner = :owner AND lease_epoch = :epoch"
+            ),
+            {"run": fence.run_id, "org": fence.org_id, "owner": fence.owner, "epoch": fence.epoch},
+        ).first()
+        is not None
+    )
 
 
 def finish_run(

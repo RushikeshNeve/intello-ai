@@ -37,6 +37,13 @@ export type ConversationProps = {
 /** A send that failed for want of an answer (network): resending reuses the same key, so it can never run twice. */
 type Pending = { content: string; key: string; threadId: string | null };
 
+const STAGE_LABEL = {
+  searching: "Searching your documents…",
+  reading: "Reading sources…",
+  writing: "Writing the answer…",
+  verifying: "Verifying against sources…",
+} as const;
+
 const CONNECTION_NOTE: Partial<Record<Connection, string>> = {
   reconnecting: "Connection interrupted. Reconnecting…",
   polling: "Live updates are paused. Checking progress every few seconds…",
@@ -339,12 +346,20 @@ function LiveAnswer({
   }
   if (view.status === "cancelled") {
     return (
-      <p className="text-sm text-muted-foreground" data-testid="run-cancelled">
-        Cancelled.{" "}
-        <Button variant="ghost" size="sm" onClick={onRetry} disabled={!canRetry}>
-          Ask again
-        </Button>
-      </p>
+      <div className="grid gap-2" data-testid="run-cancelled">
+        {view.text && (
+          <SurfaceCard className="grid max-w-[95%] gap-2 p-4" data-testid="cancelled-partial">
+            <p className="whitespace-pre-wrap text-sm">{view.text}</p>
+            <p className="text-xs text-muted-foreground">Unverified partial answer: no sources.</p>
+          </SurfaceCard>
+        )}
+        <p className="text-sm text-muted-foreground">
+          Cancelled.{" "}
+          <Button variant="ghost" size="sm" onClick={onRetry} disabled={!canRetry}>
+            Ask again
+          </Button>
+        </p>
+      </div>
     );
   }
   const done = view.status === "completed";
@@ -355,7 +370,12 @@ function LiveAnswer({
         <AnswerBody text={view.text} citations={view.citations} ctx={ctx} />
       ) : (
         <p className="text-sm text-muted-foreground" data-testid="run-waiting">
-          Looking through your documents…
+          {STAGE_LABEL[view.stage]}
+        </p>
+      )}
+      {!done && view.text && (
+        <p className="text-xs text-muted-foreground" data-testid="run-stage" data-stage={view.stage}>
+          {STAGE_LABEL[view.stage]}
         </p>
       )}
       {done && <SourceList citations={view.citations} ctx={ctx} />}

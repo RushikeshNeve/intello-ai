@@ -41,10 +41,14 @@ export function sendErrorMessage(code: ChatErrorCode): string {
   }
 }
 
-export type VerificationNote = { tone: "abstained" | "partial" | "flagged"; text: string };
+export type VerificationNote = { tone: "abstained" | "partial" | "flagged" | "unverified"; text: string };
 
 export function verificationNote(v: Verification | null): VerificationNote | null {
   if (!v) return null;
+  if (v.status === "unverified") {
+    const why = v.stopped === "timeout" ? "The answer took too long and was cut short." : "You stopped this answer.";
+    return { tone: "unverified", text: `${why} This partial text is unverified and has no sources.` };
+  }
   if (v.status === "abstained") return { tone: "abstained", text: ABSTAINED_TEXT };
   if (v.status === "partial") {
     const extra = v.withheld_count > 0 ? ` (${v.withheld_count} removed)` : "";

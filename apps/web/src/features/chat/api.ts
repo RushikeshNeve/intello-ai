@@ -30,9 +30,15 @@ export type Citation = {
   excerpt: string;
 };
 
-export const VERIFICATION_STATUSES = ["grounded", "partial", "abstained"] as const;
+export const VERIFICATION_STATUSES = ["grounded", "partial", "abstained", "unverified"] as const;
 export type VerificationStatus = (typeof VERIFICATION_STATUSES)[number];
-export type Verification = { status: VerificationStatus; withheld_count: number; flagged_count: number };
+export type Verification = {
+  status: VerificationStatus;
+  withheld_count: number;
+  flagged_count: number;
+  /** Set when the answer was cut short (`unverified` only): the user cancelled, or the model timed out. */
+  stopped?: "cancelled" | "timeout";
+};
 
 export type ChatMessage = {
   id: string;
@@ -121,7 +127,8 @@ export function parseVerification(v: unknown): Verification | null {
   if (!isRecord(v)) return null;
   const status = v.status;
   if (typeof status !== "string" || !(VERIFICATION_STATUSES as readonly string[]).includes(status)) return null;
-  return { status: status as VerificationStatus, withheld_count: count(v.withheld_count), flagged_count: count(v.flagged_count) };
+  const stopped = v.stopped === "cancelled" || v.stopped === "timeout" ? v.stopped : undefined;
+  return { status: status as VerificationStatus, withheld_count: count(v.withheld_count), flagged_count: count(v.flagged_count), ...(stopped ? { stopped } : {}) };
 }
 
 export function parseMessage(v: unknown): ChatMessage {
@@ -262,7 +269,8 @@ export type RunEvent =
   | { type: "verification"; verification: Verification }
   | { type: "completed"; message_id: string | null; answer_text: string }
   | { type: "failed"; error_code: string; message: string }
-  | { type: "cancelled" };
+  | { type: "cancelled" }
+  | { type: "stage"; stage: string };
 
 export type StreamEnd = { type: "end"; reason: "terminal" | "timeout" | "unavailable" };
 
@@ -305,6 +313,8 @@ export function parseRunEvent(type: string, data: string): RunEvent | StreamEnd 
       };
     case "cancelled":
       return { type: "cancelled" };
+    case "stage":
+      return typeof body.stage === "string" ? { type: "stage", stage: body.stage } : null;
     case "end": {
       const r = body.reason;
       return { type: "end", reason: r === "terminal" || r === "timeout" ? r : "unavailable" };

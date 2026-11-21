@@ -4,10 +4,14 @@
  */
 import type { Citation, RunEvent, Verification } from "./api";
 
+/** What the run is doing now, derived from the events (`verifying` comes from the additive `stage` event). */
+export type RunStage = "searching" | "reading" | "writing" | "verifying";
+
 export type RunStatus = "queued" | "streaming" | "completed" | "failed" | "cancelled";
 
 export type RunView = {
   status: RunStatus;
+  stage: RunStage;
   /** Streamed text; replaced by `answer_text` when the run completes. */
   text: string;
   citations: Citation[];
@@ -21,6 +25,7 @@ export type RunView = {
 
 export const INITIAL_RUN_VIEW: RunView = {
   status: "queued",
+  stage: "searching",
   text: "",
   citations: [],
   verification: null,
@@ -42,19 +47,21 @@ export function applyRunEvent(view: RunView, seq: number | null, ev: RunEvent): 
     case "started":
       return { ...base, status: "streaming" };
     case "retrieval":
-      return { ...base, status: "streaming", retrieval: { evidence_count: ev.evidence_count, dropped: ev.dropped, degraded: ev.degraded } };
+      return { ...base, status: "streaming", stage: "reading", retrieval: { evidence_count: ev.evidence_count, dropped: ev.dropped, degraded: ev.degraded } };
     case "delta":
-      return { ...base, status: "streaming", text: view.text + ev.text };
+      return { ...base, status: "streaming", stage: "writing", text: view.text + ev.text };
     case "citations":
       return { ...base, citations: ev.citations };
     case "verification":
       return { ...base, verification: ev.verification };
+    case "stage":
+      return ev.stage === "verifying" ? { ...base, stage: "verifying" } : base;
     case "completed":
       // The kept text (unsupported statements removed) replaces whatever was streamed.
       return { ...base, status: "completed", text: ev.answer_text, messageId: ev.message_id };
     case "failed":
       return { ...base, status: "failed", error: { code: ev.error_code, message: ev.message } };
     case "cancelled":
-      return { ...base, status: "cancelled" };
+      return { ...base, status: "cancelled", text: view.text.replace(/\s?\[\d{1,3}\]/g, "").trim() };
   }
 }

@@ -33,6 +33,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import queue
+import re
 import threading
 import time
 import uuid
@@ -98,6 +99,14 @@ ERROR_MESSAGES: Final[Mapping[str, str]] = {
     ERR_INTERNAL: "Something went wrong while answering. Please try again.",
     ERR_LEASE_EXPIRED: "The answer was interrupted. Please try again.",
 }
+
+
+_MARKER_RE = re.compile(r"\s?\[\d{1,3}\]")
+
+
+def strip_markers(text: str) -> str:
+    """Citation markers of unverified text: dropped, so nothing looks cited."""
+    return _MARKER_RE.sub("", text).strip() or text.strip()
 
 
 def safe_error_message(code: str) -> str:
@@ -459,6 +468,8 @@ class RunExecutor:
         self._check = check
         self._clock = clock
         self._deadline = clock() + settings.CHAT_RUN_TIMEOUT_SECONDS
+        self._last_probe = clock()
+        self._partial = ""  # all model text received so far (for a timeout answer)
         self._pending = ""  # buffered model text not yet written when a failure interrupts
         self._meter = run_meter(
             engine, org_id=claim.org_id, user_id=claim.created_by, run_id=claim.run_id, kind="chat"
@@ -496,7 +507,49 @@ class RunExecutor:
                     code,
                     type(exc).__name__,
                 )
+            if code == ERR_TIMEOUT and (self._partial or self._pending).strip():
+                return self._finish_unverified("timeout")
             return self._fail(code, self._pending)
+
+    def _finish_unverified(self, reason: str) -> RunOutcome:
+        """Model timeout after text was streamed: keep the partial answer, completed but labelled
+        ``unverified`` (``stopped: timeout``), with no citations (nothing was verified)."""
+        text = strip_markers(self._partial)
+        try:
+            with self._session() as session:
+                if self._pending:
+                    chat_repo.append_event(
+                        session, self.fence, type="delta", data={"text": self._pending}
+                    )
+                vp = {
+                    "status": "unverified",
+                    "withheld_count": 0,
+                    "flagged_count": 0,
+                    "stopped": reason,
+                }
+                chat_repo.append_event(
+                    session, self.fence, type="citations", data={"citations": []}
+                )
+                chat_repo.append_event(session, self.fence, type="verification", data=vp)
+                message_id = chat_repo.append_assistant_message(
+                    session,
+                    self.fence,
+                    thread_id=self.claim.thread_id,
+                    content=text,
+                    citations=[],
+                    verification=vp,
+                )
+                chat_repo.append_event(
+                    session,
+                    self.fence,
+                    type="completed",
+                    data={"message_id": str(message_id), "answer_text": text},
+                )
+                chat_repo.finish_run(session, self.fence, state=STATE_COMPLETED)
+        except RunFenceLost:
+            return "fence_lost"
+        log.info("chat run=%s completed unverified (%s)", self.claim.run_id, reason)
+        return "completed"
 
     def _fail(self, code: str, pending: str = "") -> RunOutcome:
         return fail_run(self.engine, self.claim, code, pending)
@@ -714,6 +767,7 @@ class RunExecutor:
                 out: str | None = None
                 if kind == "delta":
                     pieces.append(value)
+                    self._partial += value
                     out = coalescer.add(value)
                 elif kind == "done":
                     break
@@ -721,6 +775,7 @@ class RunExecutor:
                     raise value
                 else:
                     out = coalescer.due()
+                    self._probe_cancel()
                 if out:
                     self._event("delta", {"text": out})
                 self._check()
@@ -737,6 +792,17 @@ class RunExecutor:
         if rest:
             self._event("delta", {"text": rest})
         return "".join(pieces)
+
+    def _probe_cancel(self) -> None:
+        """While the model is silent no event is written, so look at the run now and then: a
+        cancelled run stops generating within about a second (RunFenceLost)."""
+        now = self._clock()
+        if now - self._last_probe < 1.0:
+            return
+        self._last_probe = now
+        with self._session() as session:
+            if not chat_repo.run_still_running(session, self.fence):
+                raise RunFenceLost(str(self.claim.run_id))
 
     def _finalize(self, text: str, bundle: PromptBundle, scope: RetrievalScope) -> RunOutcome:
         cs = self.deps.chat_settings
@@ -756,7 +822,7 @@ class RunExecutor:
                     if found is not None:
                         resolved[e.evidence_id] = found
         usable = {n: eid for n, eid in bundle.citation_map.items() if eid in resolved}
-        self._check()
+        self._event("stage", {"stage": "verifying"})
         verification = verify(
             text,
             usable,
