@@ -61,10 +61,11 @@ describe("nav model", () => {
       ["memory", "/o/acme/memory"],
       ["integrations", "/o/acme/w/notes/integrations"],
       ["activity", "/o/acme/w/notes/activity"],
+      ["evals", "/o/acme/w/notes/evals"],
       ["people", "/o/acme/w/notes/team"],
       ["settings", "/o/acme/w/notes/settings"],
     ]);
-    expect(buildNav("acme", null).filter((e) => e.href === null).map((e) => e.id)).toEqual(["library", "graph", "integrations", "activity", "people", "settings"]);
+    expect(buildNav("acme", null).filter((e) => e.href === null).map((e) => e.id)).toEqual(["library", "graph", "integrations", "activity", "evals", "people", "settings"]);
   });
 
   it("matches by path segment: chat threads are Ask, Home is exact", () => {

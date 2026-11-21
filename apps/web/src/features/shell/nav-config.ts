@@ -5,7 +5,7 @@
  * Workspace-level entries need a "current workspace" (see workspace-memory.ts); without one they are disabled.
  */
 
-export type NavIcon = "home" | "search" | "ask" | "library" | "graph" | "research" | "memory" | "integrations" | "activity" | "people" | "settings";
+export type NavIcon = "home" | "search" | "ask" | "library" | "graph" | "research" | "memory" | "integrations" | "activity" | "evals" | "people" | "settings";
 export type NavEntry = {
   id: string;
   label: string;
@@ -41,6 +41,7 @@ export function buildNav(orgSlug: string, workspaceSlug: string | null): NavEntr
   entries.push(
     wsEntry("integrations", "Integrations", "integrations", "manage", "integrations"),
     wsEntry("activity", "Activity", "activity", "manage", "activity"),
+    wsEntry("evals", "Golden sets", "evals", "manage", "evals"),
     wsEntry("people", "People", "people", "manage", "team"),
     wsEntry("settings", "Settings", "settings", "manage", "settings"),
   );

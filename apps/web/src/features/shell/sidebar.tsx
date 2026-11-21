@@ -7,6 +7,7 @@ import {
   ActivityIcon,
   BrainIcon,
   ChevronsUpDownIcon,
+  ClipboardCheckIcon,
   FlaskConicalIcon,
   FolderIcon,
   HomeIcon,
@@ -49,6 +50,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   memory: BrainIcon,
   integrations: PlugIcon,
   activity: ActivityIcon,
+  evals: ClipboardCheckIcon,
   people: UsersIcon,
   settings: SettingsIcon,
 };
