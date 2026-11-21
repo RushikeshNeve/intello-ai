@@ -36,6 +36,7 @@ from app.modules.authorization.policy import Action
 from app.modules.documents import errors, upload_service
 from app.modules.documents.schemas import FinalizeResult, default_title, sha256_hex_to_b64
 from app.modules.ingestion.jobs import enqueue_ingestion
+from app.modules.retrieval.cache import bump_corpus
 from app.modules.storage.deps import ObjectStoreDep
 from app.modules.storage.ports import StorageError
 
@@ -158,6 +159,8 @@ def finalize_upload(
     assert result is not None  # noqa: S101 - every non-failure branch sets it
     if repeat:
         response.status_code = status.HTTP_200_OK
+    else:
+        bump_corpus(org_id)  # M11.04: a new document/version invalidates cached retrievals
     return result
 
 

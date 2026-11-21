@@ -51,6 +51,7 @@ from sqlalchemy.orm import Session
 from app.core.db import CURRENT_ORG_SETTING
 from app.core.models import GRANT_RESOURCE_TYPES, ResourceGrant
 from app.modules.authorization.policy import GrantPermission, WorkspaceRole
+from app.modules.retrieval.cache import bump_from_session
 
 DOCUMENT: Final = "document"
 
@@ -254,6 +255,7 @@ def grant(
         )
         .returning(*_T.c)
     ).one()
+    bump_from_session(session)  # M11.04
     return _record(row, created=True)
 
 
@@ -272,6 +274,7 @@ def revoke(session: Session, *, grant_id: uuid.UUID, revoked_by: uuid.UUID) -> b
         .returning(_T.c.id)
     ).first()
     if revoked is not None:
+        bump_from_session(session)  # M11.04
         return True
     exists = session.execute(select(_T.c.id).where(_T.c.id == grant_id, _in_current_org())).first()
     if exists is None:

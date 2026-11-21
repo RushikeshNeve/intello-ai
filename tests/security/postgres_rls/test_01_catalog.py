@@ -56,6 +56,8 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     "entity_merge_candidates": {"SELECT"},
     # M11.01 (migration 0012): insert-only usage metering, both roles. Depth: test_20.
     "usage_events": {"SELECT", "INSERT"},
+    # Migration 0013 (M11.03): per-org embedding cache; UPDATE is column-level (last_used_at).
+    "embedding_cache": {"SELECT", "INSERT", "DELETE"},
 }
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 TRIVIAL = {"true", "(true)", "1 = 1", "(1 = 1)"}
