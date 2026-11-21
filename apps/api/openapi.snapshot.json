@@ -101,6 +101,63 @@
         "title": "AiPolicyOut",
         "type": "object"
       },
+      "CandidateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "rate_pct": {
+            "default": 0,
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Rate Pct",
+            "type": "integer"
+          },
+          "version_id": {
+            "format": "uuid",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id"
+        ],
+        "title": "CandidateIn",
+        "type": "object"
+      },
+      "CandidateOut": {
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "rate_pct": {
+            "title": "Rate Pct",
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "version_id": {
+            "format": "uuid",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "version_id",
+          "version",
+          "rate_pct",
+          "updated_at"
+        ],
+        "title": "CandidateOut",
+        "type": "object"
+      },
       "Capabilities": {
         "properties": {
           "formats": {
@@ -3241,60 +3298,20 @@
         "title": "ResearchSummary",
         "type": "object"
       },
-      "ResultOut": {
+      "ResultList": {
         "properties": {
-          "answer_status": {
-            "enum": [
-              "answered",
-              "abstained",
-              "error"
-            ],
-            "title": "Answer Status",
-            "type": "string"
-          },
-          "case_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Case Id"
-          },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "metrics": {
-            "additionalProperties": true,
-            "title": "Metrics",
-            "type": "object"
-          },
-          "question": {
-            "title": "Question",
-            "type": "string"
-          },
-          "retrieved": {
+          "items": {
             "items": {
-              "$ref": "#/components/schemas/RetrievedOut"
+              "$ref": "#/components/schemas/app__modules__evals__shadow_router__ResultOut"
             },
-            "title": "Retrieved",
+            "title": "Items",
             "type": "array"
           }
         },
         "required": [
-          "id",
-          "case_id",
-          "question",
-          "retrieved",
-          "answer_status",
-          "metrics"
+          "items"
         ],
-        "title": "ResultOut",
+        "title": "ResultList",
         "type": "object"
       },
       "Retention": {
@@ -3707,6 +3724,216 @@
           "updated_at"
         ],
         "title": "SetOut",
+        "type": "object"
+      },
+      "ShadowConfigOut": {
+        "properties": {
+          "candidate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CandidateOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled",
+          "candidate"
+        ],
+        "title": "ShadowConfigOut",
+        "type": "object"
+      },
+      "ShadowRunList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ShadowRunOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ShadowRunList",
+        "type": "object"
+      },
+      "ShadowRunOut": {
+        "properties": {
+          "cand_citation_validity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cand Citation Validity"
+          },
+          "cand_latency_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cand Latency Ms"
+          },
+          "cand_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cand Status"
+          },
+          "candidate_version_id": {
+            "format": "uuid",
+            "title": "Candidate Version Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "live_citation_validity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live Citation Validity"
+          },
+          "live_latency_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live Latency Ms"
+          },
+          "live_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live Status"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "skip_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skip Reason"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "tokens_in": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens In"
+          },
+          "tokens_out": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens Out"
+          }
+        },
+        "required": [
+          "id",
+          "run_id",
+          "candidate_version_id",
+          "status",
+          "skip_reason",
+          "live_status",
+          "live_citation_validity",
+          "live_latency_ms",
+          "cand_status",
+          "cand_citation_validity",
+          "cand_latency_ms",
+          "tokens_in",
+          "tokens_out",
+          "outcome",
+          "created_at",
+          "finished_at"
+        ],
+        "title": "ShadowRunOut",
         "type": "object"
       },
       "Snippet": {
@@ -5019,6 +5246,62 @@
         "title": "RunOut",
         "type": "object"
       },
+      "app__modules__evals__schemas__ResultOut": {
+        "properties": {
+          "answer_status": {
+            "enum": [
+              "answered",
+              "abstained",
+              "error"
+            ],
+            "title": "Answer Status",
+            "type": "string"
+          },
+          "case_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Id"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "title": "Metrics",
+            "type": "object"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          },
+          "retrieved": {
+            "items": {
+              "$ref": "#/components/schemas/RetrievedOut"
+            },
+            "title": "Retrieved",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "case_id",
+          "question",
+          "retrieved",
+          "answer_status",
+          "metrics"
+        ],
+        "title": "ResultOut",
+        "type": "object"
+      },
       "app__modules__evals__schemas__RunCreate": {
         "additionalProperties": false,
         "properties": {
@@ -5083,7 +5366,7 @@
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/components/schemas/ResultOut"
+                  "$ref": "#/components/schemas/app__modules__evals__schemas__ResultOut"
                 },
                 "type": "array"
               },
@@ -5129,6 +5412,101 @@
           "finished_at"
         ],
         "title": "RunOut",
+        "type": "object"
+      },
+      "app__modules__evals__shadow_router__ResultOut": {
+        "properties": {
+          "candidate_version_id": {
+            "format": "uuid",
+            "title": "Candidate Version Id",
+            "type": "string"
+          },
+          "completed": {
+            "title": "Completed",
+            "type": "integer"
+          },
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "latency_delta_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency Delta Ms"
+          },
+          "losses": {
+            "title": "Losses",
+            "type": "integer"
+          },
+          "mean_tokens_in": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Tokens In"
+          },
+          "mean_tokens_out": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Tokens Out"
+          },
+          "skipped": {
+            "title": "Skipped",
+            "type": "integer"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "ties": {
+            "title": "Ties",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "wins": {
+            "title": "Wins",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "candidate_version_id",
+          "version",
+          "state",
+          "total",
+          "completed",
+          "skipped",
+          "failed",
+          "wins",
+          "ties",
+          "losses",
+          "latency_delta_ms",
+          "mean_tokens_in",
+          "mean_tokens_out"
+        ],
+        "title": "ResultOut",
         "type": "object"
       },
       "app__modules__graph__router_review__EntityOut": {
@@ -6885,6 +7263,271 @@
         "summary": "Reject",
         "tags": [
           "memory"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/prompt-shadow": {
+      "get": {
+        "operationId": "get_config_v1_orgs__org_id__prompt_shadow_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShadowConfigOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Config",
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/prompt-shadow/results": {
+      "get": {
+        "operationId": "results_v1_orgs__org_id__prompt_shadow_results_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Results",
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/prompt-shadow/runs": {
+      "get": {
+        "operationId": "list_runs_v1_orgs__org_id__prompt_shadow_runs_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "candidate_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Candidate Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShadowRunList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Runs",
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/prompt-shadow/{kind}": {
+      "delete": {
+        "operationId": "clear_candidate_v1_orgs__org_id__prompt_shadow__kind__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "const": "chat_system",
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Clear Candidate",
+        "tags": [
+          "prompts"
+        ]
+      },
+      "put": {
+        "operationId": "set_candidate_v1_orgs__org_id__prompt_shadow__kind__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "const": "chat_system",
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CandidateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShadowConfigOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Candidate",
+        "tags": [
+          "prompts"
         ]
       }
     },

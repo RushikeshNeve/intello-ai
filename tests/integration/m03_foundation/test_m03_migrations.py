@@ -28,6 +28,7 @@ NEXT_PHASE_CHAIN = (
     "0016_prompt_versions",
     "0017_evals",
     "0018_reindex",
+    "0019c_shadow_runs",
 )
 HEAD = NEXT_PHASE_CHAIN[-1]
 M07_HEAD = "0010_memory_research"  # M07: memory + research on top of 0009

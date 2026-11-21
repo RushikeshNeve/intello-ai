@@ -615,6 +615,9 @@ ORG_SCOPED_TABLES: Final = (
     # M12.05 re-embedding jobs + active-space pointer (migration 0018_reindex).
     "reindex_jobs",
     "org_active_spaces",
+    # M12.09 prompt shadow runs (migration 0019c_shadow_runs).
+    "shadow_candidates",
+    "shadow_runs",
 )
 RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
 
