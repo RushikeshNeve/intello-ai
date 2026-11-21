@@ -54,6 +54,8 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     "research_reports": {"SELECT"},
     "graph_entities": {"SELECT"},
     "entity_merge_candidates": {"SELECT"},
+    # M11.01 (migration 0012): insert-only usage metering, both roles. Depth: test_20.
+    "usage_events": {"SELECT", "INSERT"},
 }
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 TRIVIAL = {"true", "(true)", "1 = 1", "(1 = 1)"}

@@ -291,8 +291,11 @@ class DefaultPipelineRunner:
 
         # 3. embed --------------------------------------------------------------------
         def compute_embed() -> bytes:
+            from app.modules.usage.wiring import Meter
+
+            metered = Meter(ctx.session_factory, org_id=claim.org_id).embedder(embedder)
             return art.encode_embeddings(
-                self._embed_all(chunks, embedder, settings.INGEST_EMBED_BATCH_SIZE, ctx),
+                self._embed_all(chunks, metered or embedder, settings.INGEST_EMBED_BATCH_SIZE, ctx),
                 spec.dimensions,
             )
 

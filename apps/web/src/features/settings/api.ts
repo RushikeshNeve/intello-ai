@@ -65,3 +65,24 @@ export async function deleteWorkspace(f: Fetcher, orgId: string, workspaceId: st
   if (!res.ok) throw new ApiError(res.status, `http_${res.status}`);
 }
 
+
+/** Usage summary (M11.01, usage/router.py): aggregates per day / model / kind; no text content. */
+export const USAGE_GROUPS = ["kind", "model", "day"] as const;
+export type UsageGroup = (typeof USAGE_GROUPS)[number];
+export type UsageRow = { key: string; events: number; tokens_in: number; tokens_out: number; tokens_cached: number; est_cost_micros: number };
+export type UsageSummary = { group_by: UsageGroup; scope: "org" | "self"; totals: UsageRow; rows: UsageRow[] };
+
+function parseUsageRow(v: unknown): UsageRow {
+  if (!isRecord(v) || typeof v.key !== "string") invalid();
+  const n = (x: unknown) => (typeof x === "number" && Number.isFinite(x) ? x : invalid());
+  return { key: v.key, events: n(v.events), tokens_in: n(v.tokens_in), tokens_out: n(v.tokens_out), tokens_cached: n(v.tokens_cached), est_cost_micros: n(v.est_cost_micros) };
+}
+
+export function parseUsageSummary(v: unknown): UsageSummary {
+  if (!isRecord(v) || !Array.isArray(v.rows) || !(USAGE_GROUPS as readonly unknown[]).includes(v.group_by)) invalid();
+  return { group_by: v.group_by as UsageGroup, scope: v.scope === "self" ? "self" : "org", totals: parseUsageRow(v.totals), rows: v.rows.map(parseUsageRow) };
+}
+
+export const usageKey = (orgId: string, group: UsageGroup) => ["org", orgId, "usage", group] as const;
+export const getUsage = (f: Fetcher, orgId: string, group: UsageGroup): Promise<UsageSummary> =>
+  requestJson(f, `/v1/orgs/${encodeURIComponent(orgId)}/usage?group_by=${group}` as ApiPath, parseUsageSummary);

@@ -153,6 +153,7 @@ def test_worker_reachable_relations_are_exactly_the_documented_set(
         "research_sessions",
         "research_steps",
         "research_reports",
+        "usage_events",  # M11.01 (migration 0012; exact grants: test_20_usage_tables.py)
     }
     with admin_engine.connect() as conn:
         reachable = set(

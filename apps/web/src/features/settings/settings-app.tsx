@@ -19,7 +19,7 @@ import { useApiFetcher } from "@/lib/query/provider";
 import type { OrgSummary } from "@/features/organizations/api/orgs";
 import type { Workspace } from "@/features/workspaces/api";
 import { actionError, canAdminWorkspace, formatWhen, isOrgAdmin } from "./permissions";
-import { AI_PROVIDERS, deleteWorkspace, getAiPolicy, PROVIDER_LABEL, policyKey, putAiPolicy, renameWorkspace, type AiPolicy, type AiProvider } from "./api";
+import { AI_PROVIDERS, deleteWorkspace, getAiPolicy, getUsage, usageKey, USAGE_GROUPS, type UsageGroup, PROVIDER_LABEL, policyKey, putAiPolicy, renameWorkspace, type AiPolicy, type AiProvider } from "./api";
 
 const TABS = [
   { value: "workspace", label: "Workspace" },
@@ -39,7 +39,7 @@ export function SettingsApp({ org, workspace }: { org: OrgSummary; workspace: Wo
         {tab === "workspace" && <WorkspaceTab org={org} workspace={workspace} />}
         {tab === "model" && <ModelTab org={org} />}
         {tab === "privacy" && <PrivacyTab />}
-        {tab === "usage" && <UsageTab />}
+        {tab === "usage" && <UsageTab org={org} />}
       </div>
     </div>
   );
@@ -248,13 +248,42 @@ function PrivacyTab() {
   );
 }
 
-function UsageTab() {
+function UsageTab({ org }: { org: OrgSummary }) {
+  const fetcher = useApiFetcher();
+  const [group, setGroup] = useState<UsageGroup>("kind");
+  const q = useQuery({ queryKey: usageKey(org.id, group), retry: false, queryFn: () => getUsage(fetcher, org.id, group) });
+  if (q.isPending) return <Skeleton className="h-40 w-full" role="status" aria-label="Loading usage" />;
+  if (q.isError) return <ErrorState testId="usage-error" title="We couldn't load usage" description={actionError(q.error)} onRetry={() => void q.refetch()} />;
+  const { totals, rows, scope } = q.data;
+  if (totals.events === 0) {
+    return <EmptyState testId="usage-tab" icon={<GaugeIcon className="size-5" />} title="No model usage yet" description="Chats, searches, research and indexing record their token counts here as they happen." />;
+  }
+  const fmt = (n: number) => n.toLocaleString("en-US");
   return (
-    <EmptyState
-      testId="usage-tab"
-      icon={<GaugeIcon className="size-5" />}
-      title="Usage metering is not available yet"
-      description="Token and storage usage are not measured yet, so no numbers are shown."
-    />
+    <SurfaceCard className="grid gap-4 p-5" data-testid="usage-tab">
+      <div>
+        <h2 className="text-lg font-semibold">Usage, last 30 days</h2>
+        <p className="text-meta text-text-secondary">{scope === "org" ? "All members of this organization." : "Your own usage."} Token counts are estimates (about four characters per token).</p>
+      </div>
+      <div className="mb-3 flex items-center gap-2">
+        <Label htmlFor="usage-group">Group by</Label>
+        <select id="usage-group" className="rounded-md border border-border bg-surface px-2 py-1" value={group} onChange={(e) => setGroup(e.target.value as UsageGroup)}>
+          {USAGE_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
+        </select>
+      </div>
+      <table className="w-full text-left text-meta" data-testid="usage-table">
+        <thead>
+          <tr><th scope="col">{group}</th><th scope="col">Calls</th><th scope="col">Tokens in</th><th scope="col">Tokens out</th><th scope="col">Est. cost</th></tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.key}><td>{r.key}</td><td>{fmt(r.events)}</td><td>{fmt(r.tokens_in)}</td><td>{fmt(r.tokens_out)}</td><td>{(r.est_cost_micros / 1_000_000).toFixed(4)}</td></tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr><th scope="row">Total</th><td>{fmt(totals.events)}</td><td>{fmt(totals.tokens_in)}</td><td>{fmt(totals.tokens_out)}</td><td>{(totals.est_cost_micros / 1_000_000).toFixed(4)}</td></tr>
+        </tfoot>
+      </table>
+    </SurfaceCard>
   );
 }

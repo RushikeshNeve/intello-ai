@@ -3914,6 +3914,95 @@
         "title": "UploadSession",
         "type": "object"
       },
+      "UsageRow": {
+        "properties": {
+          "est_cost_micros": {
+            "title": "Est Cost Micros",
+            "type": "integer"
+          },
+          "events": {
+            "title": "Events",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "tokens_cached": {
+            "title": "Tokens Cached",
+            "type": "integer"
+          },
+          "tokens_in": {
+            "title": "Tokens In",
+            "type": "integer"
+          },
+          "tokens_out": {
+            "title": "Tokens Out",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "events",
+          "tokens_in",
+          "tokens_out",
+          "tokens_cached",
+          "est_cost_micros"
+        ],
+        "title": "UsageRow",
+        "type": "object"
+      },
+      "UsageSummary": {
+        "properties": {
+          "group_by": {
+            "enum": [
+              "day",
+              "model",
+              "kind"
+            ],
+            "title": "Group By",
+            "type": "string"
+          },
+          "range_from": {
+            "format": "date-time",
+            "title": "Range From",
+            "type": "string"
+          },
+          "range_to": {
+            "format": "date-time",
+            "title": "Range To",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/UsageRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "scope": {
+            "enum": [
+              "org",
+              "self"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/UsageRow"
+          }
+        },
+        "required": [
+          "group_by",
+          "range_from",
+          "range_to",
+          "scope",
+          "totals",
+          "rows"
+        ],
+        "title": "UsageSummary",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -6383,6 +6472,101 @@
         "summary": "Search",
         "tags": [
           "search"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/usage": {
+      "get": {
+        "operationId": "get_usage_v1_orgs__org_id__usage_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "group_by",
+            "required": false,
+            "schema": {
+              "default": "day",
+              "enum": [
+                "day",
+                "model",
+                "kind"
+              ],
+              "title": "Group By",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Organization not found or not a member (concealed)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Usage",
+        "tags": [
+          "usage"
         ]
       }
     },

@@ -122,6 +122,9 @@ class Settings(BaseSettings):
     CONNECTOR_SYNC_MAX_FILES_PER_RUN: int = Field(default=500, ge=1, le=100_000)
     CONNECTOR_SCHEDULER_INTERVAL_SECONDS: int = Field(default=30, ge=1, le=3600)
     GITHUB_API_BASE_URL: str = Field(default="https://api.github.com", min_length=8)
+    # Usage metering (M11.01). JSON {"provider/model": {"in": n, "out": n, "cached": n}} in micro
+    # currency units per 1M tokens; "provider/*" is the fallback. Unlisted = 0 (local models).
+    USAGE_PRICES_JSON: str = "{}"
     # Knowledge graph (M05 contract §7). The build task is a no-op while GRAPH_ENABLED is false.
     GRAPH_ENABLED: bool = False
     GRAPH_ROUTER_MODE: Literal["auto", "off", "force"] = "auto"
