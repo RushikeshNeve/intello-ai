@@ -622,6 +622,8 @@ ORG_SCOPED_TABLES: Final = (
     "shadow_runs",
     # M11.08 usage budgets/quotas (migration 0015_usage_limits).
     "usage_limits",
+    # M12.06 prompt change gate (migration 0019a_prompt_gate).
+    "prompt_gate_settings",
 )
 RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
 

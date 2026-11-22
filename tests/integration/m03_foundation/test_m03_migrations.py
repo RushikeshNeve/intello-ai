@@ -20,7 +20,7 @@ from app.modules.ingestion.models import INGESTION_TABLES
 
 REVISION = "0005_ingestion"
 PREAPPROVALS_HEAD = "0011_member_preapprovals"  # member pre-approvals on top of 0010
-# M11/M12 chain on top of 0011 (oldest first; 0015 intentionally unused).
+# M11/M12 chain on top of 0011 (oldest first; 0015 landed after 0018).
 NEXT_PHASE_CHAIN = (
     "0012_usage_events",
     "0013_embedding_cache",
@@ -28,6 +28,9 @@ NEXT_PHASE_CHAIN = (
     "0016_prompt_versions",
     "0017_evals",
     "0018_reindex",
+    "0015_usage_limits",
+    "0015b_cache_evict_orgs",
+    "0019a_prompt_gate",
     "0019b_workspace_styles",
     "0019c_shadow_runs",
 )

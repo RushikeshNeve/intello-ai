@@ -62,3 +62,9 @@ Prompt A/B shadow runs (migration `0019c_shadow_runs`, down_revision `0019b_work
 - Ingestion: new jobs (`documents/finalize.py`, `remote_ingest.py`) take `current_space(session, org, configured)`. If the worker's embedder does not produce it the job fails permanently `embedding_space_mismatch` (retry after fixing config).
 - During a running reindex, new/changed documents are embedded into the ACTIVE (old) space only; the job's derived-progress sweep (MAX_ROUNDS + verify) mirrors them into the target space before cutover (simplest correct; no dual-write).
 - Eviction: dispatcher queues `maintenance.embedding_cache_evict` every `EMBEDDING_CACHE_EVICT_INTERVAL_SECONDS` (default 3600) only when `EMBEDDING_CACHE_ENABLED`; the task runs `evict_all` (per-org `evict_org` with `EMBEDDING_CACHE_MAX_ROWS_PER_ORG` / `_MAX_AGE_DAYS`). Migration `0015b_cache_evict_orgs` (chained after 0018) adds definer `embedding_cache_orgs(limit)` so the worker can enumerate orgs.
+
+## Wave B integration notes
+- Migration chain (linear, single head): `0018_reindex -> 0015_usage_limits -> 0015b_cache_evict_orgs -> 0019a_prompt_gate -> 0019b_workspace_styles -> 0019c_shadow_runs`.
+- Shadow runs skip (no row) when the org is at a blocking `chat` quota (`shadow_runner._over_quota`, fails open on storage errors). The shadow model call itself is not metered (estimates stay on the row).
+- `ShadowSeed.style` carries the live run's answer style, so the candidate prompt is `styles.compose(chat_system(candidate), style)`, the same path as the live prompt. Test: `m04_chat/test_shadow.py::test_style_registry_and_shadow_compose_without_interfering`.
+- `prompt_gate_settings` has an ORM model (`PromptGateSettings`) and sits in `ORG_SCOPED_TABLES`; Wave B tenancy coverage is `tests/security/postgres_rls/test_20_wave_b_tables.py`.

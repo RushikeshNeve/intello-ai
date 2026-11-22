@@ -226,3 +226,59 @@ def test_cross_tenant_is_concealed(r: Rigged) -> None:
         w.api.put(f"{base(w)}/chat_system", w.t.admin, {"version_id": vid, "rate_pct": 5}).status
         == 409
     )
+
+
+def test_org_at_a_blocking_quota_gets_no_shadow_run(r: Rigged) -> None:
+    """M11.08 x M12.09: the live run uses the last allowed request; the shadow is not started."""
+    w = r.world
+    r.publish(HERON)
+    candidate(w)
+    res = w.api.post(
+        f"/v1/orgs/{w.org_id}/usage/limits",
+        w.t.admin,
+        {"kind": "chat", "scope": "org", "action": "block", "max_requests": 1},
+    )
+    assert res.status == 201, res.body
+    complete_run(r, FakeChatModel([HERON_ANSWER]), **SHADOW_ON)
+    assert shadow_rows(w) == []
+
+
+def test_style_registry_and_shadow_compose_without_interfering(r: Rigged) -> None:
+    """M12.01 x M12.07 x M12.09: live = activated registry body + org style; the shadow call is
+    the candidate body + the SAME style (fenced after the scaffold); no body leaks across."""
+    w = r.world
+    r.publish(HERON)
+    live_mark = "HERON-LIVE-REGISTRY-MARK"
+    res = w.api.post(
+        f"/v1/orgs/{w.org_id}/prompts/chat_system/versions",
+        w.t.admin,
+        {"body": f"Answer and cite every claim as [n]. {live_mark}"},
+    )
+    assert res.status == 201, res.body
+    act = w.api.post(
+        f"/v1/orgs/{w.org_id}/prompts/versions/{res.body['id']}/activate", w.t.admin, {}
+    )
+    assert act.status == 200, act.body
+    style = w.api.put(f"/v1/orgs/{w.org_id}/style", w.t.admin, {"tone": "formal"})
+    assert style.status == 200, style.body
+    candidate(w)
+    seen: list[str] = []
+
+    def reply(msgs: Sequence[ChatMessage]) -> str:
+        seen.append(msgs[0]["content"])
+        return HERON_ANSWER
+
+    complete_run(r, FakeChatModel(reply_fn=reply), **SHADOW_ON)
+    assert len(seen) == 2
+    live, cand = seen
+    assert live_mark in live
+    assert MARK not in live
+    assert MARK in cand
+    assert live_mark not in cand
+    for system in (live, cand):
+        assert "<<<STYLE PREFERENCES>>>" in system
+        assert "formal tone" in system
+        assert system.index("<<<STYLE PREFERENCES>>>") > system.index(
+            live_mark if system is live else MARK
+        )
+    assert len(shadow_rows(w)) == 1

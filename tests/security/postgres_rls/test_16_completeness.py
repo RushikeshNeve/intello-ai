@@ -27,6 +27,7 @@ from test_20_prompt_versions import PROMPT_TABLES
 from test_20_reindex_tables import REINDEX_TABLES
 from test_20_style_tables import STYLE_TABLES
 from test_20_usage_tables import USAGE_TABLES
+from test_20_wave_b_tables import WAVE_B_TABLES
 
 from app.core.models import ORG_SCOPED_TABLES, RLS_TABLES, Base
 
@@ -43,6 +44,7 @@ NO_CONTEXT_TESTS = {
     "test_style_select_without_context_sees_nothing",  # test_20 (M12.07)
     "test_cache_select_without_context_sees_nothing",  # test_20 (M11.03, both roles)
     "test_reindex_select_without_context_sees_nothing",  # test_20 (M12.05, both roles)
+    "test_waveb_select_without_context_sees_nothing",  # test_20 (M11.08/M12.06/M12.09)
 }
 CROSS_ORG_TESTS = {
     "test_only_own_org_rows_visible",  # test_03 (M01 org-scoped tables)
@@ -57,6 +59,7 @@ CROSS_ORG_TESTS = {
     "test_style_select_is_confined_to_the_context_org",  # test_20 (M12.07)
     "test_cache_select_is_confined_to_the_context_org",  # test_20 (M11.03)
     "test_reindex_select_is_confined_to_the_context_org",  # test_20 (M12.05)
+    "test_waveb_select_is_confined_to_the_context_org",  # test_20 (M11.08/M12.06/M12.09)
 }
 
 
@@ -79,6 +82,7 @@ def test_registries_cover_every_org_scoped_table_exactly_once() -> None:
         | set(STYLE_TABLES)
         | set(CACHE_TABLES)
         | set(REINDEX_TABLES)
+        | set(WAVE_B_TABLES)
     )
     assert declared == set(ORG_SCOPED_TABLES), (
         "a table was added to ORG_SCOPED_TABLES without a tenancy registry entry: add it to "

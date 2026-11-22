@@ -75,6 +75,8 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     # M12.09 (migration 0019c_shadow_runs): config by the API, comparison rows by the worker.
     "shadow_candidates": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "shadow_runs": {"SELECT"},
+    # M12.06 (migration 0019a_prompt_gate): admins upsert the gate settings; never deleted.
+    "prompt_gate_settings": {"SELECT", "INSERT", "UPDATE"},
 }
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 TRIVIAL = {"true", "(true)", "1 = 1", "(1 = 1)"}

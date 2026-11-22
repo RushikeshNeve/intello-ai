@@ -31,9 +31,9 @@ from app.workers import (
     research_tasks,  # noqa: F401 - registers the ``research.run`` task
 )
 from app.workers.celery_app import (
+    TASK_CACHE_EVICT,
     TASK_CONNECTOR_SYNC,
     TASK_DELETE_DOCUMENT,
-    TASK_CACHE_EVICT,
     TASK_GRAPH_EXTRACT,
     TASK_RECONCILE,
     TASK_REINDEX_RUN,

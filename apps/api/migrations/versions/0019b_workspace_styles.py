@@ -15,7 +15,7 @@ from collections.abc import Sequence
 from alembic import context, op
 
 revision: str = "0019b_workspace_styles"
-down_revision: str | None = "0018_reindex"
+down_revision: str | None = "0019a_prompt_gate"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

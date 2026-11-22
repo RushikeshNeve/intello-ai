@@ -7,7 +7,7 @@
   (org owner/admin only, enforced in the API). FORCE RLS by org.
 
 Revision ID: 0019c_shadow_runs
-Revises: 0018_reindex
+Revises: 0019b_workspace_styles
 Create Date: 2026-11-21
 """
 
@@ -20,7 +20,7 @@ from collections.abc import Sequence
 from alembic import context, op
 
 revision: str = "0019c_shadow_runs"
-down_revision: str | None = "0018_reindex"
+down_revision: str | None = "0019b_workspace_styles"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

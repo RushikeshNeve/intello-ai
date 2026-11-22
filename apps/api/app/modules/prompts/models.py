@@ -8,11 +8,13 @@ from datetime import datetime
 from typing import Final
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Float,
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     Text,
     UniqueConstraint,
     text,
@@ -154,3 +156,23 @@ class ShadowRun(Base):
         _tstz(), nullable=False, server_default=text("now()")
     )
     finished_at: Mapped[datetime | None] = mapped_column(_tstz(), nullable=True)
+
+
+class PromptGateSettings(Base):
+    """Migration ``0019a_prompt_gate``: per-org activation gate (M12.06); default off."""
+
+    __tablename__ = "prompt_gate_settings"
+    __table_args__ = (
+        CheckConstraint("min_pass_rate BETWEEN 0 AND 1", name="ck_prompt_gate_min_pass"),
+    )
+
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True
+    )
+    enforced: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    min_pass_rate: Mapped[float] = mapped_column(
+        Numeric(4, 3), nullable=False, server_default=text("0.800")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        _tstz(), nullable=False, server_default=text("now()")
+    )

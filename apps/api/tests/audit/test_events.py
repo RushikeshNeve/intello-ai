@@ -64,6 +64,7 @@ CONTRACT_EVENT_TYPES = {
     "prompt.version.created",
     "prompt.version.activated",
     "prompt.version.rolled_back",
+    "style.updated",
 }
 
 

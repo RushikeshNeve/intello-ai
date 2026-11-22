@@ -85,6 +85,24 @@ BODIES: dict[tuple[str, str], Any] = {
     ("POST", "/v1/orgs/{org_id}/workspaces/{workspace_id}/evals/sets/{set_id}/cases"): {
         "question": "what?"
     },
+    # M12.06 prompt gate, M12.09 shadow runs, M11.08 usage limits.
+    ("PUT", "/v1/orgs/{org_id}/prompts/gate"): {"enforced": False, "min_pass_rate": 0.8},
+    ("PUT", "/v1/orgs/{org_id}/prompt-shadow/{kind}"): {
+        "version_id": "00000000-0000-4000-8000-000000000001",
+        "rate_pct": 5,
+    },
+    ("POST", "/v1/orgs/{org_id}/usage/limits"): {
+        "kind": "chat",
+        "scope": "org",
+        "action": "block",
+        "max_requests": 2,
+    },
+    ("PUT", "/v1/orgs/{org_id}/usage/limits/{limit_id}"): {
+        "kind": "chat",
+        "scope": "org",
+        "action": "block",
+        "max_requests": 2,
+    },
 }
 
 # Org-level routes only org owners/admins may WRITE: a plain org member gets 403 (d').

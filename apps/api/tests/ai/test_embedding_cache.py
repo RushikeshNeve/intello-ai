@@ -84,9 +84,9 @@ def test_query_cache_hits_per_org_and_flag_off_passes_through() -> None:
 
 def test_evict_all_is_a_noop_while_disabled_and_skips_failing_orgs() -> None:
     from collections.abc import Iterator
+    from contextlib import contextmanager
 
     from sqlalchemy.orm import Session
-    from contextlib import contextmanager
 
     orgs = [uuid.uuid4(), uuid.uuid4()]
     opened: list[uuid.UUID] = []
@@ -116,7 +116,8 @@ def test_dispatcher_queues_eviction_only_when_cache_enabled(
     d.publish = sent.append
     monkeypatch.setenv("EMBEDDING_CACHE_ENABLED", "false")
     ec.get_cache_settings.cache_clear()
-    assert d.cache_evict_tick() is False and sent == []
+    assert d.cache_evict_tick() is False
+    assert sent == []
     monkeypatch.setenv("EMBEDDING_CACHE_ENABLED", "true")
     ec.get_cache_settings.cache_clear()
     try:

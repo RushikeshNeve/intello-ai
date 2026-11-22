@@ -27,7 +27,7 @@ M04_CHAT_TABLES = {
 M06_TABLES = {"sources", "connector_accounts", "source_syncs", "source_items"}
 # M07 (migration 0010): memory reads and the research runtime; exact grants: rls test_19.
 M07_TABLES = {"memories", "research_sessions", "research_steps", "research_reports"}
-# M11/M12 (migrations 0012-0018): exact grants in tests/security/postgres_rls test_01 / test_20.
+# M11/M12 (migrations 0012-0019c): exact grants in tests/security/postgres_rls test_01 / test_20.
 NEXT_PHASE_TABLES = {
     "usage_events",
     "embedding_cache",
@@ -38,6 +38,11 @@ NEXT_PHASE_TABLES = {
     "eval_run_results",
     "reindex_jobs",
     "org_active_spaces",
+    # Wave B (0015, 0019b, 0019c): read-only limits/styles/candidates, shadow comparison rows.
+    "usage_limits",
+    "workspace_styles",
+    "shadow_candidates",
+    "shadow_runs",
 }
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 SEARCH_PATH = ["search_path=pg_catalog, public, pg_temp"]

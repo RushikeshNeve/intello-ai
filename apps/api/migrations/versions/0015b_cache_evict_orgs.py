@@ -6,7 +6,7 @@ executable by the worker role. Chained after 0018 to keep a single linear head (
 the file; alembic orders by ``down_revision``).
 
 Revision ID: 0015b_cache_evict_orgs
-Revises: 0018_reindex
+Revises: 0015_usage_limits
 Create Date: 2026-11-21
 """
 
@@ -19,7 +19,7 @@ from collections.abc import Sequence
 from alembic import context, op
 
 revision: str = "0015b_cache_evict_orgs"
-down_revision: str | None = "0018_reindex"
+down_revision: str | None = "0015_usage_limits"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

@@ -396,6 +396,8 @@ class ShadowSeed:
     latency_ms: int
     prompt_version_id: uuid.UUID | None
     still_valid: Callable[[], bool]
+    # M12.07: the live answer style, so the candidate is composed exactly like the live prompt.
+    style: styles.Style | None = None
 
 
 # -- the executor ---------------------------------------------------------------------------
@@ -503,6 +505,7 @@ class RunExecutor:
         )
         self.shadow_seed: ShadowSeed | None = None  # set when a model-answered run completes
         self._seed_parts: tuple[str, tuple[HistoryTurn, ...], tuple[Any, ...], int] | None = None
+        self._style: styles.Style | None = None
 
     # -- plumbing ----------------------------------------------------------------------------
 
@@ -747,6 +750,7 @@ class RunExecutor:
                 if scope is None
                 else styles.resolve_style(session, self.claim.org_id, scope.workspace_ids)
             )
+            self._style = style
         bundle = (
             build_prompt(
                 data.question,
@@ -921,6 +925,7 @@ class RunExecutor:
             latency_ms=latency_ms,
             prompt_version_id=self._prompt.version_id,
             still_valid=still_valid,
+            style=self._style,
         )
 
     def _complete(self, verification: Verification, citations: list[dict[str, Any]]) -> RunOutcome:

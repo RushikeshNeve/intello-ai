@@ -13,9 +13,11 @@ import logging
 import threading
 import time
 import uuid
+from contextlib import AbstractContextManager
 from typing import Final
 
 from sqlalchemy import Engine
+from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.modules import prompts
@@ -25,7 +27,8 @@ from app.modules.ai.context import build_prompt
 from app.modules.ai.models.types import estimate_tokens
 from app.modules.ai.policy_source import DbPolicySource
 from app.modules.ai.verification import VerifyConfig, verify
-from app.modules.prompts import shadow
+from app.modules.prompts import shadow, styles
+from app.modules.usage.limits import QuotaExceeded, QuotaGuard
 
 log = logging.getLogger(__name__)
 
@@ -63,6 +66,8 @@ def maybe_shadow(
     comparison row id (``None`` = not sampled / off / over the daily cap)."""
     if not settings.PROMPT_SHADOW_ENABLED:
         return None
+    if _over_quota(engine, org_id, user_id):
+        return None  # M11.08: an org (or user) at a blocking limit gets no extra model calls
     try:
         with chat_repo.worker_chat_session(engine, org_id=org_id, user_id=user_id) as session:
             cand = shadow.get_candidate(session, org_id)
@@ -97,6 +102,19 @@ def maybe_shadow(
         _threads.append(thread)
     thread.start()
     return shadow_id
+
+
+def _over_quota(engine: Engine, org_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+    """True when a blocking chat limit is reached. The guard fails open on storage errors."""
+
+    def sessions(org: uuid.UUID) -> AbstractContextManager[Session]:
+        return chat_repo.worker_chat_session(engine, org_id=org, user_id=user_id)
+
+    try:
+        QuotaGuard(sessions, org_id=org_id, user_id=None).check("chat")
+    except QuotaExceeded:
+        return True
+    return False
 
 
 def _finish(
@@ -138,7 +156,7 @@ def _execute(
             budget_tokens=cs.CHAT_CONTEXT_TOKENS,
             reserve_output_tokens=cs.CHAT_MAX_OUTPUT_TOKENS,
             history_turns=cs.CHAT_HISTORY_TURNS,
-            system_prompt=prompts.chat_system(body),
+            system_prompt=styles.compose(prompts.chat_system(body), seed.style),
         )
         if not bundle.should_call_model:
             return done(status="skipped", skip_reason=SKIP_NO_BUDGET)

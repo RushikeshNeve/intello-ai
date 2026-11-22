@@ -158,7 +158,7 @@ def evict_all(
                     max_rows=cfg.EMBEDDING_CACHE_MAX_ROWS_PER_ORG,
                     max_age_days=cfg.EMBEDDING_CACHE_MAX_AGE_DAYS,
                 )
-        except Exception:  # noqa: BLE001 - one org must not stop the sweep
+        except Exception:  # noqa: BLE001, S112 - one org must not stop the sweep
             continue
     return deleted
 

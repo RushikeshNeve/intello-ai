@@ -4616,6 +4616,138 @@
         "title": "StepOut",
         "type": "object"
       },
+      "StyleIn": {
+        "additionalProperties": false,
+        "properties": {
+          "answer_format": {
+            "default": "concise",
+            "enum": [
+              "concise",
+              "detailed",
+              "bullets",
+              "table"
+            ],
+            "title": "Answer Format",
+            "type": "string"
+          },
+          "citation_style": {
+            "default": "numeric",
+            "enum": [
+              "numeric",
+              "inline"
+            ],
+            "title": "Citation Style",
+            "type": "string"
+          },
+          "custom_instructions": {
+            "default": "",
+            "maxLength": 1000,
+            "title": "Custom Instructions",
+            "type": "string"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "tone": {
+            "default": "neutral",
+            "enum": [
+              "neutral",
+              "formal",
+              "friendly",
+              "technical"
+            ],
+            "title": "Tone",
+            "type": "string"
+          }
+        },
+        "title": "StyleIn",
+        "type": "object"
+      },
+      "StyleOut": {
+        "properties": {
+          "answer_format": {
+            "title": "Answer Format",
+            "type": "string"
+          },
+          "citation_style": {
+            "title": "Citation Style",
+            "type": "string"
+          },
+          "custom_instructions": {
+            "title": "Custom Instructions",
+            "type": "string"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "source": {
+            "enum": [
+              "workspace",
+              "org_default",
+              "default"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "tone": {
+            "title": "Tone",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          }
+        },
+        "required": [
+          "source",
+          "tone",
+          "answer_format",
+          "language",
+          "citation_style",
+          "custom_instructions",
+          "updated_at",
+          "updated_by"
+        ],
+        "title": "StyleOut",
+        "type": "object"
+      },
       "SuggestionCreate": {
         "additionalProperties": false,
         "properties": {
@@ -8876,6 +9008,100 @@
         ]
       }
     },
+    "/v1/orgs/{org_id}/style": {
+      "get": {
+        "operationId": "get_org_style_v1_orgs__org_id__style_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StyleOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Org Style",
+        "tags": [
+          "prompts"
+        ]
+      },
+      "put": {
+        "operationId": "put_org_style_v1_orgs__org_id__style_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StyleIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StyleOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Org Style",
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
     "/v1/orgs/{org_id}/usage": {
       "get": {
         "operationId": "get_usage_v1_orgs__org_id__usage_get",
@@ -12382,6 +12608,120 @@
         "summary": "Sync Source",
         "tags": [
           "connectors"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/workspaces/{workspace_id}/style": {
+      "get": {
+        "operationId": "get_workspace_style_v1_orgs__org_id__workspaces__workspace_id__style_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StyleOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Workspace Style",
+        "tags": [
+          "prompts"
+        ]
+      },
+      "put": {
+        "operationId": "put_workspace_style_v1_orgs__org_id__workspaces__workspace_id__style_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StyleIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StyleOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Workspace Style",
+        "tags": [
+          "prompts"
         ]
       }
     },

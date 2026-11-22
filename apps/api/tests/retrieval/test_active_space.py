@@ -24,7 +24,9 @@ SPEC_B = EmbeddingModelSpec(
 )
 
 
-def _two_spaces() -> tuple[InMemoryKnowledgeRepository, FakeEmbeddingClient, FakeEmbeddingClient, uuid.UUID, uuid.UUID]:
+def _two_spaces() -> tuple[
+    InMemoryKnowledgeRepository, FakeEmbeddingClient, FakeEmbeddingClient, uuid.UUID, uuid.UUID
+]:
     a, b = FakeEmbeddingClient(SPEC), FakeEmbeddingClient(SPEC_B)
     org = org_scope(ORG)
     repo = new_repo(org, a)
@@ -34,7 +36,9 @@ def _two_spaces() -> tuple[InMemoryKnowledgeRepository, FakeEmbeddingClient, Fak
     return repo, a, b, doc_a.document_id, doc_b.document_id
 
 
-def _vector_doc(repo: InMemoryKnowledgeRepository, emb: FakeEmbeddingClient, active: str | None) -> uuid.UUID:
+def _vector_doc(
+    repo: InMemoryKnowledgeRepository, emb: FakeEmbeddingClient, active: str | None
+) -> uuid.UUID:
     scope = make_scope(ORG, [WS], active_space=active)
     found = retrieve_candidates(scope, repo, emb, "alpha shared", mode="vector")
     return found.rankings["vector"][0].document_id
@@ -51,7 +55,7 @@ def test_cutover_and_rollback_switch_the_queried_space() -> None:
 
 
 def test_dimension_mismatch_fails_safely_without_touching_the_index() -> None:
-    repo, a, b, _da, _db = _two_spaces()
+    repo, a, _b, _da, _db = _two_spaces()
     scope = make_scope(ORG, [WS], active_space=SPEC_B.space_id)  # org is on B, embedder is A
     for mode in ("hybrid", "vector"):
         with pytest.raises(EmbeddingSpaceMismatch):

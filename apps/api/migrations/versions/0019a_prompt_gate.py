@@ -5,7 +5,7 @@
 * ``prompt_gate_settings``: one row per org (``enforced`` default false, thresholds). RLS by org.
 
 Revision ID: 0019a_prompt_gate
-Revises: 0018_reindex
+Revises: 0015b_cache_evict_orgs
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from collections.abc import Sequence
 from alembic import context, op
 
 revision: str = "0019a_prompt_gate"
-down_revision: str | None = "0018_reindex"
+down_revision: str | None = "0015b_cache_evict_orgs"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

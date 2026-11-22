@@ -46,6 +46,8 @@ M06_WORKER_DEFINERS = ["connector_enqueue_due_syncs"]
 # standing check (also used by the memories policies), the evidence invalidation (acts only on the
 # context org) and a creator's own research cancel. Depth: test_19_m07_tables.py.
 M07_WORKER_DEFINERS = ["memory_sweep", "research_claim_session", "research_reap_expired"]
+# Migration 0015b: the embedding-cache eviction sweep lists orgs with cache rows (worker only).
+M11_WORKER_DEFINERS = ["embedding_cache_orgs"]
 APP_DEFINERS = [
     "ingest_requeue_job",
     "chat_cancel_run",
@@ -72,6 +74,7 @@ def test_expected_definer_inventory(admin_engine: Engine, migrated: None) -> Non
             *M04_WORKER_DEFINERS,
             *M06_WORKER_DEFINERS,
             *M07_WORKER_DEFINERS,
+            *M11_WORKER_DEFINERS,
             *APP_DEFINERS,
         ]
     )
