@@ -43,6 +43,7 @@ from typing import Any, Final, Literal
 
 from sqlalchemy import Engine, select
 
+from app.core import tracing_genai
 from app.core.config import Settings
 from app.modules import prompts
 from app.modules.ai import chat_repo
@@ -63,10 +64,10 @@ from app.modules.ai.verification import (
     abstention,
     verify,
 )
+from app.modules.firewall import abuse
 from app.modules.firewall import hooks as firewall_hooks
 from app.modules.firewall import policy as firewall_policy
 from app.modules.firewall.output_guard import Context, OutputBlocked, StreamGuard
-from app.modules.firewall import abuse
 from app.modules.graph.merge import augment_evidence
 from app.modules.graph.ports_read import ChunkSource, GraphReadRepository
 from app.modules.knowledge.ports import KnowledgeRepository
@@ -101,6 +102,18 @@ ERR_QUOTA_EXCEEDED: Final = "quota_exceeded"  # M11.08
 ERR_INPUT_BLOCKED: Final = "input_blocked"  # M14.01
 ERR_OUTPUT_BLOCKED: Final = "output_blocked"  # M14.03
 ERR_PII_BLOCKED: Final = "pii_blocked"  # M14.04
+
+_CITE_MARKER: Final = re.compile(r"\[(\d{1,6}(?:\s*,\s*\d{1,6})*)\]")
+
+
+def _invalid_markers(text: str, usable: Mapping[int, Any]) -> int:
+    """Distinct citation numbers in the answer that point at no usable evidence (count only)."""
+    try:
+        cited = {int(n) for m in _CITE_MARKER.finditer(text) for n in m.group(1).split(",")}
+        return len(cited - set(usable))
+    except Exception:  # noqa: BLE001 - metrics never break a run
+        return 0
+
 
 ERROR_MESSAGES: Final[Mapping[str, str]] = {
     ERR_MODEL_UNAVAILABLE: "The AI model is not available right now. Please try again.",
@@ -751,14 +764,15 @@ class RunExecutor:
             self._record_firewall()
             raise RunFailure(ERR_INPUT_BLOCKED)
         scope = self._resolve_scope(data.snapshot_workspaces)
-        result = self._retrieve(scope, data.question)
+        with tracing_genai.stage("retrieve"):
+            result = self._retrieve(scope, data.question)
         evidence = self._augment(scope, data.question, list(result.evidence))
         evidence = self._with_memory(scope, data.question, evidence)
         abuse.canary_check(
             lambda *, user_id, org_id: chat_repo.worker_chat_session(
                 self.engine,
                 org_id=org_id,
-                user_id=user_id,  # type: ignore[arg-type]
+                user_id=user_id,
             ),
             self.claim.org_id,
             self.claim.created_by,
@@ -778,6 +792,7 @@ class RunExecutor:
         cs = self.deps.chat_settings
         with self._session() as session:
             self._prompt = prompts.resolve("chat_system", self.claim.org_id, session)
+            tracing_genai.set_prompt(self._prompt.version_id, self._prompt.sha256)  # M13.01
             style = (
                 None
                 if scope is None
@@ -947,13 +962,15 @@ class RunExecutor:
                         resolved[e.evidence_id] = found
         usable = {n: eid for n, eid in bundle.citation_map.items() if eid in resolved}
         self._event("stage", {"stage": "verifying"})
-        verification = verify(
-            text,
-            usable,
-            bundle.used_evidence,
-            config=VerifyConfig.from_settings(cs),
-            embedder=self._meter.embedder(self.deps.embedder),
-        )
+        with tracing_genai.stage("verify"):
+            verification = verify(
+                text,
+                usable,
+                bundle.used_evidence,
+                config=VerifyConfig.from_settings(cs),
+                embedder=self._meter.embedder(self.deps.embedder),
+            )
+        tracing_genai.record_citation_invalid(_invalid_markers(text, usable))  # M13.01
         citations = [
             citation_payload(vc, resolved[vc.evidence_id])
             for vc in verification.citations
@@ -1027,6 +1044,8 @@ class RunExecutor:
         """citations, verification, the assistant message (kept text only), completed, state: one
         fenced transaction, so a run never ends half-written."""
         vp = verification_payload(verification)
+        if verification.status == "abstained":
+            tracing_genai.record_abstain()  # M13.01 (error-swallowing counter)
         with self._session() as session:
             self._check()
             chat_repo.append_event(

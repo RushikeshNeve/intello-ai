@@ -171,6 +171,16 @@ def test_worker_reachable_relations_are_exactly_the_documented_set(
         "firewall_policies",
         # M14.08 (migration 0026; exact rules: test_20_tenant_keys.py)
         "tenant_keys",
+        # M13.02 (0020), M14.02 (0024), M14.07 (0025), M14.04 (0027);
+        # exact rules: test_20_m13_m14_tables.py
+        "ai_run_captures",
+        "document_findings",
+        "document_scan_policies",
+        "document_scan_releases",
+        "security_events",
+        "canary_documents",
+        "abuse_settings",
+        "workspace_pii_settings",
     }
     with admin_engine.connect() as conn:
         reachable = set(

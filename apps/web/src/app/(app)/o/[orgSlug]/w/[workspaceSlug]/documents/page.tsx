@@ -1,9 +1,11 @@
 import { Suspense } from "react";
 import { listDocuments } from "@/features/documents/api";
 import { Library } from "@/features/documents/library/library";
+import { QuarantinePanel } from "@/features/documents/quarantine/quarantine-panel";
 import { paramsKey, parseLibraryState, toApiParams } from "@/features/documents/library/url-state";
 import type { DocumentList } from "@/features/documents/types";
 import { classify, resolveWorkspaceScope, serverFetcher } from "@/features/organizations/server";
+import { canAdminWorkspace } from "@/features/settings/permissions";
 import { SessionRedirect } from "@/features/shell/session-redirect";
 import { PageLoading, ScopeNotFound, ServiceUnavailable } from "@/features/shell/states";
 
@@ -66,6 +68,8 @@ async function DocumentsLibrary({
         </h1>
       </div>
       <Library orgId={org.id} workspaceId={workspace.id} basePath={`${wsPath}/documents`} initial={initial} />
+      {/* M14.02: quarantined documents (workspace admins only; the API enforces it again). */}
+      {canAdminWorkspace(org, workspace) && <QuarantinePanel orgId={org.id} workspaceId={workspace.id} />}
     </div>
   );
 }

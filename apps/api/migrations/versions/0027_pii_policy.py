@@ -6,7 +6,7 @@
   mask PII in indexed text); both default off. No PII value is ever stored. FORCE RLS by org.
 
 Revision ID: 0027_pii_policy
-Revises: 0019c_shadow_runs
+Revises: 0026_tenant_keys
 Create Date: 2026-11-22
 """
 
@@ -19,7 +19,7 @@ from collections.abc import Sequence
 from alembic import context, op
 
 revision: str = "0027_pii_policy"
-down_revision: str | None = "0019c_shadow_runs"
+down_revision: str | None = "0026_tenant_keys"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -85,6 +85,11 @@ def upgrade() -> None:
     op.execute("ALTER TABLE workspace_pii_settings ENABLE ROW LEVEL SECURITY")
     op.execute("ALTER TABLE workspace_pii_settings FORCE ROW LEVEL SECURITY")
     op.execute(RLS_SQL)
+    # The ingestion worker has an org context but no user: it reads the flags by org (M14.02 scan).
+    op.execute(
+        "CREATE POLICY workspace_pii_settings_worker ON workspace_pii_settings FOR SELECT"
+        f' TO "{worker}" USING (org_id = {CUR_ORG})'
+    )
     op.execute(f'GRANT SELECT, INSERT, UPDATE ON workspace_pii_settings TO "{app}"')
     op.execute(f'GRANT SELECT ON workspace_pii_settings TO "{worker}"')
 

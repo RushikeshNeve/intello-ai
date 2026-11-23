@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import io
+import uuid
 import zipfile
+from typing import Any
+
+import pytest
 
 from app.modules.ingestion.scan.detectors import Finding, redact, scan_document
 
@@ -101,3 +105,28 @@ def test_pdf_active_content() -> None:
         scan_document(b"%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n%%EOF", "application/pdf", None)
         == []
     )
+
+
+def test_pii_counts_become_count_only_findings(monkeypatch: pytest.MonkeyPatch) -> None:
+    from types import SimpleNamespace
+
+    from app.modules.firewall.pii import ingest
+    from app.modules.ingestion.scan import service
+
+    email = "jane.doe@example.com"
+    doc: Any = SimpleNamespace(
+        blocks=[SimpleNamespace(text=f"mail {email}"), SimpleNamespace(text=f"again {email}")]
+    )
+    session: Any = object()
+    monkeypatch.setattr(
+        ingest, "load_workspace_settings", lambda _s, _w: ingest.IngestPiiSettings()
+    )
+    assert service.pii_findings(session, uuid.uuid4(), doc) == []  # workspace flag off
+    monkeypatch.setattr(
+        ingest, "load_workspace_settings", lambda _s, _w: ingest.IngestPiiSettings(True, False)
+    )
+    found = service.pii_findings(session, uuid.uuid4(), doc)
+    assert [(f.rule_id, f.severity, f.location, f.preview) for f in found] == [
+        ("pii.EMAIL", "low", "count:2", "")
+    ]
+    assert email not in repr(found)

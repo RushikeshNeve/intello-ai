@@ -66,6 +66,12 @@ CONTRACT_EVENT_TYPES = {
     "prompt.version.rolled_back",
     "style.updated",
     "org.firewall_policy.updated",
+    # M14.07 abuse protection and canaries (ids and counts only).
+    "security.abuse.flagged",
+    "security.canary.hit",
+    "security.event.acknowledged",
+    "security.canary.changed",
+    "security.abuse_settings.updated",
 }
 
 

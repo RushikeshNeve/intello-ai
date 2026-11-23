@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.modules import prompts
-from app.modules.ai.models.policy import ModelPolicy, PolicyDenied
+from app.modules.ai.models.policy import PolicyDenied
 from app.modules.ai.models.types import ChatModel
 from app.modules.graph.claims import build_claims
 from app.modules.graph.extract import EXTRACTOR_VERSION, SourceChunk, extract_chunks

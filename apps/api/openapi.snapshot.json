@@ -66,6 +66,17 @@
             "minItems": 1,
             "title": "Allowed Providers",
             "type": "array"
+          },
+          "hosted_models_allowed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hosted Models Allowed"
           }
         },
         "required": [
@@ -87,6 +98,10 @@
             },
             "title": "Allowed Providers",
             "type": "array"
+          },
+          "hosted_models_allowed": {
+            "title": "Hosted Models Allowed",
+            "type": "boolean"
           },
           "is_default": {
             "title": "Is Default",
@@ -124,6 +139,7 @@
         "required": [
           "allow_external",
           "allowed_providers",
+          "hosted_models_allowed",
           "is_default",
           "updated_at",
           "updated_by",
@@ -268,6 +284,186 @@
           "formats"
         ],
         "title": "Capabilities",
+        "type": "object"
+      },
+      "CaptureDetail": {
+        "properties": {
+          "answer": {
+            "title": "Answer",
+            "type": "string"
+          },
+          "chunk_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Chunk Ids",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "messages": {
+            "title": "Messages",
+            "type": "string"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "prompt_version_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version Id"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "workspace_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Id"
+          }
+        },
+        "required": [
+          "id",
+          "run_id",
+          "workspace_id",
+          "kind",
+          "mode",
+          "prompt_version_id",
+          "chunk_ids",
+          "created_at",
+          "expires_at",
+          "messages",
+          "answer"
+        ],
+        "title": "CaptureDetail",
+        "type": "object"
+      },
+      "CaptureList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CaptureMeta"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "CaptureList",
+        "type": "object"
+      },
+      "CaptureMeta": {
+        "properties": {
+          "chunk_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Chunk Ids",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "prompt_version_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version Id"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "workspace_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Id"
+          }
+        },
+        "required": [
+          "id",
+          "run_id",
+          "workspace_id",
+          "kind",
+          "mode",
+          "prompt_version_id",
+          "chunk_ids",
+          "created_at",
+          "expires_at"
+        ],
+        "title": "CaptureMeta",
         "type": "object"
       },
       "CaseIn": {
@@ -1449,6 +1645,85 @@
         "title": "EvidenceOut",
         "type": "object"
       },
+      "FeedbackIn": {
+        "additionalProperties": false,
+        "properties": {
+          "rating": {
+            "enum": [
+              "up",
+              "down"
+            ],
+            "title": "Rating",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "wrong_answer",
+                  "wrong_citation",
+                  "missing_info",
+                  "unsafe",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "rating"
+        ],
+        "title": "FeedbackIn",
+        "type": "object"
+      },
+      "FeedbackOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "message_id": {
+            "format": "uuid",
+            "title": "Message Id",
+            "type": "string"
+          },
+          "rating": {
+            "title": "Rating",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message_id",
+          "run_id",
+          "rating",
+          "reason",
+          "created_at"
+        ],
+        "title": "FeedbackOut",
+        "type": "object"
+      },
       "FinalizeResult": {
         "description": "``201`` (first time) / ``200`` (repeat) body of ``POST {ws}/uploads/{id}/finalize``.",
         "properties": {
@@ -1464,6 +1739,157 @@
           "version"
         ],
         "title": "FinalizeResult",
+        "type": "object"
+      },
+      "FindingOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "location": {
+            "title": "Location",
+            "type": "string"
+          },
+          "preview": {
+            "title": "Preview",
+            "type": "string"
+          },
+          "rule_id": {
+            "title": "Rule Id",
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "version_id": {
+            "format": "uuid",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id",
+          "rule_id",
+          "severity",
+          "location",
+          "preview",
+          "created_at"
+        ],
+        "title": "FindingOut",
+        "type": "object"
+      },
+      "FirewallPolicyIn": {
+        "additionalProperties": false,
+        "properties": {
+          "input_evidence": {
+            "enum": [
+              "off",
+              "flag",
+              "block"
+            ],
+            "title": "Input Evidence",
+            "type": "string"
+          },
+          "input_user": {
+            "enum": [
+              "off",
+              "flag",
+              "block"
+            ],
+            "title": "Input User",
+            "type": "string"
+          },
+          "output": {
+            "enum": [
+              "off",
+              "flag",
+              "block",
+              "redact"
+            ],
+            "title": "Output",
+            "type": "string"
+          },
+          "threshold": {
+            "default": 0.5,
+            "maximum": 1.0,
+            "minimum": 0.05,
+            "title": "Threshold",
+            "type": "number"
+          }
+        },
+        "required": [
+          "input_user",
+          "input_evidence",
+          "output"
+        ],
+        "title": "FirewallPolicyIn",
+        "type": "object"
+      },
+      "FirewallPolicyOut": {
+        "properties": {
+          "input_evidence": {
+            "title": "Input Evidence",
+            "type": "string"
+          },
+          "input_user": {
+            "title": "Input User",
+            "type": "string"
+          },
+          "is_default": {
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "output": {
+            "title": "Output",
+            "type": "string"
+          },
+          "threshold": {
+            "title": "Threshold",
+            "type": "number"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          }
+        },
+        "required": [
+          "input_user",
+          "input_evidence",
+          "output",
+          "threshold",
+          "is_default",
+          "updated_at",
+          "updated_by"
+        ],
+        "title": "FirewallPolicyOut",
         "type": "object"
       },
       "FromUrlBody": {
@@ -3117,6 +3543,53 @@
         "title": "PlanOut",
         "type": "object"
       },
+      "PolicyIn": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "enum": [
+              "off",
+              "flag",
+              "quarantine"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "PolicyIn",
+        "type": "object"
+      },
+      "PolicyOut": {
+        "properties": {
+          "mode": {
+            "enum": [
+              "off",
+              "flag",
+              "quarantine"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "workspace",
+              "org_default",
+              "default"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "source"
+        ],
+        "title": "PolicyOut",
+        "type": "object"
+      },
       "Preapproval": {
         "properties": {
           "created_at": {
@@ -3382,6 +3855,47 @@
         "title": "PromptVersionOut",
         "type": "object"
       },
+      "QuarantineItem": {
+        "properties": {
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "findings": {
+            "title": "Findings",
+            "type": "integer"
+          },
+          "max_severity": {
+            "title": "Max Severity",
+            "type": "string"
+          },
+          "quarantined_at": {
+            "format": "date-time",
+            "title": "Quarantined At",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version_id": {
+            "format": "uuid",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "document_id",
+          "version_id",
+          "title",
+          "findings",
+          "max_severity",
+          "quarantined_at"
+        ],
+        "title": "QuarantineItem",
+        "type": "object"
+      },
       "ReadyResponse": {
         "properties": {
           "checks": {
@@ -3495,6 +4009,19 @@
           "created_at"
         ],
         "title": "ReindexJob",
+        "type": "object"
+      },
+      "ReleaseOut": {
+        "properties": {
+          "requeued": {
+            "title": "Requeued",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "requeued"
+        ],
+        "title": "ReleaseOut",
         "type": "object"
       },
       "ReportOut": {
@@ -3859,6 +4386,88 @@
           "score"
         ],
         "title": "RetrievedOut",
+        "type": "object"
+      },
+      "ReviewItem": {
+        "properties": {
+          "chunk_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Chunk Ids",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "feedback_id": {
+            "format": "uuid",
+            "title": "Feedback Id",
+            "type": "string"
+          },
+          "message_id": {
+            "format": "uuid",
+            "title": "Message Id",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "workspace_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Id"
+          }
+        },
+        "required": [
+          "feedback_id",
+          "run_id",
+          "message_id",
+          "workspace_id",
+          "reason",
+          "chunk_ids",
+          "created_at"
+        ],
+        "title": "ReviewItem",
+        "type": "object"
+      },
+      "ReviewQueue": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewItem"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ReviewQueue",
         "type": "object"
       },
       "RollbackOut": {
@@ -4280,75 +4889,40 @@
         "title": "SettingsBody",
         "type": "object"
       },
-      "SettingsOut": {
+      "SettingsIn": {
+        "additionalProperties": false,
         "properties": {
-          "action": {
-            "default": "flag",
-            "enum": [
-              "off",
-              "flag",
-              "throttle",
-              "block"
+          "capture_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "off",
+                  "redacted",
+                  "full_admin_only"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Action",
-            "type": "string"
+            "title": "Capture Mode"
           },
-          "block_seconds": {
-            "default": 900,
-            "maximum": 86400.0,
-            "minimum": 10.0,
-            "title": "Block Seconds",
-            "type": "integer"
-          },
-          "is_default": {
-            "default": false,
-            "title": "Is Default",
-            "type": "boolean"
-          },
-          "max_chat": {
-            "default": 60,
-            "maximum": 1000000.0,
-            "minimum": 1.0,
-            "title": "Max Chat",
-            "type": "integer"
-          },
-          "max_distinct_docs": {
-            "default": 150,
-            "maximum": 1000000.0,
-            "minimum": 1.0,
-            "title": "Max Distinct Docs",
-            "type": "integer"
-          },
-          "max_evidence_reads": {
-            "default": 200,
-            "maximum": 1000000.0,
-            "minimum": 1.0,
-            "title": "Max Evidence Reads",
-            "type": "integer"
-          },
-          "max_export": {
-            "default": 20,
-            "maximum": 1000000.0,
-            "minimum": 1.0,
-            "title": "Max Export",
-            "type": "integer"
-          },
-          "max_search": {
-            "default": 120,
-            "maximum": 1000000.0,
-            "minimum": 1.0,
-            "title": "Max Search",
-            "type": "integer"
-          },
-          "window_seconds": {
-            "default": 300,
-            "maximum": 86400.0,
-            "minimum": 10.0,
-            "title": "Window Seconds",
-            "type": "integer"
+          "capture_retention_days": {
+            "anyOf": [
+              {
+                "maximum": 90.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capture Retention Days"
           }
         },
-        "title": "SettingsOut",
+        "title": "SettingsIn",
         "type": "object"
       },
       "ShadowConfigOut": {
@@ -6266,6 +6840,77 @@
         "title": "ResultOut",
         "type": "object"
       },
+      "app__modules__firewall__abuse_router__SettingsOut": {
+        "properties": {
+          "action": {
+            "default": "flag",
+            "enum": [
+              "off",
+              "flag",
+              "throttle",
+              "block"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "block_seconds": {
+            "default": 900,
+            "maximum": 86400.0,
+            "minimum": 10.0,
+            "title": "Block Seconds",
+            "type": "integer"
+          },
+          "is_default": {
+            "default": false,
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "max_chat": {
+            "default": 60,
+            "maximum": 1000000.0,
+            "minimum": 1.0,
+            "title": "Max Chat",
+            "type": "integer"
+          },
+          "max_distinct_docs": {
+            "default": 150,
+            "maximum": 1000000.0,
+            "minimum": 1.0,
+            "title": "Max Distinct Docs",
+            "type": "integer"
+          },
+          "max_evidence_reads": {
+            "default": 200,
+            "maximum": 1000000.0,
+            "minimum": 1.0,
+            "title": "Max Evidence Reads",
+            "type": "integer"
+          },
+          "max_export": {
+            "default": 20,
+            "maximum": 1000000.0,
+            "minimum": 1.0,
+            "title": "Max Export",
+            "type": "integer"
+          },
+          "max_search": {
+            "default": 120,
+            "maximum": 1000000.0,
+            "minimum": 1.0,
+            "title": "Max Search",
+            "type": "integer"
+          },
+          "window_seconds": {
+            "default": 300,
+            "maximum": 86400.0,
+            "minimum": 10.0,
+            "title": "Window Seconds",
+            "type": "integer"
+          }
+        },
+        "title": "SettingsOut",
+        "type": "object"
+      },
       "app__modules__graph__router_review__EntityOut": {
         "properties": {
           "aliases": {
@@ -6320,6 +6965,24 @@
           "name"
         ],
         "title": "EntityOut",
+        "type": "object"
+      },
+      "app__modules__observability__capture_router__SettingsOut": {
+        "properties": {
+          "capture_mode": {
+            "title": "Capture Mode",
+            "type": "string"
+          },
+          "capture_retention_days": {
+            "title": "Capture Retention Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "capture_mode",
+          "capture_retention_days"
+        ],
+        "title": "SettingsOut",
         "type": "object"
       },
       "app__modules__research__schemas__CancelOut": {
@@ -6677,6 +7340,252 @@
         ]
       }
     },
+    "/v1/orgs/{org_id}/ai-captures": {
+      "get": {
+        "operationId": "list_captures_v1_orgs__org_id__ai_captures_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Captures",
+        "tags": [
+          "observability"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/ai-captures/settings": {
+      "get": {
+        "operationId": "get_settings__v1_orgs__org_id__ai_captures_settings_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__modules__observability__capture_router__SettingsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Settings ",
+        "tags": [
+          "observability"
+        ]
+      },
+      "put": {
+        "operationId": "put_settings_v1_orgs__org_id__ai_captures_settings_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__modules__observability__capture_router__SettingsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Settings",
+        "tags": [
+          "observability"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/ai-captures/{capture_id}": {
+      "delete": {
+        "operationId": "delete_capture_v1_orgs__org_id__ai_captures__capture_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "capture_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Capture Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Capture",
+        "tags": [
+          "observability"
+        ]
+      },
+      "get": {
+        "operationId": "get_capture_v1_orgs__org_id__ai_captures__capture_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "capture_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Capture Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Capture",
+        "tags": [
+          "observability"
+        ]
+      }
+    },
     "/v1/orgs/{org_id}/ai-policy": {
       "get": {
         "operationId": "get_ai_policy_v1_orgs__org_id__ai_policy_get",
@@ -6768,6 +7677,128 @@
         "summary": "Put Ai Policy",
         "tags": [
           "ai-policy"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/chat/messages/{message_id}/feedback": {
+      "get": {
+        "operationId": "get_feedback_v1_orgs__org_id__chat_messages__message_id__feedback_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Message Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/FeedbackOut"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Feedback V1 Orgs  Org Id  Chat Messages  Message Id  Feedback Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Feedback",
+        "tags": [
+          "feedback"
+        ]
+      },
+      "put": {
+        "operationId": "put_feedback_v1_orgs__org_id__chat_messages__message_id__feedback_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Message Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Feedback",
+        "tags": [
+          "feedback"
         ]
       }
     },
@@ -7334,6 +8365,155 @@
         "summary": "Create Run",
         "tags": [
           "chat"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/feedback/review-queue": {
+      "get": {
+        "operationId": "review_queue_v1_orgs__org_id__feedback_review_queue_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewQueue"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Queue",
+        "tags": [
+          "feedback"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/firewall-policy": {
+      "get": {
+        "operationId": "get_firewall_policy_v1_orgs__org_id__firewall_policy_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirewallPolicyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Firewall Policy",
+        "tags": [
+          "firewall"
+        ]
+      },
+      "put": {
+        "operationId": "put_firewall_policy_v1_orgs__org_id__firewall_policy_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FirewallPolicyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirewallPolicyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Firewall Policy",
+        "tags": [
+          "firewall"
         ]
       }
     },
@@ -9332,7 +10512,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SettingsOut"
+                  "$ref": "#/components/schemas/app__modules__firewall__abuse_router__SettingsOut"
                 }
               }
             },
@@ -9383,7 +10563,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SettingsOut"
+                  "$ref": "#/components/schemas/app__modules__firewall__abuse_router__SettingsOut"
                 }
               }
             },
@@ -10771,6 +11951,73 @@
         "summary": "Update Document",
         "tags": [
           "documents"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/workspaces/{workspace_id}/documents/{document_id}/findings": {
+      "get": {
+        "operationId": "get_findings_v1_orgs__org_id__workspaces__workspace_id__documents__document_id__findings_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FindingOut"
+                  },
+                  "title": "Response Get Findings V1 Orgs  Org Id  Workspaces  Workspace Id  Documents  Document Id  Findings Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Findings",
+        "tags": [
+          "scan"
         ]
       }
     },
@@ -12983,6 +14230,303 @@
         "summary": "Get Overview",
         "tags": [
           "workspaces"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/workspaces/{workspace_id}/quarantine": {
+      "get": {
+        "operationId": "get_quarantine_v1_orgs__org_id__workspaces__workspace_id__quarantine_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/QuarantineItem"
+                  },
+                  "title": "Response Get Quarantine V1 Orgs  Org Id  Workspaces  Workspace Id  Quarantine Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Quarantine",
+        "tags": [
+          "scan"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/workspaces/{workspace_id}/quarantine/{document_id}": {
+      "delete": {
+        "operationId": "delete_quarantined_v1_orgs__org_id__workspaces__workspace_id__quarantine__document_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionAccepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Quarantined",
+        "tags": [
+          "scan"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/workspaces/{workspace_id}/quarantine/{document_id}/release": {
+      "post": {
+        "operationId": "release_document_v1_orgs__org_id__workspaces__workspace_id__quarantine__document_id__release_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleaseOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Release Document",
+        "tags": [
+          "scan"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/workspaces/{workspace_id}/scan-policy": {
+      "get": {
+        "operationId": "get_policy_v1_orgs__org_id__workspaces__workspace_id__scan_policy_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Policy",
+        "tags": [
+          "scan"
+        ]
+      },
+      "put": {
+        "operationId": "put_policy_v1_orgs__org_id__workspaces__workspace_id__scan_policy_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolicyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Policy",
+        "tags": [
+          "scan"
         ]
       }
     },

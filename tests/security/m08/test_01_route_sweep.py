@@ -103,6 +103,14 @@ BODIES: dict[tuple[str, str], Any] = {
         "action": "block",
         "max_requests": 2,
     },
+    # M13.03 answer feedback, M14.01/03 firewall policy, M14.02 scan policy.
+    ("PUT", "/v1/orgs/{org_id}/chat/messages/{message_id}/feedback"): {"rating": "up"},
+    ("PUT", "/v1/orgs/{org_id}/firewall-policy"): {
+        "input_user": "off",
+        "input_evidence": "off",
+        "output": "off",
+    },
+    ("PUT", "/v1/orgs/{org_id}/workspaces/{workspace_id}/scan-policy"): {"mode": "flag"},
     # M14.07 abuse settings and canary documents.
     ("PUT", "/v1/orgs/{org_id}/security/abuse-settings"): {"action": "flag"},
     ("POST", "/v1/orgs/{org_id}/security/canaries"): {

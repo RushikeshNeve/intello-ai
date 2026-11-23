@@ -40,6 +40,9 @@ NEXT_PHASE_CHAIN = (
     "0020_ai_run_captures",
     "0021_answer_feedback",
     "0023_firewall_policies",
+    "0024_document_findings",
+    "0025_abuse_canaries",
+    "0026_tenant_keys",
     "0027_pii_policy",
     "0028_org_hosted_optin",
 )
@@ -637,3 +640,40 @@ def test_app_role_cannot_call_the_worker_functions_and_vice_versa(
     with pytest.raises(DBAPIError) as exc2, worker_engine.connect() as conn:
         conn.execute(text("SELECT * FROM chat_cancel_run(:r)"), {"r": uuid.uuid4()})
     assert sqlstate(exc2.value) == "42501"
+
+
+def test_hosted_optin_backfill_keeps_existing_hosted_orgs(
+    alembic_config: Config, admin_engine: Engine, world: ChatWorld, migrated: None
+) -> None:
+    """0028 (M14.05): an org whose policy already selects openai keeps working after the upgrade;
+    every other org (and every new one) starts with hosted_models_allowed = false."""
+    command.downgrade(alembic_config, "0027_pii_policy")
+    try:
+        with admin_engine.begin() as conn:
+            conn.execute(
+                text("DELETE FROM ai_policies WHERE org_id IN (:a, :b)"),
+                {"a": world.org, "b": world.org_b},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO ai_policies (org_id, allow_external, allowed_providers) VALUES"
+                    " (:a, true, ARRAY['local', 'openai']), (:b, false, ARRAY['local'])"
+                ),
+                {"a": world.org, "b": world.org_b},
+            )
+    finally:
+        command.upgrade(alembic_config, "head")
+    with admin_engine.begin() as conn:
+        got = dict(
+            conn.execute(
+                text(
+                    "SELECT org_id, hosted_models_allowed FROM ai_policies WHERE org_id IN (:a, :b)"
+                ),
+                {"a": world.org, "b": world.org_b},
+            ).all()
+        )
+        conn.execute(
+            text("DELETE FROM ai_policies WHERE org_id IN (:a, :b)"),
+            {"a": world.org, "b": world.org_b},
+        )
+    assert got == {world.org: True, world.org_b: False}

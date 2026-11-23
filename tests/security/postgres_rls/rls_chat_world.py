@@ -31,7 +31,12 @@ ROLES: tuple[str, ...] = ("app", "worker")
 
 CHAT_GRANTS: dict[str, dict[str, Grant]] = {
     "app": {
-        "ai_policies": _g(True, True, "allow_external allowed_providers updated_by updated_at"),
+        "ai_policies": _g(
+            True,
+            True,
+            "allow_external allowed_providers updated_by updated_at"
+            " capture_mode capture_retention_days hosted_models_allowed",  # M13.02, M14.05
+        ),
         "chat_threads": _g(True, True, "title deleted_at updated_at"),
         "chat_messages": _g(True, True),
         "chat_runs": _g(True, True),

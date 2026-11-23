@@ -96,6 +96,9 @@ services:
     restart: "no"
     logging: *logging
 
+  # M14.08: MASTER_KEY_FILE / MASTER_KEY_ID / MASTER_OLD_KEYS reach api, worker and dispatcher through the base
+  # files (empty = envelope encryption off). The key file itself is mounted by a local override that is never
+  # committed: docs/runbooks/backup-restore.md "Master key".
   api:
     image: ukos-api:${UKOS_IMAGE_TAG:-local}
     restart: unless-stopped

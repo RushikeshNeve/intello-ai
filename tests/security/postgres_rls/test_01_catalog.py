@@ -88,6 +88,14 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     # M14.08 (migration 0026_tenant_keys): lazy creation of an org's first data key only;
     # retire/rotate/shred are operator (admin) commands. Depth: test_20_tenant_keys.py.
     "tenant_keys": {"SELECT", "INSERT"},
+    # M13.02/03 (0020/0021): captures are written by the worker, read/deleted by admins;
+    # feedback is the user's own row (upsert). Depth: test_20_m13_m14_tables.py.
+    "ai_run_captures": {"SELECT", "DELETE"},
+    "answer_feedback": {"SELECT", "INSERT", "UPDATE"},
+    # M14.02 (0024): findings are worker-written; admins read, set the scan policy, release.
+    "document_findings": {"SELECT"},
+    "document_scan_policies": {"SELECT", "INSERT", "UPDATE"},
+    "document_scan_releases": {"SELECT", "INSERT"},
 }
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 TRIVIAL = {"true", "(true)", "1 = 1", "(1 = 1)"}

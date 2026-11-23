@@ -24,15 +24,17 @@ _KINDS: Final = frozenset({"chat", "embed", "research", "graph"})
 _prompt: contextvars.ContextVar[tuple[str, str] | None] = contextvars.ContextVar(
     "ukos_genai_prompt", default=None
 )
-_quota: contextvars.ContextVar[str | None] = contextvars.ContextVar("ukos_genai_quota", default=None)
+_quota: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "ukos_genai_quota", default=None
+)
 
 
 def _safe(attrs: dict[str, Any]) -> dict[str, str | int | float | bool]:
     out: dict[str, str | int | float | bool] = {}
     for key, value in attrs.items():
-        if isinstance(value, bool | int | float):
-            out[key] = value
-        elif isinstance(value, str) and _IDENT.match(value):
+        if isinstance(value, bool | int | float) or (
+            isinstance(value, str) and _IDENT.match(value)
+        ):
             out[key] = value
     return out
 
@@ -118,13 +120,11 @@ def on_usage(
     cost_micros: int,
 ) -> None:
     """Called by the usage recorder for every metered call: one GenAI span plus the metrics."""
-    try:
+    with contextlib.suppress(Exception):
         _metrics_for(kind, tokens_in, tokens_out, latency_ms, cost_micros, tokens_cached)
-    except Exception:  # noqa: BLE001
-        pass
     if not tracing._otel_ready:
         return
-    try:
+    with contextlib.suppress(Exception):
         attrs: dict[str, Any] = {
             "gen_ai.system": provider,
             "gen_ai.request.model": model,
@@ -149,8 +149,6 @@ def on_usage(
             start_time=end - max(0, int(latency_ms)) * 1_000_000,
         )
         sp.end(end)
-    except Exception:  # noqa: BLE001
-        pass
 
 
 def _metrics_for(kind: str, tin: int, tout: int, ms: int, cost: int, cached: int) -> None:

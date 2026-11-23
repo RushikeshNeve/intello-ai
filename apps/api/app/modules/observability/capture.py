@@ -60,7 +60,19 @@ def _firewall_redactor() -> Redactor | None:
 def redact(value: str) -> str:
     """``app.modules.firewall.pii.redact`` when that module exists, else :func:`builtin_redact`."""
     fn = _firewall_redactor()
-    return str(fn(value)) if fn is not None else builtin_redact(value)
+    if fn is None:
+        return builtin_redact(value)
+    try:
+        res: Any = fn(value)
+    except Exception:  # noqa: BLE001 - a failing detector falls back to the conservative regex
+        return builtin_redact(value)
+    # M14.04 returns ``RedactionResult``: store only its redacted text, never the object repr.
+    inner = res if isinstance(res, str) else getattr(res, "text", None)
+    if not isinstance(inner, str):
+        return builtin_redact(value)
+    # The conservative regex still runs on top: long digit runs (account numbers) and key-like
+    # tokens the typed detectors do not cover stay masked, as before the PII module existed.
+    return builtin_redact(inner)
 
 
 # ------------------------------------------------------------------------------- settings

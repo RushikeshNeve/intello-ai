@@ -637,6 +637,10 @@ ORG_SCOPED_TABLES: Final = (
     "abuse_settings",
     # M14.08 per-org data keys (migration 0026_tenant_keys).
     "tenant_keys",
+    # M14.02 document scanning (migration 0024_document_findings).
+    "document_findings",
+    "document_scan_policies",
+    "document_scan_releases",
 )
 RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
 
@@ -649,11 +653,12 @@ from app.modules.ai.embeddings import models as _embedding_models  # noqa: E402,
 from app.modules.connectors import models as _connector_models  # noqa: E402, F401
 from app.modules.evals import models as _eval_models  # noqa: E402, F401
 from app.modules.feedback import models as _feedback_models  # noqa: E402, F401
-from app.modules.firewall import models as _firewall_models  # noqa: E402, F401
 from app.modules.firewall import abuse_models as _abuse_models  # noqa: E402, F401
+from app.modules.firewall import models as _firewall_models  # noqa: E402, F401
 from app.modules.firewall.pii import models as _pii_models  # noqa: E402, F401
 from app.modules.graph import models as _graph_models  # noqa: E402, F401
 from app.modules.ingestion import models as _ingestion_models  # noqa: E402, F401
+from app.modules.ingestion.scan import models as _scan_models  # noqa: E402, F401
 from app.modules.knowledge.reindex import models as _reindex_models  # noqa: E402, F401
 from app.modules.memory import models as _memory_models  # noqa: E402, F401
 from app.modules.observability import models as _observability_models  # noqa: E402, F401

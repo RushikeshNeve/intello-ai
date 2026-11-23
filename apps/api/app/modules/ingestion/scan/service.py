@@ -80,6 +80,35 @@ def store_findings(session: Session, claim: ClaimedJob, findings: list[Finding])
         )
 
 
+PII_RULE_PREFIX: Final = "pii."
+
+
+def pii_findings(
+    session: Session, workspace_id: uuid.UUID, doc: ExtractedDocument
+) -> list[Finding]:
+    """M14.04 counts by type as findings (``pii.<TYPE>``, location ``count:<n>``, empty preview):
+    only when the workspace enabled ``record_counts``; never a matched value. Secrets are
+    ``medium``, personal data ``low``: PII alone never quarantines a document."""
+    from app.modules.firewall.pii import SECRET_TYPES
+    from app.modules.firewall.pii.ingest import load_workspace_settings, scan_text
+
+    settings = load_workspace_settings(session, workspace_id)
+    if not settings.record_counts:
+        return []
+    counts: dict[str, int] = {}
+    for block in doc.blocks:
+        for kind, n in scan_text(block.text, settings)[1].items():
+            counts[kind] = counts.get(kind, 0) + n
+    return [
+        Finding(
+            f"{PII_RULE_PREFIX}{kind}"[:64],
+            "medium" if kind in SECRET_TYPES else "low",
+            f"count:{n}",
+        )
+        for kind, n in sorted(counts.items())
+    ]
+
+
 def run_scan_stage(
     ctx: JobContext,
     claim: ClaimedJob,
@@ -96,10 +125,21 @@ def run_scan_stage(
             text("SELECT 1 FROM document_scan_releases WHERE version_id = :v"),
             {"v": claim.version_id},
         ).first()
+        pii: list[Finding] = []
+        try:  # M14.04 PII counts (workspace flag, default off); never blocks indexing
+            pii = pii_findings(session, claim.workspace_id, load_doc())
+        except (LeaseLost, RetryableJobError, PermanentJobError):
+            raise
+        except Exception:  # noqa: BLE001 - counts are advisory metadata
+            logger.warning("pii count failed; indexing continues")
     if mode == "off":
+        if pii:
+            with ctx.session_factory(claim.org_id) as session:
+                fence(session, claim)
+                store_findings(session, claim, pii)
         return False
     try:
-        findings = scan_document(load_raw(), content_type, load_doc())
+        findings = scan_document(load_raw(), content_type, load_doc()) + pii
     except (LeaseLost, RetryableJobError, PermanentJobError):
         raise
     except Exception as exc:

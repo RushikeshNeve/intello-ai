@@ -95,9 +95,17 @@ def test_stream_blocks_echo_before_flush() -> None:
     assert CANARY not in "".join(sent)
 
 
+def test_stream_redact_mode_masks_pii_through_firewall_pii() -> None:
+    text = "Write to jane.doe@example.com about it [1]."
+    out, _g = run_stream("redact", [text], Context(allowed_markers=frozenset({1})))
+    joined = "".join(out)
+    assert "jane.doe@example.com" not in joined
+    assert "[EMAIL_1]" in joined
+
+
 def test_stream_secret_flag_redact_and_scope() -> None:
     ctx = Context(allowed_markers=frozenset({1}))
-    key = "sk-abcdefghijklmnopqrstuvwxyz123456"
+    key = "sk-abcdefghijklmnopqrstuvwxyz123456"  # secret-scan: allow
     text = f"Answer one [1]. The key is {key} and more words follow here after it [1]."
     pieces = [text[i : i + 7] for i in range(0, len(text), 7)]
     out, g = run_stream("redact", pieces, ctx)

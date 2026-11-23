@@ -5,6 +5,7 @@ Counts, latency and an estimated cost only; never prompt or answer text (nothing
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import uuid
@@ -49,12 +50,10 @@ def estimate_cost_micros(
 
 def _genai_hook(*args: Any) -> None:
     """M13.01: spans and metrics from the same numbers as the usage event (no second counting)."""
-    try:
+    with contextlib.suppress(Exception):  # telemetry never fails a model call
         from app.core import tracing_genai
 
         tracing_genai.on_usage(*args)
-    except Exception:  # noqa: BLE001 - telemetry never fails a model call
-        pass
 
 
 class UsageRecorder:

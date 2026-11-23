@@ -38,7 +38,11 @@ SKIP_SUFFIXES = {
 }
 ALLOW = "secret-scan: allow"
 # Reviewed fixtures: a fake, unsigned JWT used to test that tokens are redacted from error messages.
-ALLOWED_FILES = {"apps/web/src/features/auth/__tests__/primitives.test.ts"}
+ALLOWED_FILES = {
+    "apps/web/src/features/auth/__tests__/primitives.test.ts",
+    # M14.04 detector corpus: synthetic, well-known example values only (AKIA...EXAMPLE etc.).
+    "apps/api/tests/firewall/test_pii.py",
+}
 MAX_BYTES = 2_000_000
 
 

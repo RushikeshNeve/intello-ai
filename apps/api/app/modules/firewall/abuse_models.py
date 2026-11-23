@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Final
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, Text, func
+from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, Text, func, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -24,7 +24,7 @@ class SecurityEvent(Base):
     __table_args__ = (
         CheckConstraint(_in("kind", EVENT_KINDS), name="ck_security_events_kind"),
         CheckConstraint(_in("severity", SEVERITIES), name="ck_security_events_severity"),
-        Index("ix_security_events_org_created", "org_id", "created_at"),
+        Index("ix_security_events_org_created", "org_id", text("created_at DESC")),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)

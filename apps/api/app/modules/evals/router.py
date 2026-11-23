@@ -31,6 +31,7 @@ from app.modules.evals.schemas import (
     SetList,
     SetOut,
 )
+from app.modules.firewall import abuse
 from app.modules.knowledge.ports import UnknownOrganization
 from app.modules.organizations.service import load_org_access
 from app.modules.retrieval import service as retrieval
@@ -211,6 +212,8 @@ def start_run(
             )
         except (EmptyScope, UnknownOrganization):
             raise not_found() from None
+        # M14.07: canary documents never count toward golden-set metrics.
+        canaries = abuse.canary_document_ids(session, org_id)
         results: list[dict[str, Any]] = []
         for case in cases:
             retrieved: list[dict[str, Any]] = []
@@ -233,7 +236,9 @@ def start_run(
                         "score": round(e.score, 6),
                     }
                     for e in outcome.evidence
-                    if e.workspace_id == workspace_id and e.score >= body.min_score
+                    if e.workspace_id == workspace_id
+                    and e.score >= body.min_score
+                    and e.document_id not in canaries
                 ]
                 if not retrieved:
                     status_ = "abstained"

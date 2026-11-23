@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
-from typing import Literal
 from collections.abc import Iterator, Sequence
+from typing import Literal
 from uuid import uuid4
 
 import httpx
@@ -104,9 +104,11 @@ def test_redaction_stable_placeholders_and_counts() -> None:
 def test_redaction_modes_and_no_value_in_repr() -> None:
     assert redact("a@x.io", "mask").text == "[REDACTED]"
     h = redact("a@x.io", "hash").text
-    assert h.startswith("[EMAIL:") and "a@x.io" not in h
+    assert h.startswith("[EMAIL:")
+    assert "a@x.io" not in h
     res = redact("a@x.io")
-    assert "a@x.io" not in repr(res) and res.counts_by_type == {"EMAIL": 1}
+    assert "a@x.io" not in repr(res)
+    assert res.counts_by_type == {"EMAIL": 1}
     only = redact("a@x.io 10.1.2.3", policy=PiiPolicy(types=frozenset({"IPV4"})))
     assert only.text == "a@x.io [IPV4_1]"
 
@@ -156,7 +158,9 @@ def test_outbound_redact_sends_no_raw_pii_and_restores_only_when_asked() -> None
     hosted = CapturingHosted("Contact [EMAIL_1] about [CREDIT_CARD_1].")
     out = "".join(PiiGuardedChatModel(hosted, mode="redact").stream(PROMPT))
     blob = json.dumps(hosted.sent)
-    assert CANARY_EMAIL not in blob and "4111" not in blob and "[EMAIL_1]" in blob
+    assert CANARY_EMAIL not in blob
+    assert "4111" not in blob
+    assert "[EMAIL_1]" in blob
     assert out == "Contact [EMAIL_1] about [CREDIT_CARD_1]."  # restore defaults to false
     hosted2 = CapturingHosted("Contact [EMAIL_1] about [CREDIT_CARD_1].")
     guarded = PiiGuardedChatModel(hosted2, mode="redact", restore=True)
@@ -169,8 +173,10 @@ def test_outbound_secret_blocks_by_default_and_block_mode_blocks_pii() -> None:
     secret_prompt: list[ChatMessage] = [{"role": "user", "content": "key sk-" + "A1b2C3d4" * 4}]
     with pytest.raises(PiiBlocked) as exc:
         PiiGuardedChatModel(hosted, mode="redact").complete(secret_prompt)
-    assert exc.value.code == "pii_blocked" and "OPENAI_KEY" in exc.value.counts_by_type
-    assert "A1b2C3d4" not in str(exc.value) and hosted.sent == []
+    assert exc.value.code == "pii_blocked"
+    assert "OPENAI_KEY" in exc.value.counts_by_type
+    assert "A1b2C3d4" not in str(exc.value)
+    assert hosted.sent == []
     with pytest.raises(PiiBlocked):
         PiiGuardedChatModel(hosted, mode="block").complete(PROMPT)
     assert hosted.sent == []
@@ -200,11 +206,17 @@ def test_gateway_wraps_only_hosted_and_only_when_enabled() -> None:
         )
 
     both = frozenset({"local", "openai"})
-    assert not isinstance(make(ModelPolicy(True, both), "openai"), PiiGuardedChatModel)  # off
-    guarded = make(ModelPolicy(True, both, pii_outbound="redact"), "openai")
+    assert not isinstance(
+        make(ModelPolicy(True, both, hosted_models_allowed=True), "openai"), PiiGuardedChatModel
+    )  # off
+    guarded = make(
+        ModelPolicy(True, both, hosted_models_allowed=True, pii_outbound="redact"),
+        "openai",
+    )
     assert isinstance(guarded, PiiGuardedChatModel)
     assert guarded.complete(PROMPT) == "hi"
-    assert CANARY_EMAIL.encode() not in seen[0] and b"[EMAIL_1]" in seen[0]
+    assert CANARY_EMAIL.encode() not in seen[0]
+    assert b"[EMAIL_1]" in seen[0]
     local = make(ModelPolicy(True, both, pii_outbound="block"), "local")
     assert not isinstance(local, PiiGuardedChatModel)  # local path untouched
 
@@ -215,14 +227,19 @@ def test_gateway_wraps_only_hosted_and_only_when_enabled() -> None:
 def test_ingestion_counts_only_and_optional_masking() -> None:
     text = f"mail {CANARY_EMAIL} and {CANARY_EMAIL}, ssn 123-45-6789"
     out, counts = scan_text(text, IngestPiiSettings())
-    assert out == text and counts == {}  # default off
+    assert out == text
+    assert counts == {}
     out, counts = scan_text(text, IngestPiiSettings(record_counts=True))
-    assert out == text and counts == {"EMAIL": 2, "US_SSN": 1}
+    assert out == text
+    assert counts == {"EMAIL": 2, "US_SSN": 1}
     assert CANARY_EMAIL not in json.dumps(counts)
     out, counts = scan_text(text, IngestPiiSettings(record_counts=True, mask_indexed=True))
-    assert CANARY_EMAIL not in out and "123-45-6789" not in out and counts["EMAIL"] == 2
+    assert CANARY_EMAIL not in out
+    assert "123-45-6789" not in out
+    assert counts["EMAIL"] == 2
     assert count_by_type("nothing here") == {}
 
 
 def test_secret_types_are_flagged() -> None:
-    assert "PRIVATE_KEY" in SECRET_TYPES and "EMAIL" not in SECRET_TYPES
+    assert "PRIVATE_KEY" in SECRET_TYPES
+    assert "EMAIL" not in SECRET_TYPES

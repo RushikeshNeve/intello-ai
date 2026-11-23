@@ -33,7 +33,12 @@ NEXT_PHASE_CHAIN = (
     "0019a_prompt_gate",
     "0019b_workspace_styles",
     "0019c_shadow_runs",
+    "0020_ai_run_captures",
+    "0021_answer_feedback",
     "0023_firewall_policies",
+    "0024_document_findings",
+    "0025_abuse_canaries",
+    "0026_tenant_keys",
     "0027_pii_policy",
     "0028_org_hosted_optin",
 )

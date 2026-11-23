@@ -5,7 +5,7 @@ evidence), the output guard, and the input sensitivity threshold. Written by the
 enforces org owner/admin), read by the worker role. FORCE RLS by org.
 
 Revision ID: 0023_firewall_policies
-Revises: 0019c_shadow_runs
+Revises: 0021_answer_feedback
 Create Date: 2026-11-22
 """
 
@@ -18,7 +18,7 @@ from collections.abc import Sequence
 from alembic import context, op
 
 revision: str = "0023_firewall_policies"
-down_revision: str | None = "0019c_shadow_runs"
+down_revision: str | None = "0021_answer_feedback"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

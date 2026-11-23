@@ -139,7 +139,8 @@ def test_output_guard_blocks_system_prompt_echo_and_never_streams_it(r: Rigged) 
 
 def test_output_guard_flag_records_and_redact_removes_secret(r: Rigged) -> None:
     r.publish(HERON)
-    leak = HERON_ANSWER + " The key is sk-abcdefghijklmnopqrstuvwxyz123456 [1]."
+    fake_key = "sk-abcdefghijklmnopqrstuvwxyz123456"  # secret-scan: allow
+    leak = HERON_ANSWER + f" The key is {fake_key} [1]."
     set_policy(r, output="flag")
     _, run = r.start(r.world.viewer)
     assert r.execute(run, r.deps(FakeChatModel([leak]))) == "completed"

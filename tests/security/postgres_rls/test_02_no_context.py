@@ -71,6 +71,8 @@ def test_delete_without_context_denied_or_noop(
         "shadow_candidates",
         "firewall_policies",
         "usage_limits",
+        "ai_run_captures",  # M13.02 (admin delete)
+        "canary_documents",  # M14.07 (admin unmark)
     ):
         with app_tx(app_engine) as conn:
             assert conn.execute(text(f"DELETE FROM {table}")).rowcount == 0

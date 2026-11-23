@@ -29,6 +29,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import CursorResult, text
 from sqlalchemy.orm import Session
 
+from app.core import tracing_genai
 from app.modules.ai.embeddings.ports import EmbeddingBatchResult, EmbeddingProvider, EmbeddingUsage
 from app.modules.ai.embeddings.registry import EmbeddingModelSpec
 
@@ -186,6 +187,8 @@ class CachingEmbedder:
         keys = [text_key(t) for t in texts]
         hits = self._store.get_many(space, list(dict.fromkeys(keys)))
         miss_idx = [i for i, k in enumerate(keys) if k not in hits]
+        if hits:
+            tracing_genai.record_cache_hit("embedding")  # M13.01 (one per batch with hits)
         if not miss_idx:
             return EmbeddingBatchResult([hits[k] for k in keys], (), EmbeddingUsage())
         # Distinct missing texts only (a repeated chunk is embedded once).
@@ -234,6 +237,7 @@ def embed_query_cached(
         hit = _QUERY_CACHE.get(key)
         if hit is not None:
             _QUERY_CACHE.move_to_end(key)
+            tracing_genai.record_cache_hit("embedding_query")  # M13.01
             return list(hit)
     vector = embedder.embed_query(query)
     with _QUERY_LOCK:

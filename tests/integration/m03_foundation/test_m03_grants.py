@@ -44,6 +44,16 @@ NEXT_PHASE_TABLES = {
     "shadow_candidates",
     "shadow_runs",
     "firewall_policies",
+    # M13/M14 Wave A (0020, 0024-0027); exact rules: postgres_rls/test_20_m13_m14_tables.py.
+    "ai_run_captures",
+    "document_findings",
+    "document_scan_policies",
+    "document_scan_releases",
+    "security_events",
+    "canary_documents",
+    "abuse_settings",
+    "workspace_pii_settings",
+    "tenant_keys",
 }
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 SEARCH_PATH = ["search_path=pg_catalog, public, pg_temp"]
@@ -196,10 +206,12 @@ def test_no_role_has_delete_truncate_references_or_trigger_anywhere(
     forbidden = {"DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"}
     # The worker holds none of them on ANY table; the API role none on the M03 tables (the two
     # M01 membership tables keep the DELETE grant that removing members needs).
-    # Exception: embedding_cache (migration 0013) grants DELETE to both roles for eviction.
+    # Exceptions: embedding_cache (0013, eviction), ai_run_captures (0020, captures go with a
+    # deleted document) and document_findings (0024, findings are replaced per version) grant the
+    # worker DELETE.
     for table in tables:
         held = _table_privileges(admin_engine, worker, table)
-        if table == "embedding_cache":
+        if table in ("embedding_cache", "ai_run_captures", "document_findings"):
             held = held - {"DELETE"}
         assert held.isdisjoint(forbidden), (worker, table)
     for table in INGESTION_TABLES:

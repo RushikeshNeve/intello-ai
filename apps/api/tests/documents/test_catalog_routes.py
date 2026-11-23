@@ -33,6 +33,8 @@ EXPECTED_DOCUMENT_ROUTES = {
     (f"{DOCS}/{{document_id}}/versions/{{version_id}}/chunks/{{chunk_id}}", "GET"),
     # M06.01.02 (m06-contracts.md §3): safe URL capture.
     (f"{DOCS}/from-url", "POST"),
+    # M14.02 (m14-contracts.md): scan findings of a document (workspace admins).
+    (f"{DOCS}/{{document_id}}/findings", "GET"),
 }
 HTTP_METHODS = {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
 

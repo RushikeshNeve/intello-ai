@@ -35,17 +35,24 @@ def _value(name: str, labels: dict[str, str] | None = None) -> float:
 def test_spans_attributes_nesting_and_no_content(exporter: InMemorySpanExporter) -> None:
     tracing_genai.set_prompt("v-1", "ab" * 32)
     tracing_genai.set_quota_state("ok")
-    with tracing.bind(trace_id=tracing.new_trace_id(), span_id=tracing.new_span_id()):
-        with tracing_genai.stage("retrieve", mode="hybrid", note=CANARY):
-            tracing_genai.on_usage("chat", "openai", "m-1", 10, 20, 5, 120, 42)
+    with (
+        tracing.bind(trace_id=tracing.new_trace_id(), span_id=tracing.new_span_id()),
+        tracing_genai.stage("retrieve", mode="hybrid", note=CANARY),
+    ):
+        tracing_genai.on_usage("chat", "openai", "m-1", 10, 20, 5, 120, 42)
     spans = {s.name: s for s in exporter.get_finished_spans()}
     gen, ret = spans["ukos.generate"], spans["ukos.retrieve"]
     a = gen.attributes or {}
-    assert a["gen_ai.system"] == "openai" and a["gen_ai.request.model"] == "m-1"
-    assert a["gen_ai.usage.input_tokens"] == 10 and a["gen_ai.usage.output_tokens"] == 20
-    assert a["ukos.cache.hit"] is True and a["ukos.cost.micros"] == 42
-    assert a["ukos.prompt.version_id"] == "v-1" and a["ukos.quota.state"] == "ok"
-    assert gen.parent is not None and gen.parent.span_id == ret.context.span_id
+    assert a["gen_ai.system"] == "openai"
+    assert a["gen_ai.request.model"] == "m-1"
+    assert a["gen_ai.usage.input_tokens"] == 10
+    assert a["gen_ai.usage.output_tokens"] == 20
+    assert a["ukos.cache.hit"] is True
+    assert a["ukos.cost.micros"] == 42
+    assert a["ukos.prompt.version_id"] == "v-1"
+    assert a["ukos.quota.state"] == "ok"
+    assert gen.parent is not None
+    assert gen.parent.span_id == ret.context.span_id
     assert (gen.end_time or 0) - (gen.start_time or 0) >= 100_000_000
     assert CANARY not in repr([(s.attributes, s.events, s.name) for s in spans.values()])
 
@@ -62,7 +69,7 @@ def test_disabled_is_noop(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_stage_propagates_errors(exporter: InMemorySpanExporter) -> None:
-    with pytest.raises(ValueError), tracing_genai.stage("verify"):
+    with pytest.raises(ValueError, match="x"), tracing_genai.stage("verify"):
         raise ValueError("x")
     assert [s.name for s in exporter.get_finished_spans()] == ["ukos.verify"]
 

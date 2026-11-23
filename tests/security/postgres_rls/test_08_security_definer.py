@@ -48,6 +48,8 @@ M06_WORKER_DEFINERS = ["connector_enqueue_due_syncs"]
 M07_WORKER_DEFINERS = ["memory_sweep", "research_claim_session", "research_reap_expired"]
 # Migration 0015b: the embedding-cache eviction sweep lists orgs with cache rows (worker only).
 M11_WORKER_DEFINERS = ["embedding_cache_orgs"]
+# Migration 0020 (M13.02): expired-capture sweep across orgs (worker only).
+M13_WORKER_DEFINERS = ["ai_run_captures_sweep"]
 APP_DEFINERS = [
     "ingest_requeue_job",
     "chat_cancel_run",
@@ -63,6 +65,8 @@ APP_DEFINERS = [
     # Migration 0018: blue/green cutover + rollback; owner/admin of the context org only.
     "reindex_cutover",
     "reindex_rollback",
+    # Migration 0024 (M14.02): workspace admin releases a quarantined version (context org only).
+    "ingest_release_quarantine",
 ]
 
 
@@ -75,6 +79,7 @@ def test_expected_definer_inventory(admin_engine: Engine, migrated: None) -> Non
             *M06_WORKER_DEFINERS,
             *M07_WORKER_DEFINERS,
             *M11_WORKER_DEFINERS,
+            *M13_WORKER_DEFINERS,
             *APP_DEFINERS,
         ]
     )
