@@ -117,6 +117,15 @@ class Settings(BaseSettings):
     CONNECTOR_ENCRYPTION_KEY: SecretStr | None = None
     CONNECTOR_ENCRYPTION_KEY_ID: str = Field(default="k1", min_length=1, max_length=32)
     CONNECTOR_ENCRYPTION_OLD_KEYS: SecretStr | None = None
+    # M14.08 envelope encryption (app/core/crypto). The master key (KEK) wraps per-org data keys.
+    # Unset = envelope encryption off (the single connector key above is used). MASTER_KEY_FILE
+    # holds base64 of 32 bytes (preferred over MASTER_KEY); MASTER_OLD_KEYS is id:base64,...
+    # and only unwraps (KEK rotation). KEY_PROVIDER selects the adapter ("local" is implemented).
+    KEY_PROVIDER: Literal["local", "aws-kms", "gcp-kms", "vault"] = "local"
+    MASTER_KEY: SecretStr | None = None
+    MASTER_KEY_FILE: str | None = None
+    MASTER_KEY_ID: str = Field(default="kek1", min_length=1, max_length=32)
+    MASTER_OLD_KEYS: SecretStr | None = None
     CONNECTOR_MAX_FILE_BYTES: int = Field(default=5_242_880, ge=1024, le=100_000_000)
     CONNECTOR_SYNC_DEFAULT_INTERVAL_SECONDS: int = Field(default=3600, ge=300, le=2_592_000)
     CONNECTOR_SYNC_MAX_FILES_PER_RUN: int = Field(default=500, ge=1, le=100_000)
@@ -151,7 +160,13 @@ class Settings(BaseSettings):
     HEALTH_CHECK_TIMEOUT_SECONDS: float = Field(default=2.0, gt=0, le=30)
 
     @field_validator(
-        "OPENAI_API_KEY", "CONNECTOR_ENCRYPTION_KEY", "CONNECTOR_ENCRYPTION_OLD_KEYS", mode="before"
+        "OPENAI_API_KEY",
+        "CONNECTOR_ENCRYPTION_KEY",
+        "CONNECTOR_ENCRYPTION_OLD_KEYS",
+        "MASTER_KEY",
+        "MASTER_KEY_FILE",
+        "MASTER_OLD_KEYS",
+        mode="before",
     )
     @classmethod
     def _blank_openai_key_is_none(cls, value: object) -> object:

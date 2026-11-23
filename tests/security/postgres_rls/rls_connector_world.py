@@ -26,7 +26,8 @@ CONNECTOR_GRANTS: dict[str, dict[str, Grant]] = {
         "source_items": _g(True, False, "state"),
     },
     "worker": {
-        "connector_accounts": _g(True),
+        # M14.08 (0026): the sync re-seals a legacy token under the org data key.
+        "connector_accounts": _g(True, False, "token_ciphertext key_id"),
         "source_syncs": _g(
             True, False, "state cursor_before cursor_after stats error_code started_at finished_at"
         ),

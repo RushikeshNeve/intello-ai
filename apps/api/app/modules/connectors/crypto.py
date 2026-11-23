@@ -7,50 +7,49 @@ decrypting through ``CONNECTOR_ENCRYPTION_OLD_KEYS`` until they are re-sealed. T
 
 Secrets are plain ``str`` only inside :func:`TokenCipher.open`'s return value, which callers hand to
 the HTTP client and never log, return or audit. The cipher's ``repr`` shows nothing about keys.
+
+M14.08: :func:`secret_cipher` layers per-org envelope encryption (``app.core.crypto``) on top;
+``TokenCipher`` stays as the legacy reader of rows sealed before the master key was configured.
 """
 
 from __future__ import annotations
 
-import base64
-import binascii
 import os
-from dataclasses import dataclass
+import uuid
+from typing import Any, Protocol
 
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from app.core.config import Settings
+from app.core.crypto.envelope import TenantCipher, is_dek_key_id
+from app.core.crypto.errors import (
+    KEY_BYTES,
+    NONCE_BYTES,
+    CryptoError,
+    CryptoNotConfigured,
+    DecryptionFailed,
+    Sealed,
+    decode_key,
+)
+from app.core.crypto.providers import envelope_enabled, provider_from_settings
 
-NONCE_BYTES = 12
-KEY_BYTES = 32
-
-
-class CryptoError(Exception):
-    """Base class; messages never contain key or plaintext material."""
-
-
-class CryptoNotConfigured(CryptoError):
-    """``CONNECTOR_ENCRYPTION_KEY`` is missing or malformed but a secret must be stored/read."""
-
-
-class DecryptionFailed(CryptoError):
-    """Wrong key, unknown ``key_id``, a different ``aad`` or tampered bytes."""
-
-
-@dataclass(frozen=True)
-class Sealed:
-    ciphertext: bytes
-    key_id: str
+__all__ = [
+    "CryptoError",
+    "CryptoNotConfigured",
+    "DecryptionFailed",
+    "Sealed",
+    "SecretCipher",
+    "TenantCipher",
+    "TokenCipher",
+    "cipher_from_settings",
+    "is_dek_key_id",
+    "secret_cipher",
+]
 
 
 def _decode_key(value: str) -> bytes:
-    try:
-        raw = base64.b64decode(value.strip() + "=" * (-len(value.strip()) % 4), validate=False)
-    except (binascii.Error, ValueError):
-        raise CryptoNotConfigured("connector encryption key is not valid base64") from None
-    if value.strip().startswith("change-me") or len(raw) != KEY_BYTES:
-        raise CryptoNotConfigured("connector encryption key must be base64 of 32 random bytes")
-    return raw
+    return decode_key(value, what="connector encryption key")
 
 
 class TokenCipher:
@@ -105,3 +104,25 @@ def cipher_from_settings(settings: Settings) -> TokenCipher:
                 raise CryptoNotConfigured("CONNECTOR_ENCRYPTION_OLD_KEYS must be id:base64,...")
             keys.setdefault(key_id, _decode_key(value))
     return TokenCipher(keys, settings.CONNECTOR_ENCRYPTION_KEY_ID)
+
+
+class SecretCipher(Protocol):
+    def seal(self, plaintext: str, *, aad: bytes = b"") -> Sealed: ...
+
+    def open(self, ciphertext: bytes, key_id: str, *, aad: bytes = b"") -> str: ...
+
+
+def secret_cipher(db: Any, org_id: uuid.UUID, settings: Settings) -> SecretCipher:
+    """The cipher for one org's connector secrets (M14.08).
+
+    With a master key configured: the org's data key seals new values (``dek:<id>``) and the single
+    connector key, when still configured, keeps opening legacy rows (dual read). Without one: the
+    M06 single-key :class:`TokenCipher` (unchanged behaviour). ``db`` is the org's tenant session.
+    Raises :class:`CryptoNotConfigured` when neither is configured.
+    """
+    if not envelope_enabled(settings):
+        return cipher_from_settings(settings)
+    legacy = (
+        cipher_from_settings(settings) if settings.CONNECTOR_ENCRYPTION_KEY is not None else None
+    )
+    return TenantCipher(db, org_id, provider_from_settings(settings), legacy)

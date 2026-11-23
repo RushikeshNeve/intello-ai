@@ -408,6 +408,28 @@ def _advance_cursor(
         raise SourceRevoked
 
 
+def _open_token(deps: SyncDeps, org_id: uuid.UUID, claim: _Claimed) -> str:
+    """Decrypt the account token; a legacy single-key token is re-sealed under the org's data key
+    on the way (M14.08 lazy migration; only when a master key is configured)."""
+    if claim.token_ciphertext is None:  # pragma: no cover - the caller checks
+        raise crypto.DecryptionFailed("no stored token")
+    aad = claim.account_id.bytes
+    with worker_session(deps.engine, org_id) as session:
+        cipher = crypto.secret_cipher(session, org_id, deps.settings)
+        token = cipher.open(claim.token_ciphertext, claim.key_id or "", aad=aad)
+        if isinstance(cipher, crypto.TenantCipher) and not cipher.is_current(claim.key_id):
+            sealed = cipher.seal(token, aad=aad)
+            session.execute(
+                update(ConnectorAccount)
+                .where(
+                    ConnectorAccount.id == claim.account_id,
+                    ConnectorAccount.key_id == claim.key_id,
+                )
+                .values(token_ciphertext=sealed.ciphertext, key_id=sealed.key_id)
+            )
+    return token
+
+
 def run_source_sync(deps: SyncDeps, org_id: uuid.UUID, source_id: uuid.UUID) -> str:
     """Run the oldest queued sync of ``source_id``. Returns an outcome label (never a secret)."""
     claim = _claim(deps, org_id, source_id)
@@ -417,10 +439,7 @@ def run_source_sync(deps: SyncDeps, org_id: uuid.UUID, source_id: uuid.UUID) -> 
     try:
         token: str | None = None
         if claim.token_ciphertext is not None:
-            cipher = crypto.cipher_from_settings(deps.settings)
-            token = cipher.open(
-                claim.token_ciphertext, claim.key_id or "", aad=claim.account_id.bytes
-            )
+            token = _open_token(deps, org_id, claim)
         connector = deps.connector_factory(claim.config, token)
         cursor = claim.cursor
         for _page in range(MAX_PAGES):

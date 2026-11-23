@@ -7,6 +7,8 @@
 #   objects/<bucket>/..  S3-level export of the originals and artifacts buckets (aws s3 sync)
 #   manifest.json        versions (migration head, embedding space id, pipeline version, image tags),
 #                        row counts, object counts, sha256 of every file; SHA256SUMS for `sha256sum -c`
+# M14.08: with BACKUP_ENCRYPTION_KEY_FILE set the payload is encrypted after the manifest is written
+#   (scripts/ops/backup-crypto.sh: openssl aes-256-cbc + pbkdf2); manifest.json records encrypted=true + key_id.
 # Not included, by design: `.env` / any credential, Redis (a broker, never durable truth, ADR-036), Dex.
 #
 #   OPS_PROJECT=ukos-m08-b-src bash scripts/ops/backup.sh [--out DIR] [--keep N]
@@ -15,6 +17,7 @@
 # migration head is the SAME (the restore refuses a mismatch: run the migrations of that release first).
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/backup-crypto.sh"
 
 OUT="$OPS_ROOT/.data/backups"; KEEP=0
 while [[ $# -gt 0 ]]; do case "$1" in
@@ -53,6 +56,11 @@ node "$OPS_ROOT/scripts/ops/manifest.mjs" write "$DEST" \
   --migration-head "$MIG_HEAD" --embedding-space "$SPACES" --pipeline-version "$PIPE" \
   --project "$OPS_PROJECT" --buckets "$BUCKETS" \
   --images "postgres=${POSTGRES_IMAGE:-postgres:17-alpine},rushdb=${RUSHDB_IMAGE:-rushdb/rushdb:3.0.10},objectstore=${OBJECT_STORE_IMAGE:-rustfs/rustfs:1.0.5}" >&2
+
+if [[ -n "${BACKUP_ENCRYPTION_KEY_FILE:-}" ]]; then
+  ops_log "5/5 encrypt the payload (key id $(bk_key_id "$BACKUP_ENCRYPTION_KEY_FILE"))"
+  bk_encrypt "$DEST" "$BACKUP_ENCRYPTION_KEY_FILE" || ops_die "backup encryption failed"
+fi
 
 if [[ "$KEEP" -gt 0 ]]; then
   # retention: delete older ukos-backup-* directories beyond the newest N (names sort chronologically)

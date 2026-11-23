@@ -20,6 +20,7 @@ Application logs: `docker compose logs --no-color --since 24h api web worker dis
    - Hosted provider key / connector token: revoke at the provider first (their console), then update `.env` / reconnect the source.
    - `WEB_SESSION_SECRET`, `OIDC_CLIENT_SECRET`: new random value in `.env`, `docker compose up -d dex web api`; all sessions end.
    - `CONNECTOR_ENCRYPTION_KEY`: new key + new `CONNECTOR_ENCRYPTION_KEY_ID`, old key in `CONNECTOR_ENCRYPTION_OLD_KEYS=id:base64` (see operations.md), then re-save connector tokens and drop the old key.
+   - Master key (`MASTER_KEY_FILE`, M14.08): new key file + `MASTER_KEY_ID`, old one in `MASTER_OLD_KEYS=id:base64`, `bash scripts/ops/rotate-keys.sh kek`, then drop the old key. One org's data key: `rotate-keys.sh dek --org <uuid>`. Org deletion request: `rotate-keys.sh shred --org <uuid> --yes` (crypto-shred; irreversible).
    - Database/Redis/RushDB/S3 secrets: change inside the service first (`ALTER ROLE ukos_app PASSWORD '...'`, `redis-cli CONFIG SET requirepass`, RushDB/S3 admin), then `.env`, then `docker compose up -d`. Never wipe volumes just to rotate.
 4. **Check for abuse:** audit query above for unexpected `outcome=success` events by unknown actors; provider/connector consoles for usage.
 5. **Record:** date, what leaked, what was rotated, in `docs/execution/BLOCKERS.md` or your own log.

@@ -157,7 +157,7 @@ def create_source(
     hook_ct: bytes | None = None
     hook_key: str | None = None
     try:
-        cipher = crypto.cipher_from_settings(settings)
+        cipher: crypto.SecretCipher | None = crypto.secret_cipher(session, ctx.org_id, settings)
     except crypto.CryptoError:
         if body.token is not None:
             raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, SECRETS_UNAVAILABLE) from None

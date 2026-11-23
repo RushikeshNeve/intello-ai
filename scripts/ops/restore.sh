@@ -9,12 +9,15 @@
 #   5 verification: migration head, exact row counts of every table, object checksums (re-export of the
 #     restored buckets), RushDB chunk counts per tenant, text + vector indexes ready, BM25 probe hits identical
 #   6 --start-app: brings up the rest of the stack (api, web, worker, dispatcher, dex)
+# Encrypted backups (M14.08, manifest encrypted=true): set BACKUP_ENCRYPTION_KEY_FILE; the payload is checksum-
+# verified, decrypted into a temporary directory (removed on exit) and then restored exactly like a plain backup.
 # The app-level check (search + citation + graph query) lives in scripts/ops/verify-app.mjs; rehearsal.sh runs it.
 #
 #   OPS_PROJECT=ukos-restore bash scripts/ops/restore.sh <backup-dir> [--start-app] [--force]
 # Uses the root compose (compose.yaml + .env) unless the caller sourced scripts/ops/stack.sh (rehearsal, tests).
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/backup-crypto.sh"
 
 BACKUP=""; START_APP=0; FORCE=0
 while [[ $# -gt 0 ]]; do case "$1" in
@@ -34,6 +37,13 @@ want() { node -e "const m=JSON.parse(require('fs').readFileSync(process.argv[1],
 
 existing="$(docker volume ls -q --filter "label=com.docker.compose.project=$OPS_PROJECT" | wc -l | tr -d ' ')"
 if [[ "$existing" != "0" && "$FORCE" != "1" ]]; then ops_die "project $OPS_PROJECT already has $existing volume(s); restore into a fresh project (or --force)"; fi
+
+if bk_is_encrypted "$BACKUP"; then
+  : "${BACKUP_ENCRYPTION_KEY_FILE:?the backup is encrypted: set BACKUP_ENCRYPTION_KEY_FILE}"
+  ops_log "0/6 decrypt the backup payload"
+  bk_decrypt "$BACKUP" "$BACKUP_ENCRYPTION_KEY_FILE" "$WORK/plain" || ops_die "cannot decrypt the backup"
+  BACKUP="$WORK/plain"
+fi
 
 ops_log "1/6 verify the backup manifest"
 mj verify "$BACKUP"

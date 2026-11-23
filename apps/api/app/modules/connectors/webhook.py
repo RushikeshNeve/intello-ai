@@ -75,11 +75,13 @@ def _verify_and_queue(
     secret = _DUMMY_SECRET
     if row is not None and row.secret is not None and row.state == SOURCE_STATE_ACTIVE:
         try:
-            secret = (
-                crypto.cipher_from_settings(settings)
-                .open(bytes(row.secret), row.key_id or "", aad=source_id.bytes)
-                .encode("utf-8")
-            )
+            # The org's data keys are read under that org's context (tenant_keys is FORCE RLS).
+            with sessions(user_id=None, org_id=row.org_id) as key_session:
+                secret = (
+                    crypto.secret_cipher(key_session, row.org_id, settings)
+                    .open(bytes(row.secret), row.key_id or "", aad=source_id.bytes)
+                    .encode("utf-8")
+                )
             org_id = row.org_id
         except crypto.CryptoError:
             secret = _DUMMY_SECRET
