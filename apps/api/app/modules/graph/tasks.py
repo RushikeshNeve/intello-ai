@@ -177,9 +177,8 @@ def default_model_factory(sessions: WorkerSessions) -> ModelFactory:
 
         with sessions(org_id) as session:
             stored = load_policy(session, org_id)
-        source = InMemoryPolicySource(
-            {org_id: ModelPolicy(stored.allow_external, frozenset(stored.allowed_providers))}
-        )
+        # Pass the stored policy whole so M14.04 (PII) and M14.05 (hosted opt-in) fields survive.
+        source = InMemoryPolicySource({org_id: stored})
         from app.modules.usage.wiring import Meter
 
         model = get_chat_model(source, org_id, ChatSettings())

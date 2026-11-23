@@ -35,6 +35,7 @@ NEXT_PHASE_CHAIN = (
     "0019c_shadow_runs",
     "0023_firewall_policies",
     "0027_pii_policy",
+    "0028_org_hosted_optin",
 )
 HEAD = NEXT_PHASE_CHAIN[-1]
 M07_HEAD = "0010_memory_research"  # M07: memory + research on top of 0009

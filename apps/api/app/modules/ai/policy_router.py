@@ -35,11 +35,14 @@ class AiPolicyIn(BaseModel):
 
     allow_external: bool
     allowed_providers: list[str] = Field(min_length=1, max_length=len(AI_PROVIDERS))
+    # Owner-only opt-in for hosted providers (M14.05); omitted = keep the current value.
+    hosted_models_allowed: bool | None = None
 
 
 class AiPolicyOut(BaseModel):
     allow_external: bool
     allowed_providers: list[str]
+    hosted_models_allowed: bool
     is_default: bool
     updated_at: datetime | None
     updated_by: uuid.UUID | None
@@ -58,6 +61,7 @@ def _out(stored: policy_store.StoredPolicy, settings: Settings) -> AiPolicyOut:
     return AiPolicyOut(
         allow_external=stored.policy.allow_external,
         allowed_providers=sorted(stored.policy.allowed_providers),
+        hosted_models_allowed=stored.policy.hosted_models_allowed,
         is_default=stored.is_default,
         updated_at=stored.updated_at,
         updated_by=stored.updated_by,
@@ -91,12 +95,17 @@ def put_ai_policy(
         except policy_store.InvalidPolicy:
             raise api_error(422, INVALID_POLICY) from None
         before = policy_store.load_stored_policy(session, org_id)
+        hosted = before.policy.hosted_models_allowed
+        if body.hosted_models_allowed is not None and body.hosted_models_allowed != hosted:
+            access.require(Action.ORG_DELETE, target_type=TARGET_AI_POLICY)  # owner only
+            hosted = body.hosted_models_allowed
         stored = policy_store.save_policy(
             session,
             org_id,
             allow_external=body.allow_external,
             allowed_providers=body.allowed_providers,
             updated_by=tenant.user_id,
+            hosted_models_allowed=hosted,
         )
         record_event(
             session,
@@ -112,6 +121,7 @@ def put_ai_policy(
                 "from_providers": sorted(before.policy.allowed_providers),
                 "allow_external": stored.policy.allow_external,
                 "providers": sorted(stored.policy.allowed_providers),
+                "hosted_models_allowed": stored.policy.hosted_models_allowed,
             },
         )
     return _out(stored, settings)

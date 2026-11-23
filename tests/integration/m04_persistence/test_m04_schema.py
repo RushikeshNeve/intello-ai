@@ -41,6 +41,7 @@ NEXT_PHASE_CHAIN = (
     "0021_answer_feedback",
     "0023_firewall_policies",
     "0027_pii_policy",
+    "0028_org_hosted_optin",
 )
 HEAD = NEXT_PHASE_CHAIN[-1]
 PREVIOUS = "0006_ingestion_requeue"
@@ -503,6 +504,7 @@ APP_PRIVS = {
             "updated_at",
             "capture_mode",
             "capture_retention_days",
+            "hosted_models_allowed",
         },
     ),
     "chat_threads": ({"SELECT", "INSERT"}, {"title", "deleted_at", "updated_at"}),

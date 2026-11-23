@@ -43,7 +43,9 @@ class StoredPolicy:
 DEFAULT_POLICY: Final = ModelPolicy()
 
 
-def validate_policy(allow_external: bool, providers: Iterable[str]) -> ModelPolicy:
+def validate_policy(
+    allow_external: bool, providers: Iterable[str], hosted_models_allowed: bool = False
+) -> ModelPolicy:
     """Raise :class:`InvalidPolicy` unless the combination can be stored (mirrors the CHECKs)."""
     chosen = frozenset(providers)
     if not chosen:
@@ -53,7 +55,11 @@ def validate_policy(allow_external: bool, providers: Iterable[str]) -> ModelPoli
         raise InvalidPolicy("unknown provider")
     if not allow_external and chosen != DEFAULT_PROVIDERS:
         raise InvalidPolicy("external providers require allow_external")
-    return ModelPolicy(allow_external=allow_external, allowed_providers=chosen)
+    return ModelPolicy(
+        allow_external=allow_external,
+        allowed_providers=chosen,
+        hosted_models_allowed=hosted_models_allowed,
+    )
 
 
 def load_stored_policy(session: Session, org_id: uuid.UUID) -> StoredPolicy:
@@ -65,6 +71,7 @@ def load_stored_policy(session: Session, org_id: uuid.UUID) -> StoredPolicy:
             AiPolicy.pii_outbound,
             AiPolicy.pii_restore,
             AiPolicy.pii_secrets,
+            AiPolicy.hosted_models_allowed,
         ).where(AiPolicy.org_id == org_id)
     ).one_or_none()
     if row is None:
@@ -75,6 +82,7 @@ def load_stored_policy(session: Session, org_id: uuid.UUID) -> StoredPolicy:
     policy = ModelPolicy(
         bool(row.allow_external),
         frozenset(row.allowed_providers),
+        hosted_models_allowed=bool(row.hosted_models_allowed),
         pii_outbound=row.pii_outbound,
         pii_restore=bool(row.pii_restore),
         pii_secrets=row.pii_secrets,
@@ -94,14 +102,16 @@ def save_policy(
     allow_external: bool,
     allowed_providers: Iterable[str],
     updated_by: uuid.UUID,
+    hosted_models_allowed: bool = False,
 ) -> StoredPolicy:
     """Upsert the org's policy (RLS lets only an org owner/admin do this)."""
-    policy = validate_policy(allow_external, allowed_providers)
+    policy = validate_policy(allow_external, allowed_providers, hosted_models_allowed)
     providers = sorted(policy.allowed_providers)
     stmt = pg_insert(AiPolicy).values(
         org_id=org_id,
         allow_external=policy.allow_external,
         allowed_providers=providers,
+        hosted_models_allowed=policy.hosted_models_allowed,
         updated_by=updated_by,
         updated_at=func.now(),
     )
@@ -110,6 +120,7 @@ def save_policy(
         set_={
             "allow_external": stmt.excluded.allow_external,
             "allowed_providers": stmt.excluded.allowed_providers,
+            "hosted_models_allowed": stmt.excluded.hosted_models_allowed,
             "updated_by": stmt.excluded.updated_by,
             "updated_at": func.now(),
         },

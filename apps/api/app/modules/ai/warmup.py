@@ -14,6 +14,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
+from app.modules.ai import egress
 from app.modules.ai.embeddings.client import is_local_host
 from app.modules.ai.embeddings.settings import EmbeddingSettings
 from app.modules.ai.models.settings import ChatSettings
@@ -55,7 +56,10 @@ def warm_models(*, transport: httpx.BaseTransport | None = None) -> dict[str, bo
             ("embedding", "/embeddings", {"model": emb.AI_EMBEDDING_MODEL, "input": "hi"}),
         )
         with httpx.Client(
-            headers=headers, timeout=httpx.Timeout(120.0, connect=5.0), transport=transport
+            headers=headers,
+            timeout=httpx.Timeout(120.0, connect=5.0),
+            transport=transport,
+            event_hooks={"request": [egress.request_hook("warmup")]},
         ) as http:
             for key, path, body in calls:
                 try:

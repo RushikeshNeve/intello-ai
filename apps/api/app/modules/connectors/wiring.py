@@ -10,6 +10,7 @@ from typing import Any
 import httpx
 
 from app.core.config import Settings
+from app.modules.ai import egress
 from app.modules.connectors.github import GitHubConnector
 from app.modules.connectors.port import SourceConnector
 from app.modules.connectors.sync import ConnectorFactory, SyncDeps
@@ -27,7 +28,11 @@ def github_client(base_url: str, token: str | None) -> httpx.Client:
     if token:
         headers["Authorization"] = f"Bearer {token}"
     return httpx.Client(
-        base_url=base_url.rstrip("/"), headers=headers, timeout=20.0, follow_redirects=False
+        base_url=base_url.rstrip("/"),
+        headers=headers,
+        timeout=20.0,
+        follow_redirects=False,
+        event_hooks={"request": [egress.request_hook("connector:github")]},
     )
 
 

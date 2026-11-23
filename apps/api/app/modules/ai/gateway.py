@@ -96,6 +96,8 @@ def get_chat_model(
             raise PolicyDenied("org_policy_denies_external")
         if "openai" not in allowed:
             raise PolicyDenied("provider_not_allowed")
+        if not policy.hosted_models_allowed:
+            raise PolicyDenied("hosted_not_allowed")
         if not s.openai_key():
             raise PolicyDenied("missing_credentials")
         try:

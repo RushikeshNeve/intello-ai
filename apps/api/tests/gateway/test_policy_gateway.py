@@ -35,7 +35,7 @@ def _model(
     base_url: str,
 ) -> ChatModel:
     org = uuid4()
-    src = InMemoryPolicySource({org: ModelPolicy(allow_external, providers)})
+    src = InMemoryPolicySource({org: ModelPolicy(allow_external, providers, True)})
     s = settings(
         AI_EXTERNAL_PROVIDERS_ENABLED=env_enabled,
         OPENAI_API_KEY=SECRET if key else "",
@@ -123,7 +123,7 @@ def test_default_is_local_only_without_any_configuration() -> None:
 
 def test_openai_constructed_only_when_all_gates_open() -> None:
     org = uuid4()
-    src = InMemoryPolicySource({org: ModelPolicy(True, frozenset({"openai"}))})
+    src = InMemoryPolicySource({org: ModelPolicy(True, frozenset({"openai"}), True)})
     s = settings(AI_EXTERNAL_PROVIDERS_ENABLED=True, OPENAI_API_KEY=SECRET)
     model = get_chat_model(src, org, s)
     assert isinstance(model, OpenAIChatModel)
@@ -136,7 +136,7 @@ def test_policy_change_applies_to_next_call() -> None:
     s = settings(AI_EXTERNAL_PROVIDERS_ENABLED=True, OPENAI_API_KEY=SECRET, AI_BASE_URL=LOCAL_URL)
     with pytest.raises(PolicyDenied):
         get_chat_model(src, org, s, provider="openai")
-    src.set_policy(org, ModelPolicy(True, frozenset({"local", "openai"})))
+    src.set_policy(org, ModelPolicy(True, frozenset({"local", "openai"}), True))
     assert isinstance(get_chat_model(src, org, s, provider="openai"), OpenAIChatModel)
     src.set_policy(org, ModelPolicy.local_only())
     with pytest.raises(PolicyDenied):
@@ -163,7 +163,7 @@ def test_unknown_provider_denied() -> None:
 
 def test_placeholder_and_blank_keys_count_as_missing() -> None:
     org = uuid4()
-    src = InMemoryPolicySource({org: ModelPolicy(True, frozenset({"openai"}))})
+    src = InMemoryPolicySource({org: ModelPolicy(True, frozenset({"openai"}), True)})
     for key in ("", "   ", "change-me-openai"):
         s = settings(AI_EXTERNAL_PROVIDERS_ENABLED=True, OPENAI_API_KEY=key)
         with pytest.raises(PolicyDenied) as err:
@@ -177,7 +177,7 @@ def test_settings_repr_and_logs_hide_keys(caplog: pytest.LogCaptureFixture) -> N
     assert SECRET not in str(s)
     with caplog.at_level(logging.DEBUG):
         org = uuid4()
-        src = InMemoryPolicySource({org: ModelPolicy(True, frozenset({"openai"}))})
+        src = InMemoryPolicySource({org: ModelPolicy(True, frozenset({"openai"}), True)})
         s2 = settings(AI_EXTERNAL_PROVIDERS_ENABLED=True, OPENAI_API_KEY=SECRET)
         model = get_chat_model(src, org, s2)
         assert SECRET not in repr(model)
