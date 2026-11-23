@@ -63,6 +63,9 @@ from app.modules.ai.verification import (
     abstention,
     verify,
 )
+from app.modules.firewall import hooks as firewall_hooks
+from app.modules.firewall import policy as firewall_policy
+from app.modules.firewall.output_guard import OutputBlocked, StreamGuard
 from app.modules.graph.merge import augment_evidence
 from app.modules.graph.ports_read import ChunkSource, GraphReadRepository
 from app.modules.knowledge.ports import KnowledgeRepository
@@ -94,6 +97,8 @@ ERR_TIMEOUT: Final = "timeout"
 ERR_INTERNAL: Final = "internal_error"
 ERR_LEASE_EXPIRED: Final = "lease_expired"
 ERR_QUOTA_EXCEEDED: Final = "quota_exceeded"  # M11.08
+ERR_INPUT_BLOCKED: Final = "input_blocked"  # M14.01
+ERR_OUTPUT_BLOCKED: Final = "output_blocked"  # M14.03
 
 ERROR_MESSAGES: Final[Mapping[str, str]] = {
     ERR_MODEL_UNAVAILABLE: "The AI model is not available right now. Please try again.",
@@ -103,6 +108,9 @@ ERROR_MESSAGES: Final[Mapping[str, str]] = {
     ERR_INTERNAL: "Something went wrong while answering. Please try again.",
     ERR_LEASE_EXPIRED: "The answer was interrupted. Please try again.",
     ERR_QUOTA_EXCEEDED: QUOTA_MESSAGE,
+    ERR_INPUT_BLOCKED: "This message cannot be processed because it looks like an attempt to "
+    "change how the assistant works. Please rephrase your question.",
+    ERR_OUTPUT_BLOCKED: "The answer was withheld by your organization's AI safety policy.",
 }
 
 
@@ -506,6 +514,10 @@ class RunExecutor:
         self.shadow_seed: ShadowSeed | None = None  # set when a model-answered run completes
         self._seed_parts: tuple[str, tuple[HistoryTurn, ...], tuple[Any, ...], int] | None = None
         self._style: styles.Style | None = None
+        self._fw = firewall_policy.FirewallPolicy()  # M14: default off
+        self._fw_meta: dict[str, Any] = {}  # counts and rule ids only, never text
+        self._guard: StreamGuard | None = None
+        self._model_meta: dict[str, Any] = {}
 
     # -- plumbing ----------------------------------------------------------------------------
 
@@ -729,10 +741,15 @@ class RunExecutor:
         existing = data.existing_event_types
         if "started" not in existing:
             self._event("started", {})
+        self._fw = firewall_hooks.load_policy(self._session, self.claim.org_id)
+        if firewall_hooks.check_user(self._fw, data.question, self._fw_meta):
+            self._record_firewall()
+            raise RunFailure(ERR_INPUT_BLOCKED)
         scope = self._resolve_scope(data.snapshot_workspaces)
         result = self._retrieve(scope, data.question)
         evidence = self._augment(scope, data.question, list(result.evidence))
         evidence = self._with_memory(scope, data.question, evidence)
+        evidence = firewall_hooks.filter_evidence(self._fw, evidence, self._fw_meta)
         if "retrieval" not in existing:
             self._event(
                 "retrieval",
@@ -751,6 +768,11 @@ class RunExecutor:
                 else styles.resolve_style(session, self.claim.org_id, scope.workspace_ids)
             )
             self._style = style
+        system_prompt = firewall_hooks.with_canary(
+            self._fw,
+            self.claim.org_id,
+            styles.compose(prompts.chat_system(self._prompt.body), style),
+        )
         bundle = (
             build_prompt(
                 data.question,
@@ -759,14 +781,18 @@ class RunExecutor:
                 budget_tokens=cs.CHAT_CONTEXT_TOKENS,
                 reserve_output_tokens=cs.CHAT_MAX_OUTPUT_TOKENS,
                 history_turns=cs.CHAT_HISTORY_TURNS,
-                system_prompt=styles.compose(prompts.chat_system(self._prompt.body), style),
+                system_prompt=system_prompt,
             )
             if evidence
             else None
         )
         if bundle is None or not bundle.should_call_model or scope is None:
+            self._record_firewall()
             return self._complete(abstention("no_evidence", cs.VERIFY_MODE), [])
 
+        self._guard = firewall_hooks.output_guard(
+            self._fw, self.claim.org_id, system_prompt, bundle
+        )
         model = self._open_model()
         t_gen = self._clock()
         text = self._generate(model, bundle)
@@ -782,21 +808,32 @@ class RunExecutor:
         cs = self.deps.chat_settings
         with self._session() as session:
             model = self.deps.model_factory(DbPolicySource(session), self.claim.org_id, cs)
-            chat_repo.set_run_model(
-                session,
-                self.fence,
-                {
-                    "provider": model.spec.provider,
-                    "model_id": model.spec.model_id,
-                    "prompt_version": PROMPT_VERSION,
-                    # M12.01: which registry version produced the system text (None = repo file).
-                    "prompt_version_id": (
-                        None if self._prompt.version_id is None else str(self._prompt.version_id)
-                    ),
-                    "prompt_sha256": self._prompt.sha256,
-                },
-            )
+            self._model_meta = {
+                "provider": model.spec.provider,
+                "model_id": model.spec.model_id,
+                "prompt_version": PROMPT_VERSION,
+                # M12.01: which registry version produced the system text (None = repo file).
+                "prompt_version_id": (
+                    None if self._prompt.version_id is None else str(self._prompt.version_id)
+                ),
+                "prompt_sha256": self._prompt.sha256,
+                **({"firewall": self._fw_meta} if self._fw_meta else {}),
+            }
+            chat_repo.set_run_model(session, self.fence, self._model_meta)
         return self._meter.chat(model)
+
+    def _record_firewall(self) -> None:
+        """M14: persist the firewall decisions (counts, rule ids) in the run's model metadata."""
+        if not self._fw_meta:
+            return
+        self._model_meta = {**self._model_meta, "firewall": self._fw_meta}
+        try:
+            with self._session() as session:
+                chat_repo.set_run_model(session, self.fence, self._model_meta)
+        except RunFenceLost:
+            raise
+        except Exception:  # noqa: BLE001 - metadata must never break the run
+            log.warning("chat run=%s firewall metadata not written", self.claim.run_id)
 
     def _generate(self, model: ChatModel, bundle: PromptBundle) -> str:
         cs = self.deps.chat_settings
@@ -810,6 +847,7 @@ class RunExecutor:
             )
         ).start()
         pieces: list[str] = []
+        guard = self._guard or StreamGuard(firewall_policy.OFF, firewall_hooks.Context())
         try:
             while True:
                 now = self._clock()
@@ -819,9 +857,11 @@ class RunExecutor:
                 kind, value = pump.get(min(deadline - now, idle))
                 out: str | None = None
                 if kind == "delta":
-                    pieces.append(value)
-                    self._partial += value
-                    out = coalescer.add(value)
+                    safe = guard.feed(value)  # M14.03: held back until the guard clears it
+                    if safe:
+                        pieces.append(safe)
+                        self._partial += safe
+                        out = coalescer.add(safe)
                 elif kind == "done":
                     break
                 elif kind == "error":
@@ -832,8 +872,21 @@ class RunExecutor:
                 if out:
                     self._event("delta", {"text": out})
                 self._check()
+            tail = guard.finish()
+            if tail:
+                pieces.append(tail)
+                self._partial += tail
+                out = coalescer.add(tail)
+                if out:
+                    self._event("delta", {"text": out})
         except RunFenceLost:
             raise
+        except OutputBlocked as blocked:
+            self._pending = coalescer.flush() or ""
+            self._fw_meta.update(guard.summary())
+            log.info("chat run=%s output blocked rules=%s", self.claim.run_id, blocked.rule_ids)
+            self._record_firewall()
+            raise RunFailure(ERR_OUTPUT_BLOCKED) from None
         except BaseException:
             # Failing after text was streamed: what is still buffered is written together with the
             # ``failed`` event, so the log holds every character the user may have seen.
@@ -844,6 +897,8 @@ class RunExecutor:
         rest = coalescer.flush()
         if rest:
             self._event("delta", {"text": rest})
+        if guard.mode != firewall_policy.OFF:
+            self._fw_meta.update(guard.summary())
         return "".join(pieces)
 
     def _probe_cancel(self) -> None:
@@ -888,6 +943,7 @@ class RunExecutor:
             for vc in verification.citations
             if vc.evidence_id in resolved
         ]
+        self._record_firewall()
         outcome = self._complete(verification, citations)
         self._remember_for_shadow(verification, scope)
         return outcome

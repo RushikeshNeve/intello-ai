@@ -75,6 +75,8 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     # M12.09 (migration 0019c_shadow_runs): config by the API, comparison rows by the worker.
     "shadow_candidates": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "shadow_runs": {"SELECT"},
+    # M14.01/03 (migration 0023): admins upsert the firewall policy; the worker only reads.
+    "firewall_policies": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     # M12.06 (migration 0019a_prompt_gate): admins upsert the gate settings; never deleted.
     "prompt_gate_settings": {"SELECT", "INSERT", "UPDATE"},
 }

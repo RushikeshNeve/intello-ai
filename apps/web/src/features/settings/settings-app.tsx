@@ -19,6 +19,7 @@ import { useApiFetcher } from "@/lib/query/provider";
 import type { OrgSummary } from "@/features/organizations/api/orgs";
 import type { Workspace } from "@/features/workspaces/api";
 import { StylePanel } from "./style-panel";
+import { FirewallPanel } from "./firewall-panel";
 import { actionError, canAdminWorkspace, formatWhen, isOrgAdmin } from "./permissions";
 import { AI_PROVIDERS, deleteWorkspace, getAiPolicy, getUsage, usageKey, createLimit, deleteLimit, limitsKey, listLimits, LIMIT_KINDS, type LimitKind, type UsageLimit, USAGE_GROUPS, type UsageGroup, PROVIDER_LABEL, policyKey, putAiPolicy, renameWorkspace, type AiPolicy, type AiProvider } from "./api";
 
@@ -120,6 +121,7 @@ function WorkspaceTab({ org, workspace }: { org: OrgSummary; workspace: Workspac
         </form>
       </SurfaceCard>
       <StylePanel orgId={org.id} workspaceId={workspace.id} canEdit={canEdit} />
+      <FirewallPanel orgId={org.id} canEdit={canEdit} />
       {canEdit && (
         <SurfaceCard className="grid gap-3 border-danger/40 p-5" data-testid="danger-zone">
           <h2 className="text-card-title font-semibold text-danger">Delete workspace</h2>
