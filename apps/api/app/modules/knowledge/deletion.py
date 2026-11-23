@@ -89,6 +89,10 @@ def deny_in_postgres(
             text("SELECT id FROM knowledge_revisions WHERE document_id = :d"), {"d": document_id}
         )
     ]
+    # M13.02: captured prompts/answers that used this document's chunks never outlive it.
+    from app.modules.observability.capture import delete_for_document
+
+    delete_for_document(session, document_id)
     purged = len(
         session.execute(
             text(
