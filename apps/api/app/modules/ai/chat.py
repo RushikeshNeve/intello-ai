@@ -94,6 +94,7 @@ ERR_TIMEOUT: Final = "timeout"
 ERR_INTERNAL: Final = "internal_error"
 ERR_LEASE_EXPIRED: Final = "lease_expired"
 ERR_QUOTA_EXCEEDED: Final = "quota_exceeded"  # M11.08
+ERR_PII_BLOCKED: Final = "pii_blocked"  # M14.04
 
 ERROR_MESSAGES: Final[Mapping[str, str]] = {
     ERR_MODEL_UNAVAILABLE: "The AI model is not available right now. Please try again.",
@@ -103,6 +104,7 @@ ERROR_MESSAGES: Final[Mapping[str, str]] = {
     ERR_INTERNAL: "Something went wrong while answering. Please try again.",
     ERR_LEASE_EXPIRED: "The answer was interrupted. Please try again.",
     ERR_QUOTA_EXCEEDED: QUOTA_MESSAGE,
+    ERR_PII_BLOCKED: "The question contains sensitive data that cannot be sent to the AI provider.",
 }
 
 
@@ -148,6 +150,8 @@ def map_error(exc: BaseException) -> str:
         return ERR_POLICY_DENIED
     if isinstance(exc, SearchUnavailable):
         return ERR_SEARCH_UNAVAILABLE
+    if getattr(exc, "code", None) == "pii_blocked" and isinstance(exc, ChatModelError):
+        return ERR_PII_BLOCKED
     if isinstance(exc, ChatModelError):
         return ERR_MODEL_UNAVAILABLE
     if isinstance(exc, TimeoutError) or type(exc).__name__ == "SoftTimeLimitExceeded":

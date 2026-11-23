@@ -39,6 +39,10 @@ class PolicyDenied(Exception):
 class ModelPolicy:
     allow_external: bool = False
     allowed_providers: frozenset[str] = field(default_factory=lambda: frozenset({"local"}))
+    # M14.04 outbound PII guard (hosted providers only): off | redact | block.
+    pii_outbound: str = "off"
+    pii_restore: bool = False  # put placeholders back in the answer (default: never)
+    pii_secrets: str = "block"  # when enabled: secrets/keys block (default) or are redacted
 
     @classmethod
     def local_only(cls) -> ModelPolicy:

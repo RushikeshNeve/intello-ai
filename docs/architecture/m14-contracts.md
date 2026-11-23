@@ -1,0 +1,7 @@
+
+## M14.04
+- API (`app.modules.firewall.pii`): `detect(text)->[Finding(type,start,end,confidence)]`, `redact(text, mode='mask'|'placeholder'|'hash', policy)->RedactionResult(text, counts_by_type)`; `Redactor` keeps stable per-request placeholders (`[EMAIL_1]`) and `restore()`. Guards import `redact` lazily. Matched values are never logged or in reprs.
+- Detectors: email, phone (E.164-ish/US), IPv4/6, card (Luhn), IBAN (mod-97), US SSN, Aadhaar (Verhoeff, bare digits need context), PAN, passport (context word), JWT, AWS/GCP/GitHub/Slack/OpenAI/Anthropic/Stripe keys, PEM private keys, high-entropy values after key/secret/token/password. Types in `SECRET_TYPES` vs `PII_TYPES`.
+- Outbound: `ai_policies.pii_outbound` off|redact|block (default off), `pii_restore` (default false), `pii_secrets` block|redact (default block). `get_chat_model` wraps the hosted adapter in `PiiGuardedChatModel` only when enabled; local path untouched. Mapping never leaves the process. Block raises `PiiBlocked` (run error code `pii_blocked`, counts only).
+- Ingestion: `workspace_pii_settings(record_counts, mask_indexed)` default off, migration `0027_pii_policy`; `ingest.scan_text` returns counts by type only. NOT yet wired into the pipeline: M14.02 should call `load_workspace_settings`/`scan_text` and store counts as a finding.
+- Known limits: person names and postal addresses are not detected; heuristics (phones, IPv4, entropy) can false-positive/negative; no non-Latin digit handling; outbound redaction covers prompt messages only, not provider-side tool payloads.

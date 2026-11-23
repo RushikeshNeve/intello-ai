@@ -58,16 +58,27 @@ def validate_policy(allow_external: bool, providers: Iterable[str]) -> ModelPoli
 
 def load_stored_policy(session: Session, org_id: uuid.UUID) -> StoredPolicy:
     row = session.execute(
-        select(AiPolicy.allow_external, AiPolicy.allowed_providers, AiPolicy.updated_at).where(
-            AiPolicy.org_id == org_id
-        )
+        select(
+            AiPolicy.allow_external,
+            AiPolicy.allowed_providers,
+            AiPolicy.updated_at,
+            AiPolicy.pii_outbound,
+            AiPolicy.pii_restore,
+            AiPolicy.pii_secrets,
+        ).where(AiPolicy.org_id == org_id)
     ).one_or_none()
     if row is None:
         return StoredPolicy(DEFAULT_POLICY, None, None)
     updated_by = session.execute(
         select(AiPolicy.updated_by).where(AiPolicy.org_id == org_id)
     ).scalar_one()
-    policy = ModelPolicy(bool(row.allow_external), frozenset(row.allowed_providers))
+    policy = ModelPolicy(
+        bool(row.allow_external),
+        frozenset(row.allowed_providers),
+        pii_outbound=row.pii_outbound,
+        pii_restore=bool(row.pii_restore),
+        pii_secrets=row.pii_secrets,
+    )
     return StoredPolicy(policy, row.updated_at, updated_by)
 
 
@@ -99,6 +110,40 @@ def save_policy(
         set_={
             "allow_external": stmt.excluded.allow_external,
             "allowed_providers": stmt.excluded.allowed_providers,
+            "updated_by": stmt.excluded.updated_by,
+            "updated_at": func.now(),
+        },
+    )
+    session.execute(stmt)
+    return load_stored_policy(session, org_id)
+
+
+def save_pii_policy(
+    session: Session,
+    org_id: uuid.UUID,
+    *,
+    pii_outbound: str,
+    pii_restore: bool = False,
+    pii_secrets: str = "block",
+    updated_by: uuid.UUID,
+) -> StoredPolicy:
+    """M14.04: set the outbound PII guard on the org's policy row (created local-only if absent)."""
+    if pii_outbound not in ("off", "redact", "block") or pii_secrets not in ("block", "redact"):
+        raise InvalidPolicy("invalid pii policy")
+    stmt = pg_insert(AiPolicy).values(
+        org_id=org_id,
+        pii_outbound=pii_outbound,
+        pii_restore=pii_restore,
+        pii_secrets=pii_secrets,
+        updated_by=updated_by,
+        updated_at=func.now(),
+    )
+    stmt = stmt.on_conflict_do_update(
+        index_elements=[AiPolicy.org_id],
+        set_={
+            "pii_outbound": stmt.excluded.pii_outbound,
+            "pii_restore": stmt.excluded.pii_restore,
+            "pii_secrets": stmt.excluded.pii_secrets,
             "updated_by": stmt.excluded.updated_by,
             "updated_at": func.now(),
         },

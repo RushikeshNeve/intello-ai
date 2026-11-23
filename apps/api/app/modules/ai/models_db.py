@@ -122,6 +122,9 @@ class AiPolicy(Base):
     allowed_providers: Mapped[list[str]] = mapped_column(
         ARRAY(Text), server_default=text("ARRAY['local']::text[]")
     )
+    pii_outbound: Mapped[str] = mapped_column(Text, server_default=text("'off'"))  # M14.04
+    pii_restore: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    pii_secrets: Mapped[str] = mapped_column(Text, server_default=text("'block'"))
     updated_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", name="fk_ai_policies_updated_by")
     )

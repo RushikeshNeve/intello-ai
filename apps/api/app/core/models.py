@@ -620,6 +620,8 @@ ORG_SCOPED_TABLES: Final = (
     # M12.09 prompt shadow runs (migration 0019c_shadow_runs).
     "shadow_candidates",
     "shadow_runs",
+    # M14.04 per-workspace PII ingestion flags (migration 0027_pii_policy).
+    "workspace_pii_settings",
     # M11.08 usage budgets/quotas (migration 0015_usage_limits).
     "usage_limits",
     # M12.06 prompt change gate (migration 0019a_prompt_gate).
@@ -634,6 +636,7 @@ from app.modules.ai import models_db as _ai_models  # noqa: E402, F401
 from app.modules.ai.embeddings import models as _embedding_models  # noqa: E402, F401
 from app.modules.connectors import models as _connector_models  # noqa: E402, F401
 from app.modules.evals import models as _eval_models  # noqa: E402, F401
+from app.modules.firewall.pii import models as _pii_models  # noqa: E402, F401
 from app.modules.graph import models as _graph_models  # noqa: E402, F401
 from app.modules.ingestion import models as _ingestion_models  # noqa: E402, F401
 from app.modules.knowledge.reindex import models as _reindex_models  # noqa: E402, F401

@@ -99,11 +99,21 @@ def get_chat_model(
         if not s.openai_key():
             raise PolicyDenied("missing_credentials")
         try:
-            return OpenAIChatModel.from_settings(
+            hosted: ChatModel = OpenAIChatModel.from_settings(
                 s, sleeper=sleeper, jitter=jitter, transport=transport
             )
         except ChatConfigurationError:
             raise PolicyDenied("endpoint_not_local") from None
+        if policy.pii_outbound in ("redact", "block"):  # M14.04, default off
+            from app.modules.ai.models.pii_guard import PiiGuardedChatModel
+
+            return PiiGuardedChatModel(
+                hosted,
+                mode=policy.pii_outbound,
+                restore=policy.pii_restore,
+                secrets=policy.pii_secrets,
+            )
+        return hosted
 
     if "local" not in allowed:
         raise PolicyDenied("provider_not_allowed")
