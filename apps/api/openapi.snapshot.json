@@ -132,6 +132,56 @@
         "title": "AiPolicyOut",
         "type": "object"
       },
+      "CanaryIn": {
+        "properties": {
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "document_id"
+        ],
+        "title": "CanaryIn",
+        "type": "object"
+      },
+      "CanaryList": {
+        "properties": {
+          "canaries": {
+            "items": {
+              "$ref": "#/components/schemas/CanaryOut"
+            },
+            "title": "Canaries",
+            "type": "array"
+          }
+        },
+        "required": [
+          "canaries"
+        ],
+        "title": "CanaryList",
+        "type": "object"
+      },
+      "CanaryOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "document_id",
+          "created_at"
+        ],
+        "title": "CanaryOut",
+        "type": "object"
+      },
       "CandidateIn": {
         "additionalProperties": false,
         "properties": {
@@ -1188,6 +1238,123 @@
           "next_cursor"
         ],
         "title": "EntityListResponse",
+        "type": "object"
+      },
+      "EventList": {
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/EventOut"
+            },
+            "title": "Events",
+            "type": "array"
+          }
+        },
+        "required": [
+          "events"
+        ],
+        "title": "EventList",
+        "type": "object"
+      },
+      "EventOut": {
+        "properties": {
+          "acknowledged_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acknowledged At"
+          },
+          "acknowledged_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acknowledged By"
+          },
+          "counts": {
+            "additionalProperties": true,
+            "title": "Counts",
+            "type": "object"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "document_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Id"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "string"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "severity",
+          "user_id",
+          "run_id",
+          "document_id",
+          "counts",
+          "created_at",
+          "acknowledged_at",
+          "acknowledged_by"
+        ],
+        "title": "EventOut",
         "type": "object"
       },
       "EvidenceIn": {
@@ -4045,6 +4212,143 @@
           "updated_at"
         ],
         "title": "SetOut",
+        "type": "object"
+      },
+      "SettingsBody": {
+        "properties": {
+          "action": {
+            "default": "flag",
+            "enum": [
+              "off",
+              "flag",
+              "throttle",
+              "block"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "block_seconds": {
+            "default": 900,
+            "maximum": 86400.0,
+            "minimum": 10.0,
+            "title": "Block Seconds",
+            "type": "integer"
+          },
+          "max_chat": {
+            "default": 60,
+            "maximum": 1000000.0,
+            "minimum": 1.0,
+            "title": "Max Chat",
+            "type": "integer"
+          },
+          "max_distinct_docs": {
+            "default": 150,
+            "maximum": 1000000.0,
+            "minimum": 1.0,
+            "title": "Max Distinct Docs",
+            "type": "integer"
+          },
+          "max_evidence_reads": {
+            "default": 200,
+            "maximum": 1000000.0,
+            "minimum": 1.0,
+            "title": "Max Evidence Reads",
+            "type": "integer"
+          },
+          "max_export": {
+            "default": 20,
+            "maximum": 1000000.0,
+            "minimum": 1.0,
+            "title": "Max Export",
+            "type": "integer"
+          },
+          "max_search": {
+            "default": 120,
+            "maximum": 1000000.0,
+            "minimum": 1.0,
+            "title": "Max Search",
+            "type": "integer"
+          },
+          "window_seconds": {
+            "default": 300,
+            "maximum": 86400.0,
+            "minimum": 10.0,
+            "title": "Window Seconds",
+            "type": "integer"
+          }
+        },
+        "title": "SettingsBody",
+        "type": "object"
+      },
+      "SettingsOut": {
+        "properties": {
+          "action": {
+            "default": "flag",
+            "enum": [
+              "off",
+              "flag",
+              "throttle",
+              "block"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "block_seconds": {
+            "default": 900,
+            "maximum": 86400.0,
+            "minimum": 10.0,
+            "title": "Block Seconds",
+            "type": "integer"
+          },
+          "is_default": {
+            "default": false,
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "max_chat": {
+            "default": 60,
+            "maximum": 1000000.0,
+            "minimum": 1.0,
+            "title": "Max Chat",
+            "type": "integer"
+          },
+          "max_distinct_docs": {
+            "default": 150,
+            "maximum": 1000000.0,
+            "minimum": 1.0,
+            "title": "Max Distinct Docs",
+            "type": "integer"
+          },
+          "max_evidence_reads": {
+            "default": 200,
+            "maximum": 1000000.0,
+            "minimum": 1.0,
+            "title": "Max Evidence Reads",
+            "type": "integer"
+          },
+          "max_export": {
+            "default": 20,
+            "maximum": 1000000.0,
+            "minimum": 1.0,
+            "title": "Max Export",
+            "type": "integer"
+          },
+          "max_search": {
+            "default": 120,
+            "maximum": 1000000.0,
+            "minimum": 1.0,
+            "title": "Max Search",
+            "type": "integer"
+          },
+          "window_seconds": {
+            "default": 300,
+            "maximum": 86400.0,
+            "minimum": 10.0,
+            "title": "Window Seconds",
+            "type": "integer"
+          }
+        },
+        "title": "SettingsOut",
         "type": "object"
       },
       "ShadowConfigOut": {
@@ -9005,6 +9309,384 @@
         "summary": "Search",
         "tags": [
           "search"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/security/abuse-settings": {
+      "get": {
+        "operationId": "get_settings_v1_orgs__org_id__security_abuse_settings_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Settings",
+        "tags": [
+          "security"
+        ]
+      },
+      "put": {
+        "operationId": "put_settings_v1_orgs__org_id__security_abuse_settings_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Settings",
+        "tags": [
+          "security"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/security/canaries": {
+      "get": {
+        "operationId": "list_canaries_v1_orgs__org_id__security_canaries_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CanaryList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Canaries",
+        "tags": [
+          "security"
+        ]
+      },
+      "post": {
+        "operationId": "mark_canary_v1_orgs__org_id__security_canaries_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CanaryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CanaryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mark Canary",
+        "tags": [
+          "security"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/security/canaries/{document_id}": {
+      "delete": {
+        "operationId": "unmark_canary_v1_orgs__org_id__security_canaries__document_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unmark Canary",
+        "tags": [
+          "security"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/security/events": {
+      "get": {
+        "operationId": "list_events_v1_orgs__org_id__security_events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "abuse_anomaly",
+                    "canary_hit"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "acknowledged",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acknowledged"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Events",
+        "tags": [
+          "security"
+        ]
+      }
+    },
+    "/v1/orgs/{org_id}/security/events/{event_id}/acknowledge": {
+      "post": {
+        "operationId": "acknowledge_v1_orgs__org_id__security_events__event_id__acknowledge_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Acknowledge",
+        "tags": [
+          "security"
         ]
       }
     },

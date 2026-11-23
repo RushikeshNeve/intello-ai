@@ -79,6 +79,10 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     "firewall_policies": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     # M12.06 (migration 0019a_prompt_gate): admins upsert the gate settings; never deleted.
     "prompt_gate_settings": {"SELECT", "INSERT", "UPDATE"},
+    # M14.07 (migration 0025_abuse_canaries): events append-only; acknowledge is column-level.
+    "security_events": {"SELECT", "INSERT"},
+    "canary_documents": {"SELECT", "INSERT", "DELETE"},
+    "abuse_settings": {"SELECT", "INSERT", "UPDATE"},
 }
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 TRIVIAL = {"true", "(true)", "1 = 1", "(1 = 1)"}

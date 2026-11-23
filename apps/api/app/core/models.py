@@ -629,6 +629,10 @@ ORG_SCOPED_TABLES: Final = (
     "answer_feedback",
     # M14.01/03 firewall policy (migration 0023_firewall_policies).
     "firewall_policies",
+    # M14.07 abuse protection and canaries (migration 0025_abuse_canaries).
+    "security_events",
+    "canary_documents",
+    "abuse_settings",
 )
 RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
 
@@ -641,6 +645,7 @@ from app.modules.connectors import models as _connector_models  # noqa: E402, F4
 from app.modules.evals import models as _eval_models  # noqa: E402, F401
 from app.modules.feedback import models as _feedback_models  # noqa: E402, F401
 from app.modules.firewall import models as _firewall_models  # noqa: E402, F401
+from app.modules.firewall import abuse_models as _abuse_models  # noqa: E402, F401
 from app.modules.graph import models as _graph_models  # noqa: E402, F401
 from app.modules.ingestion import models as _ingestion_models  # noqa: E402, F401
 from app.modules.knowledge.reindex import models as _reindex_models  # noqa: E402, F401

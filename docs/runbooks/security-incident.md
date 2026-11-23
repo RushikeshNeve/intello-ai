@@ -49,3 +49,6 @@ Prevention already in place: CI secret scan (`scripts/ci/secret_scan.py`), `.env
 4. Verify: the document returns 404 for the owner, search no longer returns it, `select count(*) from document_versions where document_id='<id>' and purged_at is null` is 0 after the purge [U].
 5. Backups still contain the data until they expire: state your backup retention to the requester (backup-restore.md).
 6. Account removal: remove the user in the identity provider (Dex `staticPasswords` or your OIDC provider) after transferring ownership; an organization always keeps one owner. [U]
+
+## 5. Canary document alert or abuse flag
+A `canary_hit` event (Settings > Abuse protection, `/security/events`) means someone retrieved a document nobody should reach: a grant or scope leak, or a compromised account. Read the event (user, document, run ids; never text), check the user's recent audit trail and the document's workspace grants, acknowledge it once handled, and revoke access if the account is suspect. An `abuse_anomaly` event is scraping or runaway automation: review the counts, then raise the org action to `throttle` or `block` if it continues. To create a canary, upload a believable document into a workspace with no members, then mark it via `POST /security/canaries`.

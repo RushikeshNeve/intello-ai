@@ -66,6 +66,7 @@ from app.modules.ai.verification import (
 from app.modules.firewall import hooks as firewall_hooks
 from app.modules.firewall import policy as firewall_policy
 from app.modules.firewall.output_guard import Context, OutputBlocked, StreamGuard
+from app.modules.firewall import abuse
 from app.modules.graph.merge import augment_evidence
 from app.modules.graph.ports_read import ChunkSource, GraphReadRepository
 from app.modules.knowledge.ports import KnowledgeRepository
@@ -749,6 +750,17 @@ class RunExecutor:
         result = self._retrieve(scope, data.question)
         evidence = self._augment(scope, data.question, list(result.evidence))
         evidence = self._with_memory(scope, data.question, evidence)
+        abuse.canary_check(
+            lambda *, user_id, org_id: chat_repo.worker_chat_session(
+                self.engine,
+                org_id=org_id,
+                user_id=user_id,  # type: ignore[arg-type]
+            ),
+            self.claim.org_id,
+            self.claim.created_by,
+            [e.document_id for e in evidence],
+            run_id=self.claim.run_id,
+        )
         evidence = firewall_hooks.filter_evidence(self._fw, evidence, self._fw_meta)
         if "retrieval" not in existing:
             self._event(

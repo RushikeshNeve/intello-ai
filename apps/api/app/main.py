@@ -37,6 +37,7 @@ from app.modules.evals.router import router as evals_router
 from app.modules.evals.shadow_router import router as shadow_router
 from app.modules.feedback.router import router as feedback_router
 from app.modules.firewall.router import router as firewall_router
+from app.modules.firewall.abuse_router import router as abuse_router
 from app.modules.graph.api import router as graph_router
 from app.modules.graph.router_review import router as graph_review_router
 from app.modules.identity.oidc import OidcTokenVerifier
@@ -158,4 +159,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(capture_router)
     app.include_router(feedback_router)
     app.include_router(firewall_router)
+    app.include_router(abuse_router)
     return app

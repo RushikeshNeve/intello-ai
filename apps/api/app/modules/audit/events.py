@@ -94,6 +94,12 @@ class AuditEventType(StrEnum):
     STYLE_UPDATED = "style.updated"
     # M14.01/03: modes and threshold only.
     FIREWALL_POLICY_UPDATED = "org.firewall_policy.updated"
+    # M14.07: ids and counts only, never query or document text.
+    SECURITY_ABUSE_FLAGGED = "security.abuse.flagged"
+    SECURITY_CANARY_HIT = "security.canary.hit"
+    SECURITY_EVENT_ACKNOWLEDGED = "security.event.acknowledged"
+    SECURITY_CANARY_CHANGED = "security.canary.changed"
+    SECURITY_ABUSE_SETTINGS_UPDATED = "security.abuse_settings.updated"
 
 
 class SessionOpener(Protocol):
