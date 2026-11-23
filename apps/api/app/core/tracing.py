@@ -371,6 +371,29 @@ def metrics() -> dict[str, Any]:
             _metrics["dispatch_errors"] = Counter(
                 "ukos_outbox_dispatch_errors_total", "Outbox rows that failed to publish", ["kind"]
             )
+            # M13.01 GenAI metrics (labels are low-cardinality: never org/user ids or content)
+            _metrics["ai_seconds"] = Histogram(
+                "ukos_ai_request_duration_seconds",
+                "Model call latency by kind, model class and outcome",
+                ["kind", "model_class", "outcome"],
+                buckets=(0.05, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120),
+            )
+            _metrics["ai_tokens"] = Counter(
+                "ukos_ai_tokens_total", "Model tokens (estimates)", ["kind", "direction"]
+            )
+            _metrics["ai_cost"] = Counter(
+                "ukos_ai_cost_micros_total", "Estimated model cost in micro currency units"
+            )
+            _metrics["ai_cache_hits"] = Counter(
+                "ukos_ai_cache_hits_total", "Cache hits by cache", ["cache"]
+            )
+            _metrics["ai_abstain"] = Counter("ukos_ai_abstain_total", "Abstained answers")
+            _metrics["ai_citation_invalid"] = Counter(
+                "ukos_ai_citation_invalid_total", "Citations that failed verification"
+            )
+            _metrics["provider_errors"] = Counter(
+                "ukos_provider_errors_total", "Provider call errors", ["provider", "code"]
+            )
         return _metrics
 
 

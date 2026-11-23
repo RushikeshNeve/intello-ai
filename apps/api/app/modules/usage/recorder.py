@@ -47,6 +47,16 @@ def estimate_cost_micros(
     return max(0, (tokens_in * p_in + tokens_out * p_out + tokens_cached * p_cached) // 1_000_000)
 
 
+def _genai_hook(*args: Any) -> None:
+    """M13.01: spans and metrics from the same numbers as the usage event (no second counting)."""
+    try:
+        from app.core import tracing_genai
+
+        tracing_genai.on_usage(*args)
+    except Exception:  # noqa: BLE001 - telemetry never fails a model call
+        pass
+
+
 class UsageRecorder:
     def __init__(self, sessions: SessionFor, prices_json: str | None = None) -> None:
         self._sessions = sessions
@@ -73,6 +83,9 @@ class UsageRecorder:
         try:
             cost = estimate_cost_micros(
                 self._prices_json(), provider, model, tokens_in, tokens_out, tokens_cached
+            )
+            _genai_hook(
+                ctx.kind, provider, model, tokens_in, tokens_out, tokens_cached, latency_ms, cost
             )
             with self._sessions(ctx.org_id) as session:
                 session.execute(
