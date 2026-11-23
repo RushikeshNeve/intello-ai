@@ -169,6 +169,8 @@ def test_worker_reachable_relations_are_exactly_the_documented_set(
         "shadow_runs",
         # M14.01/03 (migration 0023)
         "firewall_policies",
+        # M14.08 (migration 0026; exact rules: test_20_tenant_keys.py)
+        "tenant_keys",
     }
     with admin_engine.connect() as conn:
         reachable = set(

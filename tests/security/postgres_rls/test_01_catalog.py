@@ -83,6 +83,9 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     "security_events": {"SELECT", "INSERT"},
     "canary_documents": {"SELECT", "INSERT", "DELETE"},
     "abuse_settings": {"SELECT", "INSERT", "UPDATE"},
+    # M14.08 (migration 0026_tenant_keys): lazy creation of an org's first data key only;
+    # retire/rotate/shred are operator (admin) commands. Depth: test_20_tenant_keys.py.
+    "tenant_keys": {"SELECT", "INSERT"},
 }
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 TRIVIAL = {"true", "(true)", "1 = 1", "(1 = 1)"}
