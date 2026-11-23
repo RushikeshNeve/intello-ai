@@ -624,6 +624,9 @@ ORG_SCOPED_TABLES: Final = (
     "usage_limits",
     # M12.06 prompt change gate (migration 0019a_prompt_gate).
     "prompt_gate_settings",
+    # M13.02/03 capture + feedback (migrations 0020_ai_run_captures, 0021_answer_feedback).
+    "ai_run_captures",
+    "answer_feedback",
 )
 RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
 
@@ -634,10 +637,12 @@ from app.modules.ai import models_db as _ai_models  # noqa: E402, F401
 from app.modules.ai.embeddings import models as _embedding_models  # noqa: E402, F401
 from app.modules.connectors import models as _connector_models  # noqa: E402, F401
 from app.modules.evals import models as _eval_models  # noqa: E402, F401
+from app.modules.feedback import models as _feedback_models  # noqa: E402, F401
 from app.modules.graph import models as _graph_models  # noqa: E402, F401
 from app.modules.ingestion import models as _ingestion_models  # noqa: E402, F401
 from app.modules.knowledge.reindex import models as _reindex_models  # noqa: E402, F401
 from app.modules.memory import models as _memory_models  # noqa: E402, F401
+from app.modules.observability import models as _observability_models  # noqa: E402, F401
 from app.modules.prompts import models as _prompt_models  # noqa: E402, F401
 from app.modules.prompts import style_models as _style_models  # noqa: E402, F401
 from app.modules.research import models as _research_models  # noqa: E402, F401

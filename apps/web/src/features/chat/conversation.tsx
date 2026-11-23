@@ -14,6 +14,7 @@ import { MAX_MESSAGE_LENGTH, createThread, getThread, startRun, toChatErrorCode,
 import { RememberButton } from "@/features/memory/remember-button";
 import { AnswerBody, CopyButton, SourceList, VerificationBanner, type LinkCtx } from "./answer-view";
 import { Composer } from "./composer";
+import { FeedbackButtons } from "./feedback-buttons";
 import { chatKeys, newIdempotencyKey } from "./keys";
 import { runErrorMessage, sendErrorMessage } from "./messages";
 import { isTerminalStatus, type RunView } from "./run-state";
@@ -315,6 +316,7 @@ function MessageBubble({ message, ctx, orgId }: { message: ChatMessage; ctx: Lin
       <div className="flex flex-wrap items-center gap-1">
         <CopyButton text={message.content} />
         <RememberButton orgId={orgId} orgSlug={ctx.orgSlug} answer={message.content} citations={message.citations} />
+        {message.run_id ? <FeedbackButtons orgId={orgId} messageId={message.id} /> : null}
       </div>
     </SurfaceCard>
   );

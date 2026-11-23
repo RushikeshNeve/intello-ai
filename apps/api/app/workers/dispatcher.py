@@ -445,6 +445,15 @@ class Dispatcher:
             else:
                 if swept:
                     log.info("memory sweep changed %s memor(ies)", swept)
+            try:  # M13.02: expired prompt/response captures
+                from app.modules.observability.capture import sweep_expired
+
+                expired = sweep_expired(self.engine)
+            except Exception as exc:  # noqa: BLE001 - maintenance must not stop the dispatcher
+                log.error("capture sweep failed (%s)", type(exc).__name__)
+            else:
+                if expired:
+                    log.info("capture sweep deleted %s capture(s)", expired)
 
 
 def health_ok(settings: WorkerSettings, *, now: float | None = None) -> bool:

@@ -889,8 +889,31 @@ class RunExecutor:
             if vc.evidence_id in resolved
         ]
         outcome = self._complete(verification, citations)
+        self._capture(bundle, verification.answer_text, scope)
         self._remember_for_shadow(verification, scope)
         return outcome
+
+    def _capture(self, bundle: PromptBundle, answer: str, scope: RetrievalScope) -> None:
+        """Redacted prompt/response capture (M13.02): off unless the org enabled it; best effort,
+        never fails or logs the run (text is never logged)."""
+        try:
+            from app.modules.observability.capture import record_capture
+
+            workspace = next(iter(scope.workspace_ids)) if len(scope.workspace_ids) == 1 else None
+            with self._session() as session:
+                record_capture(
+                    session,
+                    org_id=self.claim.org_id,
+                    run_id=self.claim.run_id,
+                    workspace_id=workspace,
+                    prompt_version_id=self._prompt.version_id,
+                    messages=[(m["role"], m["content"]) for m in bundle.messages],
+                    answer=answer,
+                    chunk_ids=[uuid.UUID(str(e.chunk_id)) for e in bundle.used_evidence],
+                    document_ids=[uuid.UUID(str(e.document_id)) for e in bundle.used_evidence],
+                )
+        except Exception as exc:  # noqa: BLE001 - capture must never break a finished run
+            log.warning("chat run=%s capture failed (%s)", self.claim.run_id, type(exc).__name__)
 
     def _remember_for_shadow(self, verification: Verification, scope: RetrievalScope) -> None:
         if self._seed_parts is None:
