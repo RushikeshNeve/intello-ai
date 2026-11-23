@@ -39,6 +39,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.api.deps import Tenant, TenantRequest, api_error
 from app.core.config import get_settings
+from app.modules.ai import egress
 from app.modules.connectors.settings import UrlCaptureSettings, get_url_capture_settings
 from app.modules.documents import errors, upload_service
 from app.modules.documents.remote_ingest import QuotaExceeded, ingest_bytes
@@ -142,6 +143,7 @@ class _HttpxResponse:
 
 def httpx_transport(req: PinnedRequest) -> FetchResponse:
     """Real transport: TCP to the pinned IP; TLS SNI + certificate check use the original name."""
+    egress.check(req.host, "url_capture", addresses=[req.ip])
     literal = f"[{req.ip}]" if ":" in req.ip else req.ip
     client = httpx.Client(
         timeout=req.timeout, follow_redirects=False, trust_env=False, cookies=None

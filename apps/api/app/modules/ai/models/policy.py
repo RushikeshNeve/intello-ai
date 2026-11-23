@@ -21,6 +21,7 @@ DENIAL_MESSAGES = {
     "no_allowed_provider": "No AI provider is available under your organization's policy.",
     "endpoint_not_local": "The configured AI endpoint is not local and external providers are not permitted.",  # noqa: E501
     "unknown_provider": "The requested AI provider is not supported.",
+    "hosted_not_allowed": "Hosted AI providers have not been enabled for your organization by an owner.",  # noqa: E501
     "policy_unavailable": "The organization's AI policy could not be read.",
 }
 
@@ -39,6 +40,7 @@ class PolicyDenied(Exception):
 class ModelPolicy:
     allow_external: bool = False
     allowed_providers: frozenset[str] = field(default_factory=lambda: frozenset({"local"}))
+    hosted_models_allowed: bool = False  # owner opt-in (M14.05)
 
     @classmethod
     def local_only(cls) -> ModelPolicy:

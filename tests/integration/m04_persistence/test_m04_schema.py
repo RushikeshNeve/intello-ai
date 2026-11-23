@@ -37,6 +37,7 @@ NEXT_PHASE_CHAIN = (
     "0019a_prompt_gate",
     "0019b_workspace_styles",
     "0019c_shadow_runs",
+    "0028_org_hosted_optin",
 )
 HEAD = NEXT_PHASE_CHAIN[-1]
 PREVIOUS = "0006_ingestion_requeue"
@@ -492,7 +493,7 @@ ALL = {"SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGE
 APP_PRIVS = {
     "ai_policies": (
         {"SELECT", "INSERT"},
-        {"allow_external", "allowed_providers", "updated_by", "updated_at"},
+        {"allow_external", "allowed_providers", "updated_by", "updated_at", "hosted_models_allowed"},
     ),
     "chat_threads": ({"SELECT", "INSERT"}, {"title", "deleted_at", "updated_at"}),
     "chat_messages": ({"SELECT", "INSERT"}, set()),

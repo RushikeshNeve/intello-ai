@@ -55,6 +55,7 @@ def test_owner_and_admin_write_and_it_is_audited(api: Api) -> None:
         "from_providers": ["local"],
         "allow_external": True,
         "providers": ["local", "openai"],
+        "hosted_models_allowed": False,
     }
     # An admin can narrow it again; the read sees the stored row.
     res2 = api.put(_url(t), t.admin, {"allow_external": False, "allowed_providers": ["local"]})

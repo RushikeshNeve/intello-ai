@@ -32,6 +32,7 @@ import jwt
 
 from app.core.config import Settings
 from app.core.security import InvalidTokenError, VerifiedClaims
+from app.modules.ai import egress
 
 logger = logging.getLogger("ukos.identity.oidc")
 
@@ -93,7 +94,11 @@ class OidcTokenVerifier:
         self._cache_seconds = float(settings.OIDC_JWKS_CACHE_SECONDS)
         self._jwks_url = settings.OIDC_INTERNAL_URL.rstrip("/") + "/keys"
         self._owns_client = http_client is None
-        self._client = http_client or httpx.Client(timeout=_HTTP_TIMEOUT, follow_redirects=False)
+        self._client = http_client or httpx.Client(
+            timeout=_HTTP_TIMEOUT,
+            follow_redirects=False,
+            event_hooks={"request": [egress.request_hook("oidc")]},
+        )
         self._monotonic = monotonic
 
         self._lock = threading.Lock()

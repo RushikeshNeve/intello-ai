@@ -292,12 +292,17 @@ def setup_otel(service: str, *, enabled: bool, endpoint: str) -> bool:
     global _otel_ready
     if not enabled or _otel_ready:
         return _otel_ready
+    from urllib.parse import urlsplit
+
     from opentelemetry import trace
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
+    from app.modules.ai import egress
+
+    egress.check(urlsplit(endpoint).hostname or "", "otlp")
     provider = TracerProvider(resource=Resource.create({"service.name": service}))
     provider.add_span_processor(
         BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint.rstrip("/") + "/v1/traces"))

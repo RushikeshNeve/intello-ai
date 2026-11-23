@@ -34,6 +34,7 @@ from typing import Any, Final
 import httpx
 
 from app.infrastructure.rushdb.settings import RushDbSettings
+from app.modules.ai import egress
 from app.modules.knowledge.ports import (
     MAX_UPSERT_BATCH,
     TEXT_INDEX_NAME,
@@ -101,6 +102,7 @@ class RushDbKnowledgeRepository:
         self._owns_client = client is None
         self._client = client or httpx.Client(
             base_url=settings.RUSHDB_URL,
+            event_hooks={"request": [egress.request_hook("rushdb")]},
             timeout=httpx.Timeout(
                 settings.RUSHDB_READ_TIMEOUT_SECONDS,
                 connect=settings.RUSHDB_CONNECT_TIMEOUT_SECONDS,

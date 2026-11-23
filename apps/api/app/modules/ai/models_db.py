@@ -122,6 +122,7 @@ class AiPolicy(Base):
     allowed_providers: Mapped[list[str]] = mapped_column(
         ARRAY(Text), server_default=text("ARRAY['local']::text[]")
     )
+    hosted_models_allowed: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
     updated_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", name="fk_ai_policies_updated_by")
     )

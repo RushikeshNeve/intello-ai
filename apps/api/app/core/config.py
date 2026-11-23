@@ -108,6 +108,8 @@ class Settings(BaseSettings):
     VERIFY_EMBED_MIN: float = Field(default=0.55, ge=0.0, le=1.0)
     # External providers (DC-020): off unless BOTH this flag and the org's ai_policies row allow it.
     AI_EXTERNAL_PROVIDERS_ENABLED: bool = False
+    # Egress allowlist (M14.05): comma separated host patterns; empty = allow all (dev, warns).
+    EGRESS_ALLOWED_HOSTS: str = ""
     OPENAI_API_KEY: SecretStr | None = None
     OPENAI_CHAT_MODEL: str = Field(default="gpt-4o-mini", min_length=1, max_length=200)
 
