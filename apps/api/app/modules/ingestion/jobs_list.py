@@ -61,7 +61,10 @@ def _state_expr() -> Any:
         (j.state == "running", "processing"),
         (
             j.state == "succeeded",
-            case((KnowledgeRevision.state.in_(("building", "ready")), "processing"), else_="ready"),
+            case(
+                (KnowledgeRevision.state.in_(("building", "ready", "quarantined")), "processing"),
+                else_="ready",
+            ),
         ),
         (j.state == "dead", "failed"),
         (

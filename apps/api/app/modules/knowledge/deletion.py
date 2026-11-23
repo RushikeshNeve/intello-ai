@@ -83,6 +83,9 @@ def deny_in_postgres(
                 "a": job.attempts,
             },
         )
+    session.execute(
+        text("DELETE FROM document_findings WHERE document_id = :d"), {"d": document_id}
+    )
     revisions = [
         row.id
         for row in session.execute(

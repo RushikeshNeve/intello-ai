@@ -55,6 +55,7 @@ from app.modules.ingestion.runner_types import (
     PipelineResult,
     RetryableJobError,
 )
+from app.modules.ingestion.scan import service as scan
 from app.modules.knowledge import indexing
 from app.modules.knowledge.indexing import IndexValidationError, RevisionIdentity
 from app.modules.knowledge.ports import (
@@ -218,6 +219,8 @@ class DefaultPipelineRunner:
             )
         if state in (indexing.STATE_SUPERSEDED, indexing.STATE_PURGED):
             return PipelineResult("succeeded", f"revision_{state}")
+        if state == scan.STATE_QUARANTINED:  # parked until an admin releases it (M14.02)
+            return PipelineResult("succeeded", "quarantined")
         spec = embedder.spec
         if spec.space_id != src.embedding_space_id:
             raise PermanentJobError("embedding_space_mismatch")
@@ -233,8 +236,11 @@ class DefaultPipelineRunner:
         pv = src.pipeline_version
 
         # 1. extract ------------------------------------------------------------------
+        downloaded: list[bytes] = []
+
         def compute_extract() -> bytes:
             data = self._download(src, settings)
+            downloaded.append(data)
             ctx.heartbeat()
             doc = extract(
                 data,
@@ -265,6 +271,17 @@ class DefaultPipelineRunner:
         )
         if extracted.data is None:
             raise RuntimeError("stage output missing")
+        self._alive(ctx, claim)
+
+        # 1b. scan (M14.02): findings; quarantine mode stops here for a high-severity document ----
+        if scan.run_scan_stage(
+            ctx,
+            claim,
+            load_raw=lambda: downloaded[0] if downloaded else self._download(src, settings),
+            load_doc=lambda: art.decode_extracted(extracted.data or b""),
+            content_type=src.content_type,
+        ):
+            return PipelineResult("succeeded", "quarantined")
         self._alive(ctx, claim)
 
         # 2. chunk --------------------------------------------------------------------

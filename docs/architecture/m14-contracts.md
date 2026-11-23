@@ -7,3 +7,11 @@
 - `firewall/output_guard.py`: per-org canary appended to the system scaffold only while output mode != off (prompt text and `PROMPT_VERSION` unchanged), 6-word scaffold shingle echo, secret patterns, citation markers/ids outside the offered evidence. `StreamGuard` holds back 96 chars so blocked text is never flushed; block -> run fails `output_blocked`; redact replaces secrets (and `firewall.pii.redact` when that module exists; guarded import), unredactable findings block.
 - Fail-safe: guard error in block mode blocks (user: refuse, chunk: drop, output: withhold); in flag/off it passes. Policy load failure reads as off.
 - Metadata: `chat_runs.model.firewall` holds counts and rule ids only, never text.
+
+## M14.02 Document scanning
+Ingestion scan runs inside `DefaultPipelineRunner` between extract and chunk (`modules/ingestion/scan/`). It is not a checkpointed stage (`STAGES` is unchanged): it re-runs idempotently on resume (findings replaced per version in one transaction).
+- Policy `document_scan_policies` (workspace row, else org default, else `flag`): `off` | `flag` (index, show findings) | `quarantine` (a `high` finding sets `knowledge_revisions.state='quarantined'`; no chunks, embeddings, index writes or publication; job ends `succeeded`/`quarantined`).
+- Fails closed: scanner error in `quarantine` mode raises `RetryableJobError("scan_failed")`; in `flag` mode indexing proceeds.
+- `document_findings` (rule, severity, page/offset/entry location, preview <= 40 chars redacted; FORCE RLS, admin read, worker write; unique per version/rule/location). Rules: hidden_instruction, invisible_unicode, hidden_text (HTML), suspicious_link, office_macro, embedded_executable, embedded_object, pdf_active_content. Not available from extractors: PDF white/tiny text, text-to-visible mismatch.
+- API (workspace admin = `workspace.update`): `GET/PUT .../scan-policy`, `GET .../documents/{d}/findings`, `GET .../quarantine`, `POST .../quarantine/{d}/release` (records `document_scan_releases`, definer `ingest_release_quarantine` re-queues the job), `DELETE .../quarantine/{d}` (normal deletion; also removes findings).
+- Non-admins see a quarantined document's ingestion state as `processing` (status/jobs mapping). ORM `REVISION_STATES` is unchanged (an existing test pins it); migration 0024 is the authority for the `quarantined` CHECK.
