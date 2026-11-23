@@ -125,6 +125,9 @@ class AiPolicy(Base):
     # M13.02: prompt/response capture (off by default; retention 1-90 days)
     capture_mode: Mapped[str] = mapped_column(Text, server_default=text("'off'"))
     capture_retention_days: Mapped[int] = mapped_column(Integer, server_default=text("14"))
+    pii_outbound: Mapped[str] = mapped_column(Text, server_default=text("'off'"))  # M14.04
+    pii_restore: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    pii_secrets: Mapped[str] = mapped_column(Text, server_default=text("'block'"))
     updated_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", name="fk_ai_policies_updated_by")
     )

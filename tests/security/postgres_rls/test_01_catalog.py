@@ -77,6 +77,8 @@ EXPECTED_PRIVILEGES: dict[str, set[str]] = {
     "shadow_runs": {"SELECT"},
     # M14.01/03 (migration 0023): admins upsert the firewall policy; the worker only reads.
     "firewall_policies": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    # M14.04 (migration 0027_pii_policy): admins upsert per-workspace PII flags.
+    "workspace_pii_settings": {"SELECT", "INSERT", "UPDATE"},
     # M12.06 (migration 0019a_prompt_gate): admins upsert the gate settings; never deleted.
     "prompt_gate_settings": {"SELECT", "INSERT", "UPDATE"},
     # M14.07 (migration 0025_abuse_canaries): events append-only; acknowledge is column-level.

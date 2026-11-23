@@ -1,4 +1,4 @@
-# M14 contracts
+# M14 contracts: AI firewall and security
 
 ## M14.01/03 Input guard and output guard
 - Table `firewall_policies` (migration 0023, RLS by org, app CRUD, worker SELECT): modes `input_user`, `input_evidence` in off|flag|block, `output` in off|flag|block|redact, `threshold` 0.05-1.0. No row = all off. API `GET/PUT /v1/orgs/{org}/firewall-policy` (members read, owner/admin write, other org 404); audit `org.firewall_policy.updated` (modes only). UI: AI firewall card in settings.
@@ -24,8 +24,6 @@ Ingestion scan runs inside `DefaultPipelineRunner` between extract and chunk (`m
 - Admin API `/v1/orgs/{org}/security/{events, events/{id}/acknowledge, abuse-settings, canaries}`: owner/admin only (member 403, outsider 404). Web: `AbusePanel` in settings.
 - Runbook: place a canary in a locked workspace nobody is granted, with a believable title; treat any event as an incident (security-incident.md section 5).
 
-# M14 contracts: AI firewall and security
-
 ## M14.08 Encryption and key management
 - Envelope encryption (`app/core/crypto`): `KeyProvider` (KEK) wraps per-org DEKs in `tenant_keys` (0026: id, org_id, kek_id, wrapped_key, state active|retired, FORCE RLS; app/worker SELECT+INSERT only; one active per org). `LocalFileKeyProvider` (`MASTER_KEY_FILE`/`MASTER_KEY`, `MASTER_KEY_ID`, `MASTER_OLD_KEYS`); AWS/GCP KMS and Vault are a documented stub (`KEY_PROVIDER`). Unset master key = M06 single-key behaviour unchanged.
 - Sealed value: AES-256-GCM, key id `dek:<uuid>`, aad = `ukos-dek-v1|org_id|row id`; wrap aad = `ukos-kek-v1|org_id|dek_id`.
@@ -33,3 +31,10 @@ Ingestion scan runs inside `DefaultPipelineRunner` between extract and chunk (`m
 - `scripts/ops/rotate-keys.sh kek|dek --org|reencrypt|verify|shred --org --yes` (dry run + verify around each change; batched, SKIP LOCKED, resumable, idempotent). Shred = delete the org's DEKs; legacy rows are not covered until re-encrypted.
 - Backups: `BACKUP_ENCRYPTION_KEY_FILE` -> `payload.tar.enc` (openssl aes-256-cbc pbkdf2 200k; manifest `encrypted: true`, `key_id` = label or key fingerprint, payload sha256); restore.sh decrypts to a temp dir, then the normal manifest verify (plaintext hashes = integrity).
 - Not done: memory/capture text columns stay plaintext (FTS/search and the evidence pipeline read them; encrypting them would break retrieval for little gain over disk encryption). Compose files do not yet pass `MASTER_*` to api/worker (mount the key file as a secret; follow-up).
+
+## M14.04 PII and secret detection
+- API (`app.modules.firewall.pii`): `detect(text)->[Finding(type,start,end,confidence)]`, `redact(text, mode='mask'|'placeholder'|'hash', policy)->RedactionResult(text, counts_by_type)`; `Redactor` keeps stable per-request placeholders (`[EMAIL_1]`) and `restore()`. Guards import `redact` lazily. Matched values are never logged or in reprs.
+- Detectors: email, phone (E.164-ish/US), IPv4/6, card (Luhn), IBAN (mod-97), US SSN, Aadhaar (Verhoeff, bare digits need context), PAN, passport (context word), JWT, AWS/GCP/GitHub/Slack/OpenAI/Anthropic/Stripe keys, PEM private keys, high-entropy values after key/secret/token/password. Types in `SECRET_TYPES` vs `PII_TYPES`.
+- Outbound: `ai_policies.pii_outbound` off|redact|block (default off), `pii_restore` (default false), `pii_secrets` block|redact (default block). `get_chat_model` wraps the hosted adapter in `PiiGuardedChatModel` only when enabled; local path untouched. Mapping never leaves the process. Block raises `PiiBlocked` (run error code `pii_blocked`, counts only).
+- Ingestion: `workspace_pii_settings(record_counts, mask_indexed)` default off, migration `0027_pii_policy`; `ingest.scan_text` returns counts by type only. NOT yet wired into the pipeline: M14.02 should call `load_workspace_settings`/`scan_text` and store counts as a finding.
+- Known limits: person names and postal addresses are not detected; heuristics (phones, IPv4, entropy) can false-positive/negative; no non-Latin digit handling; outbound redaction covers prompt messages only, not provider-side tool payloads.
