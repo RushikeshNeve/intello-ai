@@ -65,7 +65,7 @@ from app.modules.ai.verification import (
 )
 from app.modules.firewall import hooks as firewall_hooks
 from app.modules.firewall import policy as firewall_policy
-from app.modules.firewall.output_guard import OutputBlocked, StreamGuard
+from app.modules.firewall.output_guard import Context, OutputBlocked, StreamGuard
 from app.modules.graph.merge import augment_evidence
 from app.modules.graph.ports_read import ChunkSource, GraphReadRepository
 from app.modules.knowledge.ports import KnowledgeRepository
@@ -847,7 +847,7 @@ class RunExecutor:
             )
         ).start()
         pieces: list[str] = []
-        guard = self._guard or StreamGuard(firewall_policy.OFF, firewall_hooks.Context())
+        guard = self._guard or StreamGuard(firewall_policy.OFF, Context())
         try:
             while True:
                 now = self._clock()
