@@ -50,7 +50,7 @@ from app.modules.ingestion.schemas import (
 NO_TEXT_CODE: Final = "no_text_extracted"
 DEFAULT_EVENT_LIMIT: Final = 50
 MAX_EVENT_LIMIT: Final = 200
-_PENDING_REVISION_STATES: Final = frozenset({"building", "ready"})
+_PENDING_REVISION_STATES: Final = frozenset({"building", "ready", "quarantined"})
 
 
 @dataclass(frozen=True)
