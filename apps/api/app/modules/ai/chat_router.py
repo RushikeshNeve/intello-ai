@@ -37,6 +37,7 @@ from app.modules.ai.chat_schemas import (
     ThreadOut,
     ThreadRename,
 )
+from app.modules.firewall import abuse
 
 router = APIRouter(prefix="/v1/orgs/{org_id}/chat", tags=["chat"])
 
@@ -133,6 +134,8 @@ def create_run(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> RunAccepted:
     with tenant.transaction(org_id) as session:
+        chat_service.require_member(session, tenant, org_id)
+        abuse.guard(tenant.sessions, org_id, tenant.user_id, "chat", request_id=tenant.request_id)
         accepted = chat_service.create_run(
             session,
             tenant,

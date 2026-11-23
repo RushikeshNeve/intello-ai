@@ -92,6 +92,12 @@ class AuditEventType(StrEnum):
     PROMPT_VERSION_ROLLED_BACK = "prompt.version.rolled_back"
     # M12.07: scope and ids only, never the instruction text.
     STYLE_UPDATED = "style.updated"
+    # M14.07: ids and counts only, never query or document text.
+    SECURITY_ABUSE_FLAGGED = "security.abuse.flagged"
+    SECURITY_CANARY_HIT = "security.canary.hit"
+    SECURITY_EVENT_ACKNOWLEDGED = "security.event.acknowledged"
+    SECURITY_CANARY_CHANGED = "security.canary.changed"
+    SECURITY_ABUSE_SETTINGS_UPDATED = "security.abuse_settings.updated"
 
 
 class SessionOpener(Protocol):

@@ -63,6 +63,7 @@ from app.modules.ai.verification import (
     abstention,
     verify,
 )
+from app.modules.firewall import abuse
 from app.modules.graph.merge import augment_evidence
 from app.modules.graph.ports_read import ChunkSource, GraphReadRepository
 from app.modules.knowledge.ports import KnowledgeRepository
@@ -733,6 +734,17 @@ class RunExecutor:
         result = self._retrieve(scope, data.question)
         evidence = self._augment(scope, data.question, list(result.evidence))
         evidence = self._with_memory(scope, data.question, evidence)
+        abuse.canary_check(
+            lambda *, user_id, org_id: chat_repo.worker_chat_session(
+                self.engine,
+                org_id=org_id,
+                user_id=user_id,  # type: ignore[arg-type]
+            ),
+            self.claim.org_id,
+            self.claim.created_by,
+            [e.document_id for e in evidence],
+            run_id=self.claim.run_id,
+        )
         if "retrieval" not in existing:
             self._event(
                 "retrieval",

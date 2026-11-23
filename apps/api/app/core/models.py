@@ -624,6 +624,10 @@ ORG_SCOPED_TABLES: Final = (
     "usage_limits",
     # M12.06 prompt change gate (migration 0019a_prompt_gate).
     "prompt_gate_settings",
+    # M14.07 abuse protection and canaries (migration 0025_abuse_canaries).
+    "security_events",
+    "canary_documents",
+    "abuse_settings",
 )
 RLS_TABLES: Final = ("users", *ORG_SCOPED_TABLES)
 
@@ -634,6 +638,7 @@ from app.modules.ai import models_db as _ai_models  # noqa: E402, F401
 from app.modules.ai.embeddings import models as _embedding_models  # noqa: E402, F401
 from app.modules.connectors import models as _connector_models  # noqa: E402, F401
 from app.modules.evals import models as _eval_models  # noqa: E402, F401
+from app.modules.firewall import abuse_models as _abuse_models  # noqa: E402, F401
 from app.modules.graph import models as _graph_models  # noqa: E402, F401
 from app.modules.ingestion import models as _ingestion_models  # noqa: E402, F401
 from app.modules.knowledge.reindex import models as _reindex_models  # noqa: E402, F401

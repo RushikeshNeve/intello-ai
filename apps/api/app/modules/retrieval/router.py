@@ -23,6 +23,7 @@ from app.modules.audit import AuditEventType, record_event
 from app.modules.authorization.policy import Action
 from app.modules.documents import catalog_service as svc
 from app.modules.documents.errors import storage_unavailable
+from app.modules.firewall import abuse
 from app.modules.knowledge.ports import UnknownOrganization
 from app.modules.organizations.service import load_org_access
 from app.modules.retrieval import service
@@ -162,6 +163,19 @@ def search(
             candidate_count = outcome.candidate_count
             evidence_count = len(outcome.evidence)
         took_ms = int((time.perf_counter() - started) * 1000)
+        if results:
+            seen = [r.document_id for r in results]
+            abuse.guard(
+                tenant.sessions,
+                org_id,
+                tenant.user_id,
+                None,
+                document_ids=seen,
+                request_id=tenant.request_id,
+            )
+            abuse.canary_check(
+                tenant.sessions, org_id, tenant.user_id, seen, request_id=tenant.request_id
+            )
         record_event(
             session,
             event_type=AuditEventType.SEARCH_PERFORMED,
@@ -241,6 +255,17 @@ def get_chunk_evidence(
         found = svc.fetch_version(session, ctx, document_id, version_id, latest_id)
         if found is None or found.purged:
             raise not_found()
+        abuse.guard(
+            tenant.sessions,
+            org_id,
+            tenant.user_id,
+            "evidence_read",
+            document_ids=[document_id],
+            request_id=tenant.request_id,
+        )
+        abuse.canary_check(
+            tenant.sessions, org_id, tenant.user_id, [document_id], request_id=tenant.request_id
+        )
         try:
             view = load_version_chunk(
                 session,

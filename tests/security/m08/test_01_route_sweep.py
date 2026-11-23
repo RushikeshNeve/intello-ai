@@ -103,6 +103,11 @@ BODIES: dict[tuple[str, str], Any] = {
         "action": "block",
         "max_requests": 2,
     },
+    # M14.07 abuse settings and canary documents.
+    ("PUT", "/v1/orgs/{org_id}/security/abuse-settings"): {"action": "flag"},
+    ("POST", "/v1/orgs/{org_id}/security/canaries"): {
+        "document_id": "00000000-0000-4000-8000-000000000002"
+    },
 }
 
 # Org-level routes only org owners/admins may WRITE: a plain org member gets 403 (d').
@@ -114,6 +119,10 @@ ORG_ADMIN_WRITES = {
     ("POST", "/v1/orgs/{org_id}/workspaces"),
     ("PUT", "/v1/orgs/{org_id}/ai-policy"),
     ("PUT", "/v1/orgs/{org_id}/style"),
+    ("PUT", "/v1/orgs/{org_id}/security/abuse-settings"),
+    ("POST", "/v1/orgs/{org_id}/security/canaries"),
+    ("POST", "/v1/orgs/{org_id}/security/events/{event_id}/acknowledge"),
+    ("DELETE", "/v1/orgs/{org_id}/security/canaries/{document_id}"),
 }
 # Workspace "writes" that any workspace member may legitimately call (reads shaped as POST).
 VIEWER_MAY: set[tuple[str, str]] = set()

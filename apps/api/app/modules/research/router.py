@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, Query, Response, status
 
 from app.api.deps import KeysetCursor, Tenant, api_error
 from app.core.config import Settings, get_settings
+from app.modules.firewall import abuse
 from app.modules.research import service
 from app.modules.research.schemas import (
     CancelOut,
@@ -93,6 +94,7 @@ def export(
 ) -> Response:
     with tenant.transaction(org_id) as session:
         body = service.export_markdown(session, tenant, org_id, session_id)
+        abuse.guard(tenant.sessions, org_id, tenant.user_id, "export", request_id=tenant.request_id)
     return Response(
         content=body,
         media_type="text/markdown; charset=utf-8",
