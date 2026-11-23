@@ -43,6 +43,7 @@ NEXT_PHASE_TABLES = {
     "workspace_styles",
     "shadow_candidates",
     "shadow_runs",
+    "firewall_policies",
 }
 ALL_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
 SEARCH_PATH = ["search_path=pg_catalog, public, pg_temp"]

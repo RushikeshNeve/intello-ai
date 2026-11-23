@@ -65,6 +65,7 @@ CONTRACT_EVENT_TYPES = {
     "prompt.version.activated",
     "prompt.version.rolled_back",
     "style.updated",
+    "org.firewall_policy.updated",
 }
 
 

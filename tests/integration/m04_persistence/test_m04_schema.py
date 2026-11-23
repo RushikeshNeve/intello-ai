@@ -39,6 +39,7 @@ NEXT_PHASE_CHAIN = (
     "0019c_shadow_runs",
     "0020_ai_run_captures",
     "0021_answer_feedback",
+    "0023_firewall_policies",
 )
 HEAD = NEXT_PHASE_CHAIN[-1]
 PREVIOUS = "0006_ingestion_requeue"

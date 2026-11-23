@@ -51,6 +51,7 @@ from app.modules.ai.models.types import ChatModel
 from app.modules.ai.policy_source import DbPolicySource
 from app.modules.ai.structured import generate_structured
 from app.modules.ai.verification import VerifyConfig, verify
+from app.modules.firewall import hooks as firewall_hooks
 from app.modules.graph.merge import augment_evidence
 from app.modules.prompts import styles
 from app.modules.research import planner, repo
@@ -468,6 +469,10 @@ class ResearchExecutor:
                     )
                 evidence, dropped, degraded = list(result.evidence), result.dropped, result.degraded
                 evidence = self._augment(scope, query, evidence)[:left]
+                # M14.01: hostile chunks dropped per org policy (off = unchanged, fail-safe).
+                evidence = firewall_hooks.filter_evidence(
+                    firewall_hooks.load_policy(self._session, self.claim.org_id), evidence, {}
+                )
         stored = [_evidence_json(n, e) for n, e in enumerate(evidence, start=1)]
         self._usage["evidence_chunks"] += len(stored)
         with self._session() as session:

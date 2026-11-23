@@ -33,6 +33,7 @@ NEXT_PHASE_CHAIN = (
     "0019a_prompt_gate",
     "0019b_workspace_styles",
     "0019c_shadow_runs",
+    "0023_firewall_policies",
 )
 HEAD = NEXT_PHASE_CHAIN[-1]
 M07_HEAD = "0010_memory_research"  # M07: memory + research on top of 0009

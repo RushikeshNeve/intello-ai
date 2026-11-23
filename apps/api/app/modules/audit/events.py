@@ -92,6 +92,8 @@ class AuditEventType(StrEnum):
     PROMPT_VERSION_ROLLED_BACK = "prompt.version.rolled_back"
     # M12.07: scope and ids only, never the instruction text.
     STYLE_UPDATED = "style.updated"
+    # M14.01/03: modes and threshold only.
+    FIREWALL_POLICY_UPDATED = "org.firewall_policy.updated"
 
 
 class SessionOpener(Protocol):
